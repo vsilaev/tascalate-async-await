@@ -63,15 +63,14 @@ public class AsyncCall {
 			return CompletableFuture.completedFuture(Collections.emptyList());
 		} else if (conditions.length == 1) {
 			final CompletableFuture<List<Object>> result = new CompletableFuture<>();
-			if (1 == 1)
-			throw new RuntimeException("UNIMPLEMENTED");
-//			conditions[0].whenComplete((r, e) -> {
-//				if (null == e) {
-//					result.complete(Collections.singletonList(r));
-//				} else {
-//					result.completeExceptionally(e);
-//				}
-//			});
+			conditions[0].whenComplete((r, e) -> {
+				if (null == e) {
+					final List<Object> value = Collections.singletonList(r);
+					result.complete(value);
+				} else {
+					result.completeExceptionally(e);
+				}
+			});
 			return result;
 		} else {
 			final List<Object> values = new ArrayList<>(Collections.nCopies(conditions.length, null));
@@ -85,7 +84,7 @@ public class AsyncCall {
 			for (final CompletionStage<?> future : conditions) {
 				final int idx = i++;
 				future.whenComplete((r, e) -> {
-					if (null == e) {
+					if (null != e) {
 						errors.set(idx, e);
 						errorsCount[0]++;
 					} else {

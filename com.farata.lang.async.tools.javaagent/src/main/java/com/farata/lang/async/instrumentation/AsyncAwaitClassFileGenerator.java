@@ -126,7 +126,6 @@ public class AsyncAwaitClassFileGenerator {
 		
 		// Remove @async annotation
 		removeAsyncAnnotation(originalAsyncMethodNode);
-		classNode.visitAnnotation(CONTINUABLE_ANNOTATION_DESCRIPTOR, true);
 		
 		// Create InnerClassNode for anoymous class
 		final String asyncTaskClassName = createInnerClassName(classNode);
@@ -151,7 +150,6 @@ public class AsyncAwaitClassFileGenerator {
 		final ClassNode asyncClassNode = new ClassNode();
 		
 		asyncClassNode.visit(originalClassNode.version, ACC_SUPER, asyncClassName, null, ASYNC_TASK_NAME, new String[]{});
-		asyncClassNode.visitAnnotation(CONTINUABLE_ANNOTATION_DESCRIPTOR, true);
 		asyncClassNode.visitSource(originalClassNode.sourceFile, null);
 		asyncClassNode.visitOuterClass(originalClassNode.name, originalAsyncMethodNode.name, originalAsyncMethodNode.desc);
 		

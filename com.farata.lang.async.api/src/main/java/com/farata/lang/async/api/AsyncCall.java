@@ -18,18 +18,19 @@ import com.farata.lang.async.core.NoActiveAsyncCallException;
  * @author Valery Silaev
  * 
  */
-@continuable
 public class AsyncCall {
 
 	@SafeVarargs
-	@continuable
-	public static <E extends Throwable> List<Object> await(CompletionStage<?>... conditions) throws NoActiveAsyncCallException, E {
+	public @continuable static <E extends Throwable> List<Object> await(CompletionStage<?>... conditions) 
+			throws NoActiveAsyncCallException, E {
+		
 		return await(atLeast(conditions.length, conditions));
 	}
 	
 	@SafeVarargs
-	@continuable
-	public static <E extends Throwable> List<Object> await(final int minCount, final CompletionStage<?>... conditions) throws NoActiveAsyncCallException, E {
+	public @continuable static <E extends Throwable> List<Object> await(final int minCount, final CompletionStage<?>... conditions) 
+			throws NoActiveAsyncCallException, E {
+		
 		return await(atLeast(minCount, conditions));
 	}
 	
@@ -38,13 +39,15 @@ public class AsyncCall {
 	 * 
 	 * The {@link async} method will be suspended until {@link CompletionStage} returns or throws the result. 
 	 */
-	@continuable
-	public static <T, E extends Throwable> T await(final CompletionStage<T> condition) throws NoActiveAsyncCallException, E {
+	public @continuable static <T, E extends Throwable> T await(final CompletionStage<T> condition) 
+			throws NoActiveAsyncCallException, E {
+		
 		return AsyncExecutor.await(condition);
 	}
 	
-	@continuable
-	public static <T, E extends Throwable> T await(final CompletionStage<T> condition, final Class<E> expectedException) throws NoActiveAsyncCallException, E {
+	public @continuable static <T, E extends Throwable> T await(final CompletionStage<T> condition, final Class<E> expectedException) 
+			throws NoActiveAsyncCallException, E {
+		
 		return await(condition);
 	}
 
@@ -60,13 +63,15 @@ public class AsyncCall {
 			return CompletableFuture.completedFuture(Collections.emptyList());
 		} else if (conditions.length == 1) {
 			final CompletableFuture<List<Object>> result = new CompletableFuture<>();
-			conditions[0].whenComplete((r, e) -> {
-				if (null == e) {
-					result.complete(Collections.singletonList(r));
-				} else {
-					result.completeExceptionally(e);
-				}
-			});
+			if (1 == 1)
+			throw new RuntimeException("UNIMPLEMENTED");
+//			conditions[0].whenComplete((r, e) -> {
+//				if (null == e) {
+//					result.complete(Collections.singletonList(r));
+//				} else {
+//					result.completeExceptionally(e);
+//				}
+//			});
 			return result;
 		} else {
 			final List<Object> values = new ArrayList<>(Collections.nCopies(conditions.length, null));

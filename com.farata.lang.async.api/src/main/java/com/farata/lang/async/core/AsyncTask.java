@@ -4,7 +4,6 @@ import java.util.concurrent.CompletionStage;
 
 import org.apache.commons.javaflow.api.continuable;
 
-@continuable
 abstract public class AsyncTask<V> implements Runnable {
 	final protected CompletionStage<V> future; 
 	// Just regular CompletableFuture, continuation handling should be added via CompletableFuture.whenComplete 
@@ -14,8 +13,7 @@ abstract public class AsyncTask<V> implements Runnable {
 		this.future = future;
 	}
 	
-	@continuable
-	abstract public void run();
+	abstract public @continuable void run();
 	
 	final protected static <V> void $result(final V value, final CompletionStage<V> future) {
 		future.toCompletableFuture().complete(value);

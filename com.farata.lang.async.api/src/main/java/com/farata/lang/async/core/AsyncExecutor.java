@@ -12,7 +12,6 @@ import org.apache.commons.logging.LogFactory;
  * 
  * @author Valery Silaev
  */
-@continuable
 public class AsyncExecutor implements Serializable {
 	
 	private static final long serialVersionUID = 1L;
@@ -87,15 +86,13 @@ public class AsyncExecutor implements Serializable {
 	
 	/**
 	 */
-	@continuable
-	public static <R, E extends Throwable> R await(final CompletionStage<R> future) throws E {
+	public @continuable static <R, E extends Throwable> R await(final CompletionStage<R> future) throws E {
 		return INSTANCE.awaitTask(future);
 	}
 	
 	/**
 	 */
-	@continuable
-	protected <R, E extends Throwable> R awaitTask(final CompletionStage<R> future) throws E {
+	protected @continuable <R, E extends Throwable> R awaitTask(final CompletionStage<R> future) throws E {
 		// Blocking is available - continueWith() method is being called
 		
 		// Let's sleep!

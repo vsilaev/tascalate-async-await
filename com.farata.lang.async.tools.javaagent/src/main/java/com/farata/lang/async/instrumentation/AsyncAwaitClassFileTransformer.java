@@ -67,10 +67,15 @@ public class AsyncAwaitClassFileTransformer implements ClassFileTransformer {
 			return null;
 		}
 		// Apply continuable annotations
-		return postProcessor.transform(classLoader, className, classBeingRedefined, protectionDomain, classfileBuffer);
+		return postProcessor.transform(
+			classLoader, className, classBeingRedefined, protectionDomain, classfileBuffer
+		);
 	}
 	
-	protected void defineGeneratedClasses(final ClassLoader classLoader, final ProtectionDomain protectionDomain, final Map<String, byte[]> generatedClasses) {
+	protected void defineGeneratedClasses(final ClassLoader classLoader, 
+	                                      final ProtectionDomain protectionDomain, 
+	                                      final Map<String, byte[]> generatedClasses) {
+		
 		for (Map.Entry<String, byte[]> e : generatedClasses.entrySet()) {
 			byte[] bytes;
 			try {
@@ -86,7 +91,9 @@ public class AsyncAwaitClassFileTransformer implements ClassFileTransformer {
 			}
 			try {
 				@SuppressWarnings("unused")
-				final Class<?> ignore = (Class<?>)DEFINE_CLASS.invokeExact(classLoader, e.getKey().replace('/', '.'), bytes, 0, bytes.length, protectionDomain);
+				final Class<?> ignore = (Class<?>)DEFINE_CLASS.invokeExact(
+					classLoader, (String)null, bytes, 0, bytes.length, protectionDomain
+				);
 				log.info("DEFINED: " + e.getKey());
 			} catch (Throwable ex) {
 				log.error(ex);
@@ -111,7 +118,9 @@ public class AsyncAwaitClassFileTransformer implements ClassFileTransformer {
 	final private static MethodHandle DEFINE_CLASS;
 	static {
 		try {
-			final Method m = ClassLoader.class.getDeclaredMethod("defineClass", String.class, byte[].class, int.class, int.class, ProtectionDomain.class);
+			final Method m = ClassLoader.class.getDeclaredMethod(
+				"defineClass", String.class, byte[].class, int.class, int.class, ProtectionDomain.class
+			);
 			m.setAccessible(true);
 			DEFINE_CLASS = MethodHandles.lookup().unreflect(m);
 		} catch (final NoSuchMethodException | IllegalAccessException ex) {

@@ -10,7 +10,6 @@ import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
-import java.util.concurrent.CompletionStage;
 
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
@@ -67,7 +66,7 @@ public class AsyncAwaitClassFileGenerator {
 		// Read
 		final ClassReader classReader = new ClassReader(classfileBuffer);
 		final ClassNode classNode = new ClassNode();
-		classReader.accept(classNode, 0);
+		classReader.accept(classNode, ClassReader.SKIP_DEBUG);
 
 		// Transform
 		if (!transform(classNode)) {
@@ -324,7 +323,7 @@ public class AsyncAwaitClassFileGenerator {
 					ASYNC_CALL_NAME.equals(min.owner)) {
 					final VarInsnNode loadThis = new VarInsnNode(ALOAD, 0);
 					newInstructions.add(loadThis);
-					final FieldInsnNode loadFutureField = new FieldInsnNode(GETFIELD, acn.name, "future",  Type.getDescriptor(CompletionStage.class));
+					final FieldInsnNode loadFutureField = new FieldInsnNode(GETFIELD, acn.name, "future",  COMPLETION_STAGE_DESCRIPTOR);
 					newInstructions.add(loadFutureField);
 					final MethodInsnNode setResultMethodCall = new MethodInsnNode(INVOKESTATIC, acn.name, "$result", "(Ljava/lang/Object;" + COMPLETION_STAGE_DESCRIPTOR + ")V", false);
 					newInstructions.add(setResultMethodCall);
@@ -344,12 +343,13 @@ public class AsyncAwaitClassFileGenerator {
 		newInstructions.add(beforeExceptionHandler);
 		newInstructions.add(insideExceptionHandler);
 
-		newInstructions.add(new FrameNode(F_FULL, 1, new Object[] {acn.name}, 1, new Object[] {"java/lang/Throwable"}));
+		//newInstructions.add(new FrameNode(F_FULL, 1, new Object[] {acn.name}, 1, new Object[] {"java/lang/Throwable"}));
+		newInstructions.add(new FrameNode(F_FULL, 2, new Object[] {acn.name, "java/lang/Throwable"}, 2, new Object[] {acn.name, "java/lang/Throwable", "java/util/concurrent/CompletionStage"}));
 
 		newInstructions.add(new VarInsnNode(ASTORE, 1));
 		newInstructions.add(new VarInsnNode(ALOAD, 1));
 		newInstructions.add(new VarInsnNode(ALOAD, 0));
-		newInstructions.add(new FieldInsnNode(GETFIELD, acn.name, "future", Type.getDescriptor(CompletionStage.class)));
+		newInstructions.add(new FieldInsnNode(GETFIELD, acn.name, "future", COMPLETION_STAGE_DESCRIPTOR));
 		newInstructions.add(new MethodInsnNode(INVOKESTATIC, acn.name, "$fault", "(Ljava/lang/Throwable;" + COMPLETION_STAGE_DESCRIPTOR + ")V", false));
 		//*/
 		newInstructions.add(methodEnd);

@@ -39,16 +39,16 @@ public class AsyncCall {
 	 * 
 	 * The {@link async} method will be suspended until {@link CompletionStage} returns or throws the result. 
 	 */
-	public @continuable static <T, E extends Throwable> T await(final CompletionStage<T> condition) 
-			throws NoActiveAsyncCallException, E {
-		
-		return AsyncExecutor.await(condition);
-	}
-	
 	public @continuable static <T, E extends Throwable> T await(final CompletionStage<T> condition, final Class<E> expectedException) 
 			throws NoActiveAsyncCallException, E {
 		
-		return await(condition);
+		return AsyncExecutor.<T, E>await(condition);
+	}
+	
+	public @continuable static <T> T await(final CompletionStage<T> condition) 
+			throws NoActiveAsyncCallException {
+		
+		return AsyncExecutor.await(condition);
 	}
 
 	final public static <T> CompletableFuture<T> asyncResult(final T value) {

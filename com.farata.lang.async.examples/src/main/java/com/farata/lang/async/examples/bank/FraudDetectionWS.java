@@ -1,10 +1,10 @@
-package com.farata.lang.async.examples;
+package com.farata.lang.async.examples.bank;
 
 import java.math.BigDecimal;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionStage;
 
-import com.farata.lang.async.examples.FraudDetectionService.Result;
+import com.farata.lang.async.examples.bank.FraudDetectionService.Result;
 
 public class FraudDetectionWS {
 	

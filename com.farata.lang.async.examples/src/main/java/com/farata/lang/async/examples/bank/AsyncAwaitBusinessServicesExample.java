@@ -1,10 +1,10 @@
-package com.farata.lang.async.examples;
+package com.farata.lang.async.examples.bank;
 
 import java.math.BigDecimal;
 import java.util.Date;
 import java.util.concurrent.CompletionStage;
 
-public class SimpleAsyncAwaitExample {
+public class AsyncAwaitBusinessServicesExample {
 	public static void main(final String[] argv) {
 		
 		final BankAccount account = new BankAccount("301303241007", BigDecimal.valueOf(1200.0));

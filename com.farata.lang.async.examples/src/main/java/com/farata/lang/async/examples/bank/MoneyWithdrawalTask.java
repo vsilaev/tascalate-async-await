@@ -1,11 +1,11 @@
-package com.farata.lang.async.examples;
+package com.farata.lang.async.examples.bank;
 
 import java.math.BigDecimal;
 import java.util.Date;
 import java.util.concurrent.CompletionStage;
 
 import com.farata.lang.async.api.async;
-import com.farata.lang.async.examples.FraudDetectionService.Result;
+import com.farata.lang.async.examples.bank.FraudDetectionService.Result;
 
 import static com.farata.lang.async.api.AsyncCall.*;
 

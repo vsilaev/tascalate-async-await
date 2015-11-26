@@ -1,4 +1,4 @@
-package com.farata.lang.async.examples;
+package com.farata.lang.async.examples.bank;
 
 import java.math.BigDecimal;
 

@@ -7,10 +7,12 @@ import java.lang.instrument.IllegalClassFormatException;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
+import java.util.IdentityHashMap;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 
+import org.apache.commons.javaflow.spi.ResourceLoader;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 import org.objectweb.asm.ClassReader;
@@ -44,7 +46,6 @@ public class AsyncAwaitClassFileGenerator {
 	final private static String ASYNC_CALL_NAME = "com/farata/lang/async/api/AsyncCall";
 	final private static String ASYNC_EXECUTOR_NAME = "com/farata/lang/async/core/AsyncExecutor";
 	
-	final private static String COMPLETABLE_FUTURE_NAME = "java/util/concurrent/CompletableFuture";
 	final private static String COMPLETION_STAGE_DESCRIPTOR = "Ljava/util/concurrent/CompletionStage;";
 	
 	final private static String CONTINUABLE_ANNOTATION_DESCRIPTOR = "Lorg/apache/commons/javaflow/api/continuable;";
@@ -63,17 +64,20 @@ public class AsyncAwaitClassFileGenerator {
 		return accessMethods.get(owner + name + desc + "-" + kind);
 	}
 	
-	public byte[] transform(final String className, final byte[] classfileBuffer) throws IllegalClassFormatException {
+	public byte[] transform(final String className, 
+			                final byte[] classfileBuffer, 
+			                final ResourceLoader resourceLoader) throws IllegalClassFormatException {
 		// Read
 		final ClassReader classReader = new ClassReader(classfileBuffer);
 		final ClassNode classNode = new ClassNode();
-		classReader.accept(classNode, ClassReader.SKIP_FRAMES);
+		classReader.accept(classNode, ClassReader.EXPAND_FRAMES);
 
 		// Transform
 		if (!transform(classNode)) {
 			// no modification, delegate further
 			return null;
 		}
+
 		
 		// Print transformed class
 		log.debug("Transformed class:\n\n" + BytecodeTraceUtil.toString(classNode) + "\n\n");
@@ -86,17 +90,17 @@ public class AsyncAwaitClassFileGenerator {
 		// Write
 		final byte[] generatedClassBytes;
 		{
-			final ClassWriter cw = new ClassWriter(classReader, 0);
+			final ClassWriter cw = new ComputeClassWriter(0, resourceLoader);
 			classNode.accept(cw);
 			generatedClassBytes = cw.toByteArray();
 		}
 		return generatedClassBytes;
 	}
 	
-	public Map<String, byte[]> getGeneratedClasses() {
+	public Map<String, byte[]> getGeneratedClasses(final ResourceLoader resourceLoader) {
 		final Map<String, byte[]> result = new HashMap<String, byte[]>();
 		for (final ClassNode classNode : newClasses) {
-			final ClassWriter cw = new ClassWriter(ClassWriter.COMPUTE_FRAMES);
+			final ClassWriter cw = new ComputeClassWriter(ClassWriter.COMPUTE_FRAMES, resourceLoader);
 			classNode.accept(cw);
 			result.put(classNode.name, cw.toByteArray());
 		}
@@ -120,7 +124,10 @@ public class AsyncAwaitClassFileGenerator {
 		return transformed;
 	}
 
-	protected void transform(final ClassNode classNode, final List<InnerClassNode> originalInnerClasses, final MethodNode originalAsyncMethodNode) {
+	protected void transform(final ClassNode            classNode, 
+		                     final List<InnerClassNode> originalInnerClasses, 
+		                     final MethodNode           originalAsyncMethodNode) {
+		
 		log.info("Transforming blocking method: " + classNode.name + "." + originalAsyncMethodNode.name + originalAsyncMethodNode.desc);
 		
 		// Remove @async annotation
@@ -145,137 +152,173 @@ public class AsyncAwaitClassFileGenerator {
 		
 	}
 	
-	protected ClassNode createAnonymousClass(final ClassNode originalClassNode, final List<InnerClassNode> originalInnerClasses, final MethodNode originalAsyncMethodNode, final String asyncClassName) {
-		final boolean isStatic = (originalAsyncMethodNode.access & Opcodes.ACC_STATIC) != 0;
+	protected ClassNode createAnonymousClass(final ClassNode            originalOuterClass, 
+		                                     final List<InnerClassNode> originalInnerClasses, 
+		                                     final MethodNode           originalAsyncMethod, 
+		                                     final String               asyncClassName) {
+		final boolean isStatic = (originalAsyncMethod.access & Opcodes.ACC_STATIC) != 0;
 		
-		final ClassNode asyncClassNode = new ClassNode();
+		final ClassNode asyncRunnableClass = new ClassNode();
 		
-		asyncClassNode.visit(originalClassNode.version, ACC_SUPER, asyncClassName, null, ASYNC_TASK_NAME, new String[]{});
-		asyncClassNode.visitSource(originalClassNode.sourceFile, null);
-		asyncClassNode.visitOuterClass(originalClassNode.name, originalAsyncMethodNode.name, originalAsyncMethodNode.desc);
+		asyncRunnableClass.visit(originalOuterClass.version, ACC_SUPER, asyncClassName, null, ASYNC_TASK_NAME, new String[]{});
+		asyncRunnableClass.visitSource(originalOuterClass.sourceFile, null);
+		asyncRunnableClass.visitOuterClass(originalOuterClass.name, originalAsyncMethod.name, originalAsyncMethod.desc);
 		
 		// Copy outer class inner classes
-		final List<InnerClassNode> asyncClassInnerClasses = innerClassesOf(asyncClassNode);
+		final List<InnerClassNode> asyncClassInnerClasses = innerClassesOf(asyncRunnableClass);
 		for (final InnerClassNode innerClassNode : originalInnerClasses) {
 			asyncClassInnerClasses.add(innerClassNode);
 		}
 		
 		// SerialVersionUID
-		asyncClassNode.visitField(ACC_PRIVATE + ACC_FINAL + ACC_STATIC, "serialVersionUID", "J", null, new Long(1L));
+		asyncRunnableClass.visitField(ACC_PRIVATE + ACC_FINAL + ACC_STATIC, "serialVersionUID", "J", null, new Long(1L));
 		
 		// Outer class instance field
 		final FieldNode outerClassField;
 		if (!isStatic) {
-			outerClassField = (FieldNode) asyncClassNode.visitField(ACC_FINAL + ACC_PRIVATE + ACC_SYNTHETIC, "this$0", "L" + originalClassNode.name + ";", null, null);
+			outerClassField = (FieldNode) asyncRunnableClass.visitField(
+				ACC_FINAL + ACC_PRIVATE + ACC_SYNTHETIC, 
+				"this$0", "L" + originalOuterClass.name + ";", null, null
+			);
 		} else {
 			outerClassField = null;
 		}
 		
 		// Original methods arguments
-		final Type[] argTypes = Type.getArgumentTypes(originalAsyncMethodNode.desc);
+		final Type[] argTypes = Type.getArgumentTypes(originalAsyncMethod.desc);
 		final int originalArity = argTypes.length;
 		{
 			for (int i = 0; i < originalArity; i++) {
 				String argName = createOuterClassMethodArgFieldName(i);
 				String argDesc = argTypes[i].getDescriptor();
-				asyncClassNode.visitField(ACC_PRIVATE + ACC_FINAL + ACC_SYNTHETIC, argName, argDesc, null, null);
+				asyncRunnableClass.visitField(ACC_PRIVATE + ACC_FINAL + ACC_SYNTHETIC, argName, argDesc, null, null);
 			}
 		}
+
+		addAnonymousClassConstructor(originalOuterClass, originalAsyncMethod, asyncRunnableClass, outerClassField);
+		addAnonymousClassRunMethod(originalOuterClass, originalAsyncMethod, asyncRunnableClass, outerClassField);
+		return asyncRunnableClass;
+	}
+	
+	protected MethodNode addAnonymousClassConstructor(final ClassNode  originalOuterClass, 
+		                                              final MethodNode originalAsyncMethod,
+		                                              final ClassNode  asyncRunnableClass,
+		                                              final FieldNode  outerClassField) {
 		
-		// Constructor taking the outer class instance and original method's arguments
-		{
-			final Type[] constructorArgTypes = isStatic ?
-				prependArray(
-					argTypes, 
-					Type.getReturnType(COMPLETION_STAGE_DESCRIPTOR)
-					)
-				:
-				prependArray(
-					argTypes, 
-					Type.getReturnType("L" + originalClassNode.name + ";"),
-					Type.getReturnType(COMPLETION_STAGE_DESCRIPTOR)
-				);
-			final String constructorDesc = Type.getMethodDescriptor(Type.VOID_TYPE, constructorArgTypes);
-			
-			final MethodVisitor mv = asyncClassNode.visitMethod(0, "<init>", constructorDesc, null, null);
-			mv.visitCode();
+		final boolean isStatic = (originalAsyncMethod.access & Opcodes.ACC_STATIC) != 0;
+		// Original methods arguments
+		final Type[] argTypes = Type.getArgumentTypes(originalAsyncMethod.desc);
+		final int originalArity = argTypes.length;
+		final Type[] constructorArgTypes = isStatic ?
+			prependArray(
+				argTypes, 
+				Type.getReturnType(COMPLETION_STAGE_DESCRIPTOR)
+				)
+			:
+			prependArray(
+				argTypes, 
+				Type.getReturnType("L" + originalOuterClass.name + ";"),
+				Type.getReturnType(COMPLETION_STAGE_DESCRIPTOR)
+			);
+		final String constructorDesc = Type.getMethodDescriptor(Type.VOID_TYPE, constructorArgTypes);
+		
+		final MethodVisitor mv = asyncRunnableClass.visitMethod(0, "<init>", constructorDesc, null, null);
+		mv.visitCode();
 
-			if (!isStatic) { 
-				// Store outer class instance
-				mv.visitVarInsn(ALOAD, 0);
-				mv.visitVarInsn(ALOAD, 1);
-				mv.visitFieldInsn(PUTFIELD, asyncClassName, outerClassField.name, outerClassField.desc);
-			}
-			
-			// Store original method's arguments
-			for (int i = 0; i < originalArity; i++) {
-				String argName = createOuterClassMethodArgFieldName(i);
-				String argDesc = argTypes[i].getDescriptor();
-				
-				mv.visitVarInsn(ALOAD, 0);
-				mv.visitVarInsn(argTypes[i].getOpcode(ILOAD), i + (isStatic ? 2 : 3));
-				mv.visitFieldInsn(PUTFIELD, asyncClassName, argName, argDesc);
-			}
-
-			// Invoke super() 
+		if (!isStatic) { 
+			// Store outer class instance
 			mv.visitVarInsn(ALOAD, 0);
-			mv.visitVarInsn(ALOAD, isStatic ? 1 : 2);
-			mv.visitMethodInsn(INVOKESPECIAL, ASYNC_TASK_NAME, "<init>", "(" + COMPLETION_STAGE_DESCRIPTOR + ")V", false);
-		
-			mv.visitInsn(RETURN);
-			mv.visitMaxs(2, argTypes.length + (isStatic ? 2 : 3));
-			mv.visitEnd();
+			mv.visitVarInsn(ALOAD, 1);
+			mv.visitFieldInsn(PUTFIELD, asyncRunnableClass.name, outerClassField.name, outerClassField.desc);
 		}
-		addAnonymousClassRunMethod(originalClassNode, originalAsyncMethodNode, asyncClassNode, outerClassField);
-		return asyncClassNode;
+		
+		// Store original method's arguments
+		for (int i = 0; i < originalArity; i++) {
+			String argName = createOuterClassMethodArgFieldName(i);
+			String argDesc = argTypes[i].getDescriptor();
+			
+			mv.visitVarInsn(ALOAD, 0);
+			mv.visitVarInsn(argTypes[i].getOpcode(ILOAD), i + (isStatic ? 2 : 3));
+			mv.visitFieldInsn(PUTFIELD, asyncRunnableClass.name, argName, argDesc);
+		}
+
+		// Invoke super() 
+		mv.visitVarInsn(ALOAD, 0);
+		mv.visitVarInsn(ALOAD, isStatic ? 1 : 2);
+		mv.visitMethodInsn(INVOKESPECIAL, ASYNC_TASK_NAME, "<init>", "(" + COMPLETION_STAGE_DESCRIPTOR + ")V", false);
+	
+		mv.visitInsn(RETURN);
+		mv.visitMaxs(2, argTypes.length + (isStatic ? 2 : 3));
+		mv.visitEnd();	
+			
+		return (MethodNode)mv;
 	}
 
-	protected MethodNode addAnonymousClassRunMethod(ClassNode classNode, MethodNode methodNode, ClassNode acn, FieldNode outerClassField) {
-		final boolean isStatic = (methodNode.access & Opcodes.ACC_STATIC) != 0;
+	protected MethodNode addAnonymousClassRunMethod(final ClassNode  originalOuterClass, 
+		                                            final MethodNode originalAsyncMethod, 
+		                                            final ClassNode  asyncRunnableClass, 
+		                                            final FieldNode  outerClassField) {
+		
+		final boolean isStatic = (originalAsyncMethod.access & Opcodes.ACC_STATIC) != 0;
 		final int thisWasInOriginal = isStatic ? 0 : 1;
 		final int thisShiftNecessary = isStatic ? 1 : 0;
 		
-		final Type[] argTypes = Type.getArgumentTypes(methodNode.desc);
+		final Type[] argTypes = Type.getArgumentTypes(originalAsyncMethod.desc);
 		log.debug("Method has " + argTypes.length + " arguments");
 		
-		final MethodNode amn = (MethodNode) acn.visitMethod(ACC_PUBLIC, "run", "()V", null, new String[] {});
-		amn.visitAnnotation(CONTINUABLE_ANNOTATION_DESCRIPTOR, true);
+		final MethodNode asyncRunMethod = (MethodNode) asyncRunnableClass.visitMethod(
+				ACC_PUBLIC, 
+				"run", "()V", 
+				null, new String[] {}
+		);
+		
+		asyncRunMethod.visitAnnotation(CONTINUABLE_ANNOTATION_DESCRIPTOR, true);
 
 		// Local variables
 		//amn.localVariables = methodNode.localVariables;
 		
 		final LabelNode methodStart = new LabelNode();
-		final LabelNode beforeExceptionHandler = new LabelNode();
-		final LabelNode insideExceptionHandler = new LabelNode();
+		final LabelNode globalCatchEnd = new LabelNode();
+		final LabelNode globalCatchHandler = new LabelNode();
 		final LabelNode methodEnd = new LabelNode();
 		
+		final Map<LabelNode, LabelNode> labelsMap = new IdentityHashMap<>();
+		for (AbstractInsnNode l = originalAsyncMethod.instructions.getFirst(); l != null; l = l.getNext()) {
+			if (!(l instanceof LabelNode))
+				continue;
+			labelsMap.put((LabelNode)l, new LabelNode());	
+		}
 		
 		@SuppressWarnings("unchecked")
-		final List<TryCatchBlockNode> tryCatchBlocks = amn.tryCatchBlocks;
+		final List<TryCatchBlockNode> tryCatchBlocks = asyncRunMethod.tryCatchBlocks;
 		// Try-catch blocks
-		for (final Iterator<?> it = methodNode.tryCatchBlocks.iterator(); it.hasNext();) {
+		for (final Iterator<?> it = originalAsyncMethod.tryCatchBlocks.iterator(); it.hasNext();) {
 			final TryCatchBlockNode tn = (TryCatchBlockNode) it.next();
-			tryCatchBlocks.add(tn);
+			tryCatchBlocks.add(new TryCatchBlockNode(
+				labelsMap.get(tn.start), 
+				labelsMap.get(tn.end), 
+				labelsMap.get(tn.handler), 
+				tn.type)
+			);
 		}
 		// Should be the latest -- surrounding try-catch-all
-		tryCatchBlocks.add(new TryCatchBlockNode(methodStart, beforeExceptionHandler, insideExceptionHandler, "java/lang/Throwable"));
-		//amn.localVariables.add(new LocalVariableNode("ex", "java/lang/Throwable", "Ljava/lang/Throwable;", insideExceptionHandler, methodEnd, amn.localVariables.size()));
-
+		tryCatchBlocks.add(new TryCatchBlockNode(methodStart, globalCatchEnd, globalCatchHandler, "java/lang/Throwable"));
 		
 		final InsnList newInstructions = new InsnList();
 		newInstructions.add(methodStart);
+		
 		// Instructions
-		for (final Iterator<?> it = methodNode.instructions.iterator(); it.hasNext();) {
-			final AbstractInsnNode instruction = (AbstractInsnNode) it.next();
-			
-			if (instruction instanceof VarInsnNode) {
-				final VarInsnNode vin = (VarInsnNode) instruction;
+		for (AbstractInsnNode insn = originalAsyncMethod.instructions.getFirst(); null != insn; insn = insn.getNext()) {
+			if (insn instanceof VarInsnNode) {
+				final VarInsnNode vin = (VarInsnNode) insn;
 				// "this" -> outer class "this"
 				if (!isStatic && vin.getOpcode() == ALOAD && vin.var == 0) {
 					log.debug("Found " + BytecodeTraceUtil.toString(vin));
 					
-					newInstructions.add(instruction);
-					newInstructions.add(new FieldInsnNode(GETFIELD, acn.name, outerClassField.name, outerClassField.desc));
+					newInstructions.add(new VarInsnNode(ALOAD, 0));
+					newInstructions.add(new FieldInsnNode(GETFIELD, 
+						asyncRunnableClass.name, outerClassField.name, outerClassField.desc
+					));
 					continue;
 				}
 				
@@ -294,13 +337,13 @@ public class AsyncAwaitClassFileGenerator {
 							assert (argTypes[i].getOpcode(ILOAD) == vin.getOpcode()) :
 								"Wrong opcode " + vin.getOpcode() + ", expected " + argTypes[i].getOpcode(ILOAD);
 							
-							newInstructions.add(new FieldInsnNode(GETFIELD, acn.name, argName, argDesc));
+							newInstructions.add(new FieldInsnNode(GETFIELD, asyncRunnableClass.name, argName, argDesc));
 						} else {
 							assert (argTypes[i].getOpcode(ISTORE) == vin.getOpcode()) :
 								"Wrong opcode " + vin.getOpcode() + ", expected " + argTypes[i].getOpcode(ISTORE);
 							
 							newInstructions.add(new InsnNode(SWAP));
-							newInstructions.add(new FieldInsnNode(PUTFIELD, acn.name, argName, argDesc));
+							newInstructions.add(new FieldInsnNode(PUTFIELD, asyncRunnableClass.name, argName, argDesc));
 						}
 						continue;
 					}
@@ -310,21 +353,27 @@ public class AsyncAwaitClassFileGenerator {
 						continue;
 					}
 				}
-			} else if (instruction instanceof FieldInsnNode) {
-				final FieldInsnNode fin = (FieldInsnNode)instruction;
+			} else if (insn instanceof FieldInsnNode) {
+				final FieldInsnNode fin = (FieldInsnNode)insn;
 				MethodNode accessMethod;
-				if ((fin.getOpcode() == GETSTATIC || fin.getOpcode() == GETFIELD) && (accessMethod = getAccessMethod(fin.owner, fin.name, fin.desc, "G")) != null) {
-					newInstructions.add(new MethodInsnNode(INVOKESTATIC, classNode.name, accessMethod.name, accessMethod.desc, false));
+				if ((fin.getOpcode() == GETSTATIC || fin.getOpcode() == GETFIELD) && 
+					(accessMethod = getAccessMethod(fin.owner, fin.name, fin.desc, "G")) != null) {
+					newInstructions.add(
+						new MethodInsnNode(INVOKESTATIC, originalOuterClass.name, accessMethod.name, accessMethod.desc, false)
+					);
 					continue;
 				};
-				if ((fin.getOpcode() == PUTSTATIC || fin.getOpcode() == PUTFIELD) && (accessMethod = getAccessMethod(fin.owner, fin.name, fin.desc, "S")) != null) {
-					newInstructions.add(new MethodInsnNode(INVOKESTATIC, classNode.name, accessMethod.name, accessMethod.desc, false));
+				if ((fin.getOpcode() == PUTSTATIC || fin.getOpcode() == PUTFIELD) && 
+					(accessMethod = getAccessMethod(fin.owner, fin.name, fin.desc, "S")) != null) {
+					newInstructions.add(
+						new MethodInsnNode(INVOKESTATIC, originalOuterClass.name, accessMethod.name, accessMethod.desc, false)
+					);
 					continue;
 				};
 
-			} else if (instruction instanceof MethodInsnNode) {
+			} else if (insn instanceof MethodInsnNode) {
 				// instance method call -> outer class instance method call using a generated access method
-				final MethodInsnNode min = (MethodInsnNode) instruction;
+				final MethodInsnNode min = (MethodInsnNode) insn;
 				final MethodNode accessMethod;
 				
 				if ((min.getOpcode() == INVOKEVIRTUAL  || 
@@ -332,7 +381,9 @@ public class AsyncAwaitClassFileGenerator {
 					 min.getOpcode() == INVOKESTATIC)
 					 && (accessMethod = getAccessMethod(min.owner, min.name, min.desc, "M")) != null) {
 					log.debug("Found " + BytecodeTraceUtil.toString(min));
-					newInstructions.add(new MethodInsnNode(INVOKESTATIC, classNode.name, accessMethod.name, accessMethod.desc, false));
+					newInstructions.add(
+						new MethodInsnNode(INVOKESTATIC, originalOuterClass.name, accessMethod.name, accessMethod.desc, false)
+					);
 
 					continue;
 
@@ -340,61 +391,86 @@ public class AsyncAwaitClassFileGenerator {
 					min.getOpcode() == INVOKESTATIC && 
 					"asyncResult".equals(min.name) && 
 					ASYNC_CALL_NAME.equals(min.owner)) {
+					
 					final VarInsnNode loadThis = new VarInsnNode(ALOAD, 0);
 					newInstructions.add(loadThis);
-					final FieldInsnNode loadFutureField = new FieldInsnNode(GETFIELD, acn.name, "future",  COMPLETION_STAGE_DESCRIPTOR);
+					final FieldInsnNode loadFutureField = new FieldInsnNode(GETFIELD, asyncRunnableClass.name, "future",  COMPLETION_STAGE_DESCRIPTOR);
 					newInstructions.add(loadFutureField);
-					final MethodInsnNode setResultMethodCall = new MethodInsnNode(INVOKESTATIC, acn.name, "$result", "(Ljava/lang/Object;" + COMPLETION_STAGE_DESCRIPTOR + ")V", false);
+					final MethodInsnNode setResultMethodCall = new MethodInsnNode(
+						INVOKESTATIC, ASYNC_TASK_NAME, 
+						"$$result$$", "(Ljava/lang/Object;" + COMPLETION_STAGE_DESCRIPTOR + ")" + COMPLETION_STAGE_DESCRIPTOR,
+						false);
 					newInstructions.add(setResultMethodCall);
-					
 					continue;
+					
 				}
-			} else if (instruction.getOpcode() == ARETURN) {
+			} else if (insn.getOpcode() == ARETURN) {
+				// GOTO methodEnd instead of returning value
 				newInstructions.add(new JumpInsnNode(GOTO, methodEnd));
 				continue;
 			}
 			
-			
 			// do not make changes
-			newInstructions.add(instruction);
+			newInstructions.add(insn.clone(labelsMap));
 		}
-		///*
-		newInstructions.add(beforeExceptionHandler);
-		newInstructions.add(insideExceptionHandler);
+		newInstructions.add(globalCatchHandler);
 
-		newInstructions.add(new FrameNode(F_FULL, 1, new Object[] {acn.name}, 1, new Object[] {"java/lang/Throwable"}));
-
+		// Frame is computed anyway
+		newInstructions.add(new FrameNode(Opcodes.F_SAME1, 0, null, 1, new Object[] {"java/lang/Throwable"}));
+		
 		newInstructions.add(new VarInsnNode(ASTORE, 1));
 		newInstructions.add(new VarInsnNode(ALOAD, 1));
 		newInstructions.add(new VarInsnNode(ALOAD, 0));
-		newInstructions.add(new FieldInsnNode(GETFIELD, acn.name, "future", COMPLETION_STAGE_DESCRIPTOR));
-		newInstructions.add(new MethodInsnNode(INVOKESTATIC, acn.name, "$fault", "(Ljava/lang/Throwable;" + COMPLETION_STAGE_DESCRIPTOR + ")V", false));
-		//*/
+		newInstructions.add(new FieldInsnNode(GETFIELD, asyncRunnableClass.name, "future", COMPLETION_STAGE_DESCRIPTOR));
+		newInstructions.add(new MethodInsnNode(
+			INVOKESTATIC, ASYNC_TASK_NAME, 
+			"$$fault$$", "(Ljava/lang/Throwable;" + COMPLETION_STAGE_DESCRIPTOR + ")" + COMPLETION_STAGE_DESCRIPTOR, 
+			false
+		));
+		newInstructions.add(globalCatchEnd);
+
 		newInstructions.add(methodEnd);
 		
+		// Frame is computed anyway
 		newInstructions.add(new FrameNode(F_SAME, 0, null, 0, null));
+		
+		// POP value from stack that was placed before ARETURN
+		newInstructions.add(new InsnNode(POP));
 		newInstructions.add(new InsnNode(RETURN));
 		
-		amn.instructions = newInstructions;
+		asyncRunMethod.instructions = newInstructions;
 		// Maxs
-		amn.maxLocals = Math.max(methodNode.maxLocals - argTypes.length + thisShiftNecessary, 2); // 2 for exception handling & asyncResult replacement
-		amn.maxStack = Math.max(methodNode.maxStack, 2);
+		// 2 for exception handling & asyncResult replacement
+		asyncRunMethod.maxLocals = Math.max(originalAsyncMethod.maxLocals - argTypes.length + thisShiftNecessary, 2); 
+		asyncRunMethod.maxStack = Math.max(originalAsyncMethod.maxStack, 2);
 		
-		return amn;
+		return asyncRunMethod;
 	}
 	
-	protected MethodNode createReplacementAsyncMethod(final ClassNode classNode, final MethodNode originalAsyncMethodNode, final String asyncTaskClassName) {
+	protected MethodNode createReplacementAsyncMethod(final ClassNode classNode, 
+		                                              final MethodNode originalAsyncMethodNode, 
+		                                              final String asyncTaskClassName) {
+		
 		final boolean isStatic = (originalAsyncMethodNode.access & Opcodes.ACC_STATIC) != 0;
 		final int thisArgShift = isStatic ? 0 : 1;
 		final Type[] originalArgTypes = Type.getArgumentTypes(originalAsyncMethodNode.desc);
 		
-		final MethodNode replacementAsyncMethodNode = new MethodNode(originalAsyncMethodNode.access, originalAsyncMethodNode.name, originalAsyncMethodNode.desc, null, null);
+		final MethodNode replacementAsyncMethodNode = new MethodNode(
+			originalAsyncMethodNode.access, 
+			originalAsyncMethodNode.name, 
+			originalAsyncMethodNode.desc, 
+			null, null
+		);
+		
 		replacementAsyncMethodNode.visitAnnotation(CONTINUABLE_ANNOTATION_DESCRIPTOR, true);
 		replacementAsyncMethodNode.visitCode();
-
-		replacementAsyncMethodNode.visitTypeInsn(NEW, COMPLETABLE_FUTURE_NAME);
-		replacementAsyncMethodNode.visitInsn(DUP);
-		replacementAsyncMethodNode.visitMethodInsn(INVOKESPECIAL, COMPLETABLE_FUTURE_NAME, "<init>", "()V", false);
+		
+		replacementAsyncMethodNode.visitMethodInsn(
+			INVOKESTATIC, 
+			ASYNC_TASK_NAME, "createFuture", "()" + COMPLETION_STAGE_DESCRIPTOR, 
+			false
+		);
+		
 		replacementAsyncMethodNode.visitVarInsn(ASTORE, originalArgTypes.length + thisArgShift);
 		
 		replacementAsyncMethodNode.visitTypeInsn(NEW, asyncTaskClassName);
@@ -409,7 +485,8 @@ public class AsyncAwaitClassFileGenerator {
 		
 		// load all method arguments into stack
 		for (int i = 0; i < originalArgTypes.length; i++) {
-			replacementAsyncMethodNode.visitVarInsn(originalArgTypes[i].getOpcode(ILOAD), i + thisArgShift );//Shifted for this if necessary
+			//Shifted for this if necessary
+			replacementAsyncMethodNode.visitVarInsn(originalArgTypes[i].getOpcode(ILOAD), i + thisArgShift );
 		}
 
 		final Type[] constructorArgTypes = isStatic ?
@@ -448,7 +525,11 @@ public class AsyncAwaitClassFileGenerator {
 					final MethodNode targetMethodNode = getMethod(classNode, methodInstructionNode.name, methodInstructionNode.desc);
 					if (null != targetMethodNode && (targetMethodNode.access & ACC_PRIVATE) != 0) {
 						log.debug("Found " + BytecodeTraceUtil.toString(methodInstructionNode));
-						methods.add(createAccessMethod(classNode, methodInstructionNode.name, methodInstructionNode.desc, (targetMethodNode.access & ACC_STATIC) != 0));
+						methods.add(createAccessMethod(
+							classNode, 
+							methodInstructionNode.name, methodInstructionNode.desc, 
+							(targetMethodNode.access & ACC_STATIC) != 0)
+						);
 					}
 				}
 			}
@@ -459,9 +540,17 @@ public class AsyncAwaitClassFileGenerator {
 					if (null != targetFieldNode && (targetFieldNode.access & ACC_PRIVATE) != 0) {
 						//log.debug("Found " + BytecodeTraceUtil.toString(fieldInstructionNode));
 						if (fieldInstructionNode.getOpcode() == GETSTATIC || fieldInstructionNode.getOpcode() == GETFIELD) {
-							methods.add(createAccessGetter(classNode, fieldInstructionNode.name, fieldInstructionNode.desc, (targetFieldNode.access & ACC_STATIC) != 0));
+							methods.add(createAccessGetter(
+								classNode, 
+								fieldInstructionNode.name, fieldInstructionNode.desc, 
+								(targetFieldNode.access & ACC_STATIC) != 0)
+							);
 						} else if (fieldInstructionNode.getOpcode() == PUTSTATIC || fieldInstructionNode.getOpcode() == PUTFIELD) {
-							methods.add(createAccessSetter(classNode, fieldInstructionNode.name, fieldInstructionNode.desc, (targetFieldNode.access & ACC_STATIC) != 0));
+							methods.add(createAccessSetter(
+								classNode, 
+								fieldInstructionNode.name, fieldInstructionNode.desc, 
+								(targetFieldNode.access & ACC_STATIC) != 0)
+							);
 						}
 					}
 				}
@@ -497,7 +586,11 @@ public class AsyncAwaitClassFileGenerator {
 		return acessMethodNode;
 	}
 	
-	protected MethodNode createAccessGetter(final ClassNode classNode, final String fieldName, final String fieldDesc, final boolean isStatic) {
+	protected MethodNode createAccessGetter(final ClassNode classNode, 
+                                            final String fieldName, 
+                                            final String fieldDesc, 
+                                            final boolean isStatic) {
+		
 		final String name = createAccessMethodName(classNode);
 		final Type[] argTypes = isStatic ? new Type[0] : new Type[]{Type.getReturnType("L" + classNode.name + ";")}; 
 		final Type returnType = Type.getReturnType(fieldDesc);
@@ -524,7 +617,11 @@ public class AsyncAwaitClassFileGenerator {
 		return acessMethodNode;
 	}
 	
-	protected MethodNode createAccessSetter(final ClassNode classNode, final String fieldName, final String fieldDesc, final boolean isStatic) {
+	protected MethodNode createAccessSetter(final ClassNode classNode, 
+                                            final String fieldName, 
+                                            final String fieldDesc, 
+                                            final boolean isStatic) {
+		
 		final String name = createAccessMethodName(classNode);
 		final Type[] argTypes = isStatic ? 
 			new Type[]{Type.getReturnType(fieldDesc)} : 
@@ -659,10 +756,14 @@ public class AsyncAwaitClassFileGenerator {
 	}
 	
 	private static boolean hasAsyncAnnotation(final MethodNode methodNode) {
-		final boolean found = annotationPresent(invisibleAnnotationsOf(methodNode), ASYNC_ANNOTATION_DESCRIPTOR) || annotationPresent(visibleAnnotationsOf(methodNode), ASYNC_ANNOTATION_DESCRIPTOR);
+		final boolean found = 
+				annotationPresent(invisibleAnnotationsOf(methodNode), ASYNC_ANNOTATION_DESCRIPTOR) || 
+				annotationPresent(visibleAnnotationsOf(methodNode), ASYNC_ANNOTATION_DESCRIPTOR);
+		
 		if (found) {
 			log.debug("@Async annotation found, method: " + methodNode);
 		}
+		
 		return found;
 	}
 	

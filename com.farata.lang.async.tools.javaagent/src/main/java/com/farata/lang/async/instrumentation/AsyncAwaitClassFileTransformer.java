@@ -10,6 +10,7 @@ import java.util.HashMap;
 import java.util.Map;
 
 import org.apache.commons.javaflow.instrumentation.ExtendedClasspathResourceLoader;
+import org.apache.commons.javaflow.spi.ClasspathResourceLoader;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 
@@ -31,12 +32,12 @@ public class AsyncAwaitClassFileTransformer implements ClassFileTransformer {
 		final ClassLoader classLoader = getSafeClassLoader(originalClassLoader);
 				
 		final AsyncAwaitClassFileGenerator generator = new AsyncAwaitClassFileGenerator();
-		final byte[] transformed = generator.transform(className, classfileBuffer);
+		final byte[] transformed = generator.transform(className, classfileBuffer, new ClasspathResourceLoader(classLoader));
 		if (null == transformed) {
 			return postProcess(classLoader, className, classBeingRedefined, protectionDomain, classfileBuffer);	
 		}
 		
-		final Map<String, byte[]> extraClasses = generator.getGeneratedClasses();
+		final Map<String, byte[]> extraClasses = generator.getGeneratedClasses(new ClasspathResourceLoader(classLoader));
 		generator.reset(); 
 		
 		// Define new classes and then redefine inner classes

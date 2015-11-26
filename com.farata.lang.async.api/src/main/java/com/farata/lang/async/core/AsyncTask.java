@@ -1,5 +1,6 @@
 package com.farata.lang.async.core;
 
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionStage;
 
 import org.apache.commons.javaflow.api.continuable;
@@ -15,12 +16,18 @@ abstract public class AsyncTask<V> implements Runnable {
 	
 	abstract public @continuable void run();
 	
-	final protected static <V> void $result(final V value, final CompletionStage<V> future) {
+	final protected static <V> CompletionStage<V> $$result$$(final V value, final CompletionStage<V> future) {
 		future.toCompletableFuture().complete(value);
+		return future;
 	}
 	
-	final protected static <E extends Throwable> void $fault(final E exception, final CompletionStage<?> future) {
+	final protected static <V, E extends Throwable> CompletionStage<V> $$fault$$(final E exception, final CompletionStage<V> future) {
 		future.toCompletableFuture().completeExceptionally(exception);
+		return future;
+	}
+	
+	final public static <V> CompletionStage<V> createFuture() {
+		return new CompletableFuture<V>();
 	}
 
 }

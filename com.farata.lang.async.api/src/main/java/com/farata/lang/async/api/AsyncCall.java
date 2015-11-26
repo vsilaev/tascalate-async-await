@@ -51,7 +51,7 @@ public class AsyncCall {
 		return AsyncExecutor.await(condition);
 	}
 
-	final public static <T> CompletableFuture<T> asyncResult(final T value) {
+	final public static <T> CompletionStage<T> asyncResult(final T value) {
 		throw new IllegalStateException("Method call must be replaced by bytecode enhancer");
 	}
 	

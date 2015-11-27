@@ -392,15 +392,12 @@ public class AsyncAwaitClassFileGenerator {
 					"asyncResult".equals(min.name) && 
 					ASYNC_CALL_NAME.equals(min.owner)) {
 					
-					final VarInsnNode loadThis = new VarInsnNode(ALOAD, 0);
-					newInstructions.add(loadThis);
-					final FieldInsnNode loadFutureField = new FieldInsnNode(GETFIELD, asyncRunnableClass.name, "future",  COMPLETION_STAGE_DESCRIPTOR);
-					newInstructions.add(loadFutureField);
-					final MethodInsnNode setResultMethodCall = new MethodInsnNode(
+					newInstructions.add(new VarInsnNode(ALOAD, 0));
+					newInstructions.add(new MethodInsnNode(
 						INVOKESTATIC, ASYNC_TASK_NAME, 
-						"$$result$$", "(Ljava/lang/Object;" + COMPLETION_STAGE_DESCRIPTOR + ")" + COMPLETION_STAGE_DESCRIPTOR,
-						false);
-					newInstructions.add(setResultMethodCall);
+						"$$result$$", "(Ljava/lang/Object;L" + ASYNC_TASK_NAME + ";)" + COMPLETION_STAGE_DESCRIPTOR,
+						false
+					));
 					continue;
 					
 				}
@@ -419,12 +416,11 @@ public class AsyncAwaitClassFileGenerator {
 		newInstructions.add(new FrameNode(Opcodes.F_SAME1, 0, null, 1, new Object[] {"java/lang/Throwable"}));
 		
 		newInstructions.add(new VarInsnNode(ASTORE, 1));
-		newInstructions.add(new VarInsnNode(ALOAD, 1));
 		newInstructions.add(new VarInsnNode(ALOAD, 0));
-		newInstructions.add(new FieldInsnNode(GETFIELD, asyncRunnableClass.name, "future", COMPLETION_STAGE_DESCRIPTOR));
+		newInstructions.add(new VarInsnNode(ALOAD, 1));
 		newInstructions.add(new MethodInsnNode(
-			INVOKESTATIC, ASYNC_TASK_NAME, 
-			"$$fault$$", "(Ljava/lang/Throwable;" + COMPLETION_STAGE_DESCRIPTOR + ")" + COMPLETION_STAGE_DESCRIPTOR, 
+			INVOKEVIRTUAL, ASYNC_TASK_NAME, 
+			"$$fault$$", "(Ljava/lang/Throwable;)" + COMPLETION_STAGE_DESCRIPTOR, 
 			false
 		));
 		newInstructions.add(globalCatchEnd);

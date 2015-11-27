@@ -51,11 +51,9 @@ public class AsyncAwaitNioFileChannelDemo {
 	public @async CompletionStage<String> processFile(final String fileName) throws IOException {
 		final Path path = Paths.get(new File(fileName).toURI());
 		try (
-				final AsyncFileChannel file = new AsyncFileChannel(path, Collections.singleton(StandardOpenOption.READ), null); 				
+				final AsyncFileChannel file = new AsyncFileChannel(path, Collections.singleton(StandardOpenOption.READ), null);
+				final FileLock lock = await(file.lockAll(true))
 			) {
-		 
-			final FileLock lock = await(file.lockAll(true));
-
 			System.out.println("In process, shared lock: " + lock);
 			final ByteBuffer buffer = ByteBuffer.allocateDirect((int)file.size());
 			

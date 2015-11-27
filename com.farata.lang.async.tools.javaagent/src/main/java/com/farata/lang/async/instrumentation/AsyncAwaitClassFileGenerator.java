@@ -258,9 +258,7 @@ public class AsyncAwaitClassFileGenerator {
 		log.debug("Method has " + argTypes.length + " arguments");
 		
 		final MethodNode asyncRunMethod = (MethodNode) asyncRunnableClass.visitMethod(
-				ACC_PUBLIC, 
-				"run", "()V", 
-				null, new String[] {}
+			ACC_PUBLIC, "run", "()V", null, new String[] {}
 		);
 		
 		asyncRunMethod.visitAnnotation(CONTINUABLE_ANNOTATION_DESCRIPTOR, true);

@@ -209,18 +209,10 @@ public class AsyncAwaitClassFileGenerator {
 		// Original methods arguments
 		final Type[] argTypes = Type.getArgumentTypes(originalAsyncMethod.desc);
 		final int originalArity = argTypes.length;
-		final Type[] constructorArgTypes = isStatic ?
-			prependArray(
-				argTypes, 
-				Type.getReturnType(COMPLETION_STAGE_DESCRIPTOR)
-				)
-			:
-			prependArray(
-				argTypes, 
-				Type.getReturnType("L" + originalOuterClass.name + ";"),
-				Type.getReturnType(COMPLETION_STAGE_DESCRIPTOR)
-			);
-		final String constructorDesc = Type.getMethodDescriptor(Type.VOID_TYPE, constructorArgTypes);
+		
+		final String constructorDesc = Type.getMethodDescriptor(Type.VOID_TYPE, isStatic ? 
+			argTypes : prependArray(argTypes, Type.getReturnType("L" + originalOuterClass.name + ";")) 
+		);
 		
 		final MethodVisitor mv = asyncRunnableClass.visitMethod(0, "<init>", constructorDesc, null, null);
 		mv.visitCode();
@@ -238,17 +230,16 @@ public class AsyncAwaitClassFileGenerator {
 			String argDesc = argTypes[i].getDescriptor();
 			
 			mv.visitVarInsn(ALOAD, 0);
-			mv.visitVarInsn(argTypes[i].getOpcode(ILOAD), i + (isStatic ? 2 : 3));
+			mv.visitVarInsn(argTypes[i].getOpcode(ILOAD), i + (isStatic ? 1 : 2));
 			mv.visitFieldInsn(PUTFIELD, asyncRunnableClass.name, argName, argDesc);
 		}
 
 		// Invoke super() 
 		mv.visitVarInsn(ALOAD, 0);
-		mv.visitVarInsn(ALOAD, isStatic ? 1 : 2);
-		mv.visitMethodInsn(INVOKESPECIAL, ASYNC_TASK_NAME, "<init>", "(" + COMPLETION_STAGE_DESCRIPTOR + ")V", false);
+		mv.visitMethodInsn(INVOKESPECIAL, ASYNC_TASK_NAME, "<init>", "()V", false);
 	
 		mv.visitInsn(RETURN);
-		mv.visitMaxs(2, argTypes.length + (isStatic ? 2 : 3));
+		mv.visitMaxs(1 + (originalArity > 0 || !isStatic ? 1 : 0), originalArity + (isStatic ? 1 : 2));
 		mv.visitEnd();	
 			
 		return (MethodNode)mv;
@@ -450,6 +441,7 @@ public class AsyncAwaitClassFileGenerator {
 		final boolean isStatic = (originalAsyncMethodNode.access & Opcodes.ACC_STATIC) != 0;
 		final int thisArgShift = isStatic ? 0 : 1;
 		final Type[] originalArgTypes = Type.getArgumentTypes(originalAsyncMethodNode.desc);
+		final int originalArity = originalArgTypes.length;
 		
 		final MethodNode replacementAsyncMethodNode = new MethodNode(
 			originalAsyncMethodNode.access, 
@@ -461,14 +453,6 @@ public class AsyncAwaitClassFileGenerator {
 		replacementAsyncMethodNode.visitAnnotation(CONTINUABLE_ANNOTATION_DESCRIPTOR, true);
 		replacementAsyncMethodNode.visitCode();
 		
-		replacementAsyncMethodNode.visitMethodInsn(
-			INVOKESTATIC, 
-			ASYNC_TASK_NAME, "createFuture", "()" + COMPLETION_STAGE_DESCRIPTOR, 
-			false
-		);
-		
-		replacementAsyncMethodNode.visitVarInsn(ASTORE, originalArgTypes.length + thisArgShift);
-		
 		replacementAsyncMethodNode.visitTypeInsn(NEW, asyncTaskClassName);
 		replacementAsyncMethodNode.visitInsn(DUP);
 		if (!isStatic) {
@@ -476,35 +460,31 @@ public class AsyncAwaitClassFileGenerator {
 			replacementAsyncMethodNode.visitVarInsn(ALOAD, 0);
 		}
 		
-		// CompletableFututre var
-		replacementAsyncMethodNode.visitVarInsn(ALOAD, originalArgTypes.length + thisArgShift);
-		
 		// load all method arguments into stack
-		for (int i = 0; i < originalArgTypes.length; i++) {
+		for (int i = 0; i < originalArity; i++) {
 			//Shifted for this if necessary
 			replacementAsyncMethodNode.visitVarInsn(originalArgTypes[i].getOpcode(ILOAD), i + thisArgShift );
 		}
 
-		final Type[] constructorArgTypes = isStatic ?
-			prependArray(
-				originalArgTypes, 
-				Type.getReturnType(COMPLETION_STAGE_DESCRIPTOR)
-			)
-			:				
-			prependArray(
-				originalArgTypes, 
-				Type.getReturnType("L" + classNode.name + ";"),
-				Type.getReturnType(COMPLETION_STAGE_DESCRIPTOR)
-			);
-		final String constructorDesc = Type.getMethodDescriptor(Type.VOID_TYPE, constructorArgTypes);
+		final String constructorDesc = Type.getMethodDescriptor(Type.VOID_TYPE, isStatic ?
+			originalArgTypes : prependArray(originalArgTypes, Type.getReturnType("L" + classNode.name + ";"))
+		);
 		replacementAsyncMethodNode.visitMethodInsn(INVOKESPECIAL, asyncTaskClassName, "<init>", constructorDesc, false);
+		replacementAsyncMethodNode.visitVarInsn(ASTORE, originalArity + thisArgShift);
 		
+		replacementAsyncMethodNode.visitVarInsn(ALOAD, originalArity + thisArgShift);
 		replacementAsyncMethodNode.visitMethodInsn(INVOKESTATIC, ASYNC_EXECUTOR_NAME, "execute", "(Ljava/lang/Runnable;)V", false);
-		replacementAsyncMethodNode.visitVarInsn(ALOAD, originalArgTypes.length +  + (isStatic ? 0 : 1));
+		
+		replacementAsyncMethodNode.visitVarInsn(ALOAD, originalArity + thisArgShift);
+		replacementAsyncMethodNode.visitFieldInsn(GETFIELD, ASYNC_TASK_NAME, "future", COMPLETION_STAGE_DESCRIPTOR);
 		replacementAsyncMethodNode.visitInsn(ARETURN);
-		replacementAsyncMethodNode.visitMaxs(4 + originalArgTypes.length, originalArgTypes.length + thisArgShift + 1);
-
+		
+		replacementAsyncMethodNode.visitMaxs(
+			Math.max(1, originalArity + thisArgShift), // for AsyncTask constructor call
+			originalArity + thisArgShift + 1 // args count + outer this (for non static) + future var
+		);
 		replacementAsyncMethodNode.visitEnd();
+		
 		return replacementAsyncMethodNode;
 	}
 	
@@ -805,14 +785,6 @@ public class AsyncAwaitClassFileGenerator {
 		final Type[] result = new Type[array.length + 1];
 		result[0] = value;
 		System.arraycopy(array, 0, result, 1, array.length);
-		return result;
-	}
-	
-	private static Type[] prependArray(final Type[] array, final Type value1, final Type value2) {
-		final Type[] result = new Type[array.length + 2];
-		result[0] = value1;
-		result[1] = value2;
-		System.arraycopy(array, 0, result, 2, array.length);
 		return result;
 	}
 

@@ -498,14 +498,24 @@ public class AsyncAwaitClassFileGenerator {
 					 && methodInstructionNode.owner.equals(classNode.name)) {
 					final MethodNode targetMethodNode = getMethod(classNode, methodInstructionNode.name, methodInstructionNode.desc);
 					if (null != targetMethodNode && (targetMethodNode.access & ACC_PRIVATE) != 0) {
-						log.debug("Found " + BytecodeTraceUtil.toString(methodInstructionNode));
+						log.debug("Found private call " + BytecodeTraceUtil.toString(methodInstructionNode));
 						methods.add(createAccessMethod(
-							classNode, 
-							methodInstructionNode.name, methodInstructionNode.desc, 
-							(targetMethodNode.access & ACC_STATIC) != 0)
-						);
+							classNode, methodInstructionNode, (targetMethodNode.access & ACC_STATIC) != 0
+						));
 					}
 				}
+				
+				if (methodInstructionNode.getOpcode() == INVOKESPECIAL 
+					&& !"<init>".equals(methodInstructionNode.name)
+					&& !methodInstructionNode.owner.equals(classNode.name)) {
+					// INVOKESPECIAL is used for constructors/super-call, private instance methods
+					// Here we filtered out only to private super-method calls
+					log.debug("Found super-call " + BytecodeTraceUtil.toString(methodInstructionNode));
+					methods.add(createAccessMethod(
+						classNode, methodInstructionNode, false
+					));
+				}
+
 			}
 			if (instruction instanceof FieldInsnNode) {
 				final FieldInsnNode fieldInstructionNode = (FieldInsnNode) instruction;
@@ -515,16 +525,12 @@ public class AsyncAwaitClassFileGenerator {
 						//log.debug("Found " + BytecodeTraceUtil.toString(fieldInstructionNode));
 						if (fieldInstructionNode.getOpcode() == GETSTATIC || fieldInstructionNode.getOpcode() == GETFIELD) {
 							methods.add(createAccessGetter(
-								classNode, 
-								fieldInstructionNode.name, fieldInstructionNode.desc, 
-								(targetFieldNode.access & ACC_STATIC) != 0)
-							);
+								classNode, fieldInstructionNode, (targetFieldNode.access & ACC_STATIC) != 0
+							));
 						} else if (fieldInstructionNode.getOpcode() == PUTSTATIC || fieldInstructionNode.getOpcode() == PUTFIELD) {
 							methods.add(createAccessSetter(
-								classNode, 
-								fieldInstructionNode.name, fieldInstructionNode.desc, 
-								(targetFieldNode.access & ACC_STATIC) != 0)
-							);
+								classNode, fieldInstructionNode, (targetFieldNode.access & ACC_STATIC) != 0
+							));
 						}
 					}
 				}
@@ -532,96 +538,103 @@ public class AsyncAwaitClassFileGenerator {
 		}
 	}
 	
-	protected MethodNode createAccessMethod(final ClassNode classNode, final String methodName, final String methodDesc, final boolean isStatic) {
+	protected MethodNode createAccessMethod(final ClassNode classNode, final MethodInsnNode targetMethodNode, final boolean isStatic) {
+		MethodNode accessMethodNode = getAccessMethod(targetMethodNode.owner, targetMethodNode.name, targetMethodNode.desc, "M");
+		if (null != accessMethodNode) {
+			return accessMethodNode;
+		}
+		
 		final String name = createAccessMethodName(classNode);
-		final Type[] originalArgTypes = Type.getArgumentTypes(methodDesc);
+		final Type[] originalArgTypes = Type.getArgumentTypes(targetMethodNode.desc);
 		final Type[] argTypes = isStatic ? originalArgTypes : prependArray(originalArgTypes, Type.getReturnType("L" + classNode.name + ";")); 
-		final Type returnType = Type.getReturnType(methodDesc);
+		final Type returnType = Type.getReturnType(targetMethodNode.desc);
 		final String desc = Type.getMethodDescriptor(returnType, argTypes);
 		
-		final MethodNode acessMethodNode = new MethodNode(ACC_STATIC + ACC_SYNTHETIC, name, desc, null, null);
-		acessMethodNode.visitCode();
+		final MethodNode acсessMethodNode = new MethodNode(ACC_STATIC + ACC_SYNTHETIC, name, desc, null, null);
+		acсessMethodNode.visitCode();
 		
 		// load all method arguments into stack
 		final int arity = argTypes.length;
 		for (int i = 0; i < arity; i++) {
 			final int opcode = argTypes[i].getOpcode(ILOAD);
 			log.debug("Using opcode " + opcode + " for loading " + argTypes[i]);
-			acessMethodNode.visitVarInsn(opcode, i);
+			acсessMethodNode.visitVarInsn(opcode, i);
 		}
-		acessMethodNode.visitMethodInsn(isStatic ? INVOKESTATIC : INVOKESPECIAL, classNode.name, methodName, methodDesc, false);
-		acessMethodNode.visitInsn(returnType.getOpcode(IRETURN));
-		acessMethodNode.visitMaxs(argTypes.length, argTypes.length);
-		acessMethodNode.visitEnd();
+		acсessMethodNode.visitMethodInsn(isStatic ? INVOKESTATIC : INVOKESPECIAL, targetMethodNode.owner, targetMethodNode.name, targetMethodNode.desc, targetMethodNode.itf);
+		acсessMethodNode.visitInsn(returnType.getOpcode(IRETURN));
+		acсessMethodNode.visitMaxs(argTypes.length, argTypes.length);
+		acсessMethodNode.visitEnd();
 		
 		// Register mapping
-		registerAccessMethod(classNode.name, methodName, methodDesc, "M", acessMethodNode);
+		registerAccessMethod(targetMethodNode.owner, targetMethodNode.name, targetMethodNode.desc, "M", acсessMethodNode);
 		
-		return acessMethodNode;
+		return acсessMethodNode;
 	}
 	
-	protected MethodNode createAccessGetter(final ClassNode classNode, 
-                                            final String fieldName, 
-                                            final String fieldDesc, 
-                                            final boolean isStatic) {
+	protected MethodNode createAccessGetter(final ClassNode classNode, final FieldInsnNode targetFieldNode, final boolean isStatic) {
+		MethodNode accessMethodNode = getAccessMethod(targetFieldNode.owner, targetFieldNode.name, targetFieldNode.desc, "G");
+		if (null != accessMethodNode) {
+			return accessMethodNode;
+		}
 		
 		final String name = createAccessMethodName(classNode);
 		final Type[] argTypes = isStatic ? new Type[0] : new Type[]{Type.getReturnType("L" + classNode.name + ";")}; 
-		final Type returnType = Type.getReturnType(fieldDesc);
+		final Type returnType = Type.getReturnType(targetFieldNode.desc);
 		final String desc = Type.getMethodDescriptor(returnType, argTypes);
 		
-		final MethodNode acessMethodNode = new MethodNode(ACC_STATIC + ACC_SYNTHETIC, name, desc, null, null);
-		acessMethodNode.visitCode();
+		accessMethodNode = new MethodNode(ACC_STATIC + ACC_SYNTHETIC, name, desc, null, null);
+		accessMethodNode.visitCode();
 		
 		// load all method arguments into stack
 		final int arity = argTypes.length;
 		for (int i = 0; i < arity; i++) {
 			final int opcode = argTypes[i].getOpcode(ILOAD);
 			log.debug("Using opcode " + opcode + " for loading " + argTypes[i]);
-			acessMethodNode.visitVarInsn(opcode, i);
+			accessMethodNode.visitVarInsn(opcode, i);
 		}
-		acessMethodNode.visitFieldInsn(isStatic ? GETSTATIC : GETFIELD, classNode.name, fieldName, fieldDesc);
-		acessMethodNode.visitInsn(returnType.getOpcode(IRETURN));
-		acessMethodNode.visitMaxs(1, argTypes.length);
-		acessMethodNode.visitEnd();
+		accessMethodNode.visitFieldInsn(isStatic ? GETSTATIC : GETFIELD, targetFieldNode.owner, targetFieldNode.name, targetFieldNode.desc);
+		accessMethodNode.visitInsn(returnType.getOpcode(IRETURN));
+		accessMethodNode.visitMaxs(1, argTypes.length);
+		accessMethodNode.visitEnd();
 		
 		// Register mapping
-		registerAccessMethod(classNode.name, fieldName, fieldDesc, "G", acessMethodNode);
+		registerAccessMethod(targetFieldNode.owner, targetFieldNode.name, targetFieldNode.desc, "G", accessMethodNode);
 		
-		return acessMethodNode;
+		return accessMethodNode;
 	}
 	
-	protected MethodNode createAccessSetter(final ClassNode classNode, 
-                                            final String fieldName, 
-                                            final String fieldDesc, 
-                                            final boolean isStatic) {
+	protected MethodNode createAccessSetter(final ClassNode classNode, final FieldInsnNode targetFieldNode, final boolean isStatic) {
+		MethodNode accessMethodNode = getAccessMethod(targetFieldNode.owner, targetFieldNode.name, targetFieldNode.desc, "S");
+		if (null != accessMethodNode) {
+			return accessMethodNode;
+		}
 		
 		final String name = createAccessMethodName(classNode);
 		final Type[] argTypes = isStatic ? 
-			new Type[]{Type.getReturnType(fieldDesc)} : 
-			new Type[]{Type.getReturnType("L" + classNode.name + ";"), Type.getReturnType(fieldDesc)};
+			new Type[]{Type.getReturnType(targetFieldNode.desc)} : 
+			new Type[]{Type.getReturnType("L" + classNode.name + ";"), Type.getReturnType(targetFieldNode.desc)};
 		final Type returnType = Type.getReturnType("V"); // <-- void
 		final String desc = Type.getMethodDescriptor(returnType, argTypes);
 		
-		final MethodNode acessMethodNode = new MethodNode(ACC_STATIC + ACC_SYNTHETIC, name, desc, null, null);
-		acessMethodNode.visitCode();
+		accessMethodNode = new MethodNode(ACC_STATIC + ACC_SYNTHETIC, name, desc, null, null);
+		accessMethodNode.visitCode();
 		
 		// load all method arguments into stack
 		final int arity = argTypes.length;
 		for (int i = 0; i < arity; i++) {
 			final int opcode = argTypes[i].getOpcode(ILOAD);
 			log.debug("Using opcode " + opcode + " for loading " + argTypes[i]);
-			acessMethodNode.visitVarInsn(opcode, i);
+			accessMethodNode.visitVarInsn(opcode, i);
 		}
-		acessMethodNode.visitFieldInsn(isStatic ? PUTSTATIC : PUTFIELD, classNode.name, fieldName, fieldDesc);
-		acessMethodNode.visitInsn(RETURN);
-		acessMethodNode.visitMaxs(argTypes.length, argTypes.length);
-		acessMethodNode.visitEnd();
+		accessMethodNode.visitFieldInsn(isStatic ? PUTSTATIC : PUTFIELD, targetFieldNode.owner, targetFieldNode.name, targetFieldNode.desc);
+		accessMethodNode.visitInsn(RETURN);
+		accessMethodNode.visitMaxs(argTypes.length, argTypes.length);
+		accessMethodNode.visitEnd();
 		
 		// Register mapping
-		registerAccessMethod(classNode.name, fieldName, fieldDesc, "S", acessMethodNode);
+		registerAccessMethod(targetFieldNode.owner, targetFieldNode.name, targetFieldNode.desc, "S", accessMethodNode);
 		
-		return acessMethodNode;
+		return accessMethodNode;
 	}
 	
 	

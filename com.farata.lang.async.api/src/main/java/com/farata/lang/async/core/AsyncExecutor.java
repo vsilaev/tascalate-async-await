@@ -35,16 +35,16 @@ public class AsyncExecutor implements Serializable {
     	log.debug("Starting suspended Continuation");		
 		final Continuation continuation = Continuation.startSuspendedWith(runnable);
 		// Start it
-		continueWith(continuation, null);
+		resume(continuation, null);
 	}
 	
 	/**
 	 * Continue the {@link Continuation} and start {@link Continuator} when the {@link Continuation} suspends.
 	 */
-	protected void continueWith(final Continuation initialContinuation, final Object context) {
+	protected void resume(final Continuation initialContinuation, final Object context) {
     	// Continue Continuation
     	log.debug("Continueing continuation");
-    	final Continuation newContinuation = Continuation.continueWith(initialContinuation, context);
+    	final Continuation newContinuation = initialContinuation.resume(context);
     	// Continuation finished or suspended
     	
     	if (newContinuation == null) {        		
@@ -73,13 +73,13 @@ public class AsyncExecutor implements Serializable {
 		try {
 			future.whenComplete((result, error) -> {
 				if (error == null) {
-					continueWith(continuation, Either.result(result));
+					resume(continuation, Either.result(result));
 				} else {
-					continueWith(continuation, Either.error(error));
+					resume(continuation, Either.error(error));
 				}				
 			});
 		} catch (final Throwable error) {
-			continueWith(continuation, Either.error(error));
+			resume(continuation, Either.error(error));
 		}
 	}
 
@@ -93,7 +93,7 @@ public class AsyncExecutor implements Serializable {
 	/**
 	 */
 	protected @continuable <R, E extends Throwable> R awaitTask(final CompletionStage<R> future) throws E {
-		// Blocking is available - continueWith() method is being called
+		// Blocking is available - resume() method is being called
 		
 		// Let's sleep!
 		log.debug("Suspending continuation");

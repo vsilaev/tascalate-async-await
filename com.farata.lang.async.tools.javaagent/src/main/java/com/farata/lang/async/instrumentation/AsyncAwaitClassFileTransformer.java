@@ -9,7 +9,7 @@ import java.security.ProtectionDomain;
 import java.util.HashMap;
 import java.util.Map;
 
-import org.apache.commons.javaflow.instrumentation.ExtendedClasspathResourceLoader;
+import org.apache.commons.javaflow.spi.ExtendedClasspathResourceLoader;
 import org.apache.commons.javaflow.spi.ClasspathResourceLoader;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;

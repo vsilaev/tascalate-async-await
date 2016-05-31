@@ -496,12 +496,12 @@ public class AsyncAwaitClassFileGenerator {
 					 methodInstructionNode.getOpcode() == INVOKESPECIAL ||
 					 methodInstructionNode.getOpcode() == INVOKESTATIC)
 					 && methodInstructionNode.owner.equals(classNode.name)) {
-					final MethodNode targetMethodNode = getMethod(classNode, methodInstructionNode.name, methodInstructionNode.desc);
+					final MethodNode targetMethodNode = getMethod(methodInstructionNode.name, methodInstructionNode.desc, methods);
 					if (null != targetMethodNode && (targetMethodNode.access & ACC_PRIVATE) != 0) {
 						log.debug("Found private call " + BytecodeTraceUtil.toString(methodInstructionNode));
-						methods.add(createAccessMethod(
-							classNode, methodInstructionNode, (targetMethodNode.access & ACC_STATIC) != 0
-						));
+						createAccessMethod(
+							classNode, methodInstructionNode, (targetMethodNode.access & ACC_STATIC) != 0, methods
+						);
 					}
 				}
 				
@@ -511,9 +511,9 @@ public class AsyncAwaitClassFileGenerator {
 					// INVOKESPECIAL is used for constructors/super-call, private instance methods
 					// Here we filtered out only to private super-method calls
 					log.debug("Found super-call " + BytecodeTraceUtil.toString(methodInstructionNode));
-					methods.add(createAccessMethod(
-						classNode, methodInstructionNode, false
-					));
+					createAccessMethod(
+						classNode, methodInstructionNode, false, methods
+					);
 				}
 
 			}
@@ -524,13 +524,13 @@ public class AsyncAwaitClassFileGenerator {
 					if (null != targetFieldNode && (targetFieldNode.access & ACC_PRIVATE) != 0) {
 						//log.debug("Found " + BytecodeTraceUtil.toString(fieldInstructionNode));
 						if (fieldInstructionNode.getOpcode() == GETSTATIC || fieldInstructionNode.getOpcode() == GETFIELD) {
-							methods.add(createAccessGetter(
-								classNode, fieldInstructionNode, (targetFieldNode.access & ACC_STATIC) != 0
-							));
+							createAccessGetter(
+								classNode, fieldInstructionNode, (targetFieldNode.access & ACC_STATIC) != 0, methods
+							);
 						} else if (fieldInstructionNode.getOpcode() == PUTSTATIC || fieldInstructionNode.getOpcode() == PUTFIELD) {
-							methods.add(createAccessSetter(
-								classNode, fieldInstructionNode, (targetFieldNode.access & ACC_STATIC) != 0
-							));
+							createAccessSetter(
+								classNode, fieldInstructionNode, (targetFieldNode.access & ACC_STATIC) != 0, methods
+							);
 						}
 					}
 				}
@@ -538,46 +538,46 @@ public class AsyncAwaitClassFileGenerator {
 		}
 	}
 	
-	protected MethodNode createAccessMethod(final ClassNode classNode, final MethodInsnNode targetMethodNode, final boolean isStatic) {
+	protected MethodNode createAccessMethod(final ClassNode classNode, final MethodInsnNode targetMethodNode, final boolean isStatic, final List<MethodNode> methods) {
 		MethodNode accessMethodNode = getAccessMethod(targetMethodNode.owner, targetMethodNode.name, targetMethodNode.desc, "M");
 		if (null != accessMethodNode) {
 			return accessMethodNode;
 		}
 		
-		final String name = createAccessMethodName(classNode);
+		final String name = createAccessMethodName(methods);
 		final Type[] originalArgTypes = Type.getArgumentTypes(targetMethodNode.desc);
 		final Type[] argTypes = isStatic ? originalArgTypes : prependArray(originalArgTypes, Type.getReturnType("L" + classNode.name + ";")); 
 		final Type returnType = Type.getReturnType(targetMethodNode.desc);
 		final String desc = Type.getMethodDescriptor(returnType, argTypes);
 		
-		final MethodNode acсessMethodNode = new MethodNode(ACC_STATIC + ACC_SYNTHETIC, name, desc, null, null);
-		acсessMethodNode.visitCode();
+		accessMethodNode = new MethodNode(ACC_STATIC + ACC_SYNTHETIC, name, desc, null, null);
+		accessMethodNode.visitCode();
 		
 		// load all method arguments into stack
 		final int arity = argTypes.length;
 		for (int i = 0; i < arity; i++) {
 			final int opcode = argTypes[i].getOpcode(ILOAD);
 			log.debug("Using opcode " + opcode + " for loading " + argTypes[i]);
-			acсessMethodNode.visitVarInsn(opcode, i);
+			accessMethodNode.visitVarInsn(opcode, i);
 		}
-		acсessMethodNode.visitMethodInsn(isStatic ? INVOKESTATIC : INVOKESPECIAL, targetMethodNode.owner, targetMethodNode.name, targetMethodNode.desc, targetMethodNode.itf);
-		acсessMethodNode.visitInsn(returnType.getOpcode(IRETURN));
-		acсessMethodNode.visitMaxs(argTypes.length, argTypes.length);
-		acсessMethodNode.visitEnd();
+		accessMethodNode.visitMethodInsn(isStatic ? INVOKESTATIC : INVOKESPECIAL, targetMethodNode.owner, targetMethodNode.name, targetMethodNode.desc, targetMethodNode.itf);
+		accessMethodNode.visitInsn(returnType.getOpcode(IRETURN));
+		accessMethodNode.visitMaxs(argTypes.length, argTypes.length);
+		accessMethodNode.visitEnd();
 		
 		// Register mapping
-		registerAccessMethod(targetMethodNode.owner, targetMethodNode.name, targetMethodNode.desc, "M", acсessMethodNode);
-		
-		return acсessMethodNode;
+		registerAccessMethod(targetMethodNode.owner, targetMethodNode.name, targetMethodNode.desc, "M", accessMethodNode);
+		methods.add(accessMethodNode);
+		return accessMethodNode;
 	}
 	
-	protected MethodNode createAccessGetter(final ClassNode classNode, final FieldInsnNode targetFieldNode, final boolean isStatic) {
+	protected MethodNode createAccessGetter(final ClassNode classNode, final FieldInsnNode targetFieldNode, final boolean isStatic, final List<MethodNode> methods) {
 		MethodNode accessMethodNode = getAccessMethod(targetFieldNode.owner, targetFieldNode.name, targetFieldNode.desc, "G");
 		if (null != accessMethodNode) {
 			return accessMethodNode;
 		}
 		
-		final String name = createAccessMethodName(classNode);
+		final String name = createAccessMethodName(methods);
 		final Type[] argTypes = isStatic ? new Type[0] : new Type[]{Type.getReturnType("L" + classNode.name + ";")}; 
 		final Type returnType = Type.getReturnType(targetFieldNode.desc);
 		final String desc = Type.getMethodDescriptor(returnType, argTypes);
@@ -599,17 +599,17 @@ public class AsyncAwaitClassFileGenerator {
 		
 		// Register mapping
 		registerAccessMethod(targetFieldNode.owner, targetFieldNode.name, targetFieldNode.desc, "G", accessMethodNode);
-		
+		methods.add(accessMethodNode);
 		return accessMethodNode;
 	}
 	
-	protected MethodNode createAccessSetter(final ClassNode classNode, final FieldInsnNode targetFieldNode, final boolean isStatic) {
+	protected MethodNode createAccessSetter(final ClassNode classNode, final FieldInsnNode targetFieldNode, final boolean isStatic, final List<MethodNode> methods) {
 		MethodNode accessMethodNode = getAccessMethod(targetFieldNode.owner, targetFieldNode.name, targetFieldNode.desc, "S");
 		if (null != accessMethodNode) {
 			return accessMethodNode;
 		}
 		
-		final String name = createAccessMethodName(classNode);
+		final String name = createAccessMethodName(methods);
 		final Type[] argTypes = isStatic ? 
 			new Type[]{Type.getReturnType(targetFieldNode.desc)} : 
 			new Type[]{Type.getReturnType("L" + classNode.name + ";"), Type.getReturnType(targetFieldNode.desc)};
@@ -633,7 +633,7 @@ public class AsyncAwaitClassFileGenerator {
 		
 		// Register mapping
 		registerAccessMethod(targetFieldNode.owner, targetFieldNode.name, targetFieldNode.desc, "S", accessMethodNode);
-		
+		methods.add(accessMethodNode);
 		return accessMethodNode;
 	}
 	
@@ -676,10 +676,10 @@ public class AsyncAwaitClassFileGenerator {
 		return classNode.name + "$" + index;
 	}
 	
-	private static String createAccessMethodName(final ClassNode classNode) {
+	private static String createAccessMethodName(final List<MethodNode> methods) {
 		int index = 0;
 		String name;
-		while (hasMethod(classNode, name = createAccessMethodName(index))) {
+		while (hasMethod(name = createAccessMethodName(index), methods)) {
 			index++;
 		}
 		log.trace("Generated new method name: " + name);
@@ -711,12 +711,12 @@ public class AsyncAwaitClassFileGenerator {
 	
 	// --- Finding methods ---
 	
-	private static boolean hasMethod(final ClassNode classNode, final String methodName) {
-		return getMethod(classNode, methodName, null) != null;
+	private static boolean hasMethod(final String methodName, final List<MethodNode> methods) {
+		return getMethod(methodName, null, methods) != null;
 	}
 	
-	private static MethodNode getMethod(final ClassNode classNode, final String methodName, final String methodDesc) {
-		for (final MethodNode methodNode : methodsOf(classNode)) {
+	private static MethodNode getMethod(final String methodName, final String methodDesc, final List<MethodNode> methods) {
+		for (final MethodNode methodNode : methods) {
 			if (methodName.equals(methodNode.name) && (methodDesc == null || methodDesc.equals(methodNode.desc))) {
 				return methodNode;
 			}

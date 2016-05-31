@@ -9,8 +9,8 @@ import java.security.ProtectionDomain;
 import java.util.HashMap;
 import java.util.Map;
 
-import org.apache.commons.javaflow.spi.ExtendedClasspathResourceLoader;
 import org.apache.commons.javaflow.spi.ClasspathResourceLoader;
+import org.apache.commons.javaflow.spi.ExtendedClasspathResourceLoader;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 
@@ -42,7 +42,6 @@ public class AsyncAwaitClassFileTransformer implements ClassFileTransformer {
 		
 		// Define new classes and then redefine inner classes
 		final byte[] finalResult = postProcess(classLoader, className, classBeingRedefined, protectionDomain, transformed);
-		
 		final Map<String, byte[]> inMemoryResources = renameInMemoryResources(extraClasses);
 		inMemoryResources.put(className + ".class", finalResult);
 		

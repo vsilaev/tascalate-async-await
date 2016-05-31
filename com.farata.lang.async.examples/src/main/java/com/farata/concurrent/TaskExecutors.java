@@ -15,7 +15,7 @@ import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 
-public class J8Executors {
+public class TaskExecutors {
     /**
      * Creates a thread pool that reuses a fixed number of threads
      * operating off a shared unbounded queue.  At any point, at most
@@ -31,8 +31,8 @@ public class J8Executors {
      * @return the newly created thread pool
      * @throws IllegalArgumentException if {@code nThreads <= 0}
      */
-    public static J8ExecutorService newFixedThreadPool(int nThreads) {
-        return new J8ThreadPoolExecutor(nThreads, nThreads,
+    public static TaskExecutorService newFixedThreadPool(int nThreads) {
+        return new ThreadPoolTaskExecutor(nThreads, nThreads,
                                       0L, TimeUnit.MILLISECONDS,
                                       new LinkedBlockingQueue<Runnable>());
     }
@@ -56,8 +56,8 @@ public class J8Executors {
      * @throws NullPointerException if threadFactory is null
      * @throws IllegalArgumentException if {@code nThreads <= 0}
      */
-    public static J8ExecutorService newFixedThreadPool(int nThreads, ThreadFactory threadFactory) {
-        return new J8ThreadPoolExecutor(nThreads, nThreads,
+    public static TaskExecutorService newFixedThreadPool(int nThreads, ThreadFactory threadFactory) {
+        return new ThreadPoolTaskExecutor(nThreads, nThreads,
                                       0L, TimeUnit.MILLISECONDS,
                                       new LinkedBlockingQueue<Runnable>(),
                                       threadFactory);
@@ -79,8 +79,8 @@ public class J8Executors {
      *
      * @return the newly created thread pool
      */
-    public static J8ExecutorService newCachedThreadPool() {
-        return new J8ThreadPoolExecutor(0, Integer.MAX_VALUE,
+    public static TaskExecutorService newCachedThreadPool() {
+        return new ThreadPoolTaskExecutor(0, Integer.MAX_VALUE,
                                       60L, TimeUnit.SECONDS,
                                       new SynchronousQueue<Runnable>());
     }
@@ -94,8 +94,8 @@ public class J8Executors {
      * @return the newly created thread pool
      * @throws NullPointerException if threadFactory is null
      */
-    public static J8ExecutorService newCachedThreadPool(ThreadFactory threadFactory) {
-        return new J8ThreadPoolExecutor(0, Integer.MAX_VALUE,
+    public static TaskExecutorService newCachedThreadPool(ThreadFactory threadFactory) {
+        return new ThreadPoolTaskExecutor(0, Integer.MAX_VALUE,
                                       60L, TimeUnit.SECONDS,
                                       new SynchronousQueue<Runnable>(),
                                       threadFactory);
@@ -114,7 +114,7 @@ public class J8Executors {
      *
      * @return the newly created single-threaded Executor
      */
-    public static J8ExecutorService newSingleThreadExecutor() {
+    public static TaskExecutorService newSingleThreadExecutor() {
         return adapt(Executors.newSingleThreadExecutor());
     }
 
@@ -132,22 +132,22 @@ public class J8Executors {
      * @return the newly created single-threaded Executor
      * @throws NullPointerException if threadFactory is null
      */
-    public static J8ExecutorService newSingleThreadExecutor(ThreadFactory threadFactory) {
+    public static TaskExecutorService newSingleThreadExecutor(ThreadFactory threadFactory) {
         return adapt(Executors.newSingleThreadExecutor(threadFactory));
     }
         
-    public static J8ExecutorService adapt(final ExecutorService executorService) {
-        if (executorService instanceof J8ExecutorService) {
-            return (J8ExecutorService)executorService;
+    public static TaskExecutorService adapt(final ExecutorService executorService) {
+        if (executorService instanceof TaskExecutorService) {
+            return (TaskExecutorService)executorService;
         } else {
-            return new J8ExecutorServiceAdapter(executorService);
+            return new TaskExecutorServiceAdapter(executorService);
         }
     }
     
-    static class J8ExecutorServiceAdapter implements J8ExecutorService {
+    static class TaskExecutorServiceAdapter implements TaskExecutorService {
         private final ExecutorService delegate;
         
-        J8ExecutorServiceAdapter(ExecutorService executor) { 
+        TaskExecutorServiceAdapter(ExecutorService executor) { 
             delegate = executor;
         }
 
@@ -175,19 +175,19 @@ public class J8Executors {
             return delegate.awaitTermination(timeout, unit);
         }
 
-        public <T> CompletableTask<T> submit(Callable<T> callable) {
+        public <T> CompletionFuture<T> submit(Callable<T> callable) {
             final CompletableTask<T> task = createTask(callable); 
             delegate.execute(task);
             return task;
         }
 
-        public <T> CompletableTask<T> submit(Runnable codeBlock, T result) {
+        public <T> CompletionFuture<T> submit(Runnable codeBlock, T result) {
             final CompletableTask<T> task = createTask(Executors.callable(codeBlock, result)); 
             delegate.execute(task);
             return task;
         }
 
-        public CompletableTask<?> submit(Runnable codeBlock) {
+        public CompletionFuture<?> submit(Runnable codeBlock) {
             final CompletableTask<?> task = createTask(Executors.callable(codeBlock, null)); 
             delegate.execute(task);
             return task;
@@ -213,7 +213,7 @@ public class J8Executors {
         }
         
         protected <T> CompletableTask<T> createTask(Callable<T> callable) {
-            return CompletableTaskImpl.create(this, callable);        
+            return CompletableTask.create(this, callable);        
         }
         
     }

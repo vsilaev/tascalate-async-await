@@ -1,4 +1,4 @@
-package com.farata.lang.async.api;
+package com.farata.concurrent;
 
 import java.util.Collections;
 import java.util.List;
@@ -14,5 +14,9 @@ public class MultitargetException extends Exception {
 	
 	public List<Throwable> getExceptions() {
 		return Collections.unmodifiableList(exceptions);
+	}
+	
+	public static MultitargetException of(final Throwable exception) {
+	    return new MultitargetException(Collections.singletonList(exception));
 	}
 }

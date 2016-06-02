@@ -19,31 +19,34 @@ public interface CompletableAsynchronousByteChannel extends AsynchronousByteChan
     }
     
     static class Adapter implements CompletableAsynchronousByteChannel {
-        final private AsynchronousByteChannel delegate;
+        private final AsynchronousByteChannel delegate;
         
         private Adapter(AsynchronousByteChannel delegate) {
             this.delegate = delegate;
         }
 
-
         @Override
         public CompletionFuture<Integer> read(ByteBuffer dst) {
-            return doRead(dst, null, null);
+            AsyncResult<Integer> asyncResult = new AsyncResult<>();
+            delegate.read(dst, null, asyncResult.handler);
+            return asyncResult;
         }
         
         @Override
         public <A> void read(ByteBuffer dst, A attachment, CompletionHandler<Integer, ? super A> handler) {
-            doRead(dst, attachment, handler);
+            delegate.read(dst, attachment, handler);
         }
         
         @Override
         public CompletionFuture<Integer> write(ByteBuffer src) {
-            return doWrite(src, null, null);
+            AsyncResult<Integer> asyncResult = new AsyncResult<>();
+            delegate.write(src, null, asyncResult.handler);
+            return asyncResult;
         }
 
         @Override
         public <A> void write(ByteBuffer src, A attachment, CompletionHandler<Integer, ? super A> handler) {
-            doWrite(src, attachment, handler);
+            delegate.write(src, attachment, handler);
         }
 
         @Override
@@ -54,26 +57,6 @@ public interface CompletableAsynchronousByteChannel extends AsynchronousByteChan
         @Override
         public void close() throws IOException {
             delegate.close();
-        }
-
-        protected <A> CompletionFuture<Integer> doRead(
-                final ByteBuffer dst, 
-                final A attachment,
-                final CompletionHandler<Integer, ? super A> handler) {
-
-            final AsyncResult<Integer, ? super A> asyncResult = new AsyncResult<>(handler);
-            delegate.read(dst, attachment, asyncResult.handler);
-            return asyncResult;
-        }
-        
-        protected <A> CompletionFuture<Integer> doWrite(
-                final ByteBuffer src, 
-                final A attachment, 
-                final CompletionHandler<Integer, ? super A> handler) {
-
-            final AsyncResult<Integer, ? super A> asyncResult = new AsyncResult<>(handler);
-            delegate.write(src, attachment, asyncResult.handler);
-            return asyncResult;
         }
     }
 }

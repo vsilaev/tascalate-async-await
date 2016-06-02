@@ -4,30 +4,21 @@ import java.nio.channels.CompletionHandler;
 
 import net.tascalate.concurrent.RestrictedCompletableFuture;
 
-class AsyncResult<V, A> extends RestrictedCompletableFuture<V> {
+class AsyncResult<V> extends RestrictedCompletableFuture<V> {
     
-    private final CompletionHandler<V, A> clientCallback;
-    
-    final CompletionHandler<V, A> handler = new CompletionHandler<V, A>() {
+    final CompletionHandler<V, Object> handler = new CompletionHandler<V, Object>() {
         @Override
-        public void completed(final V result, final A attachment) {
-            if (null != clientCallback) {
-                clientCallback.completed(result, attachment);
-            }
+        public void completed(final V result, final Object attachment) {
             internalCompleteNormally(result);
         }
 
         @Override
-        public void failed(Throwable exc, A attachment) {
-            if (null != clientCallback) {
-                clientCallback.failed(exc, attachment);
-            }
+        public void failed(Throwable exc, Object attachment) {
             internalCompleteExceptionally(exc);     
         }
     };
 
-    AsyncResult(CompletionHandler<V, A> clientCallback ) {
-        this.clientCallback = clientCallback;
+    AsyncResult() {
     }
     
 }

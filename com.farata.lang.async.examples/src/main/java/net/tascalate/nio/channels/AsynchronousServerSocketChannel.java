@@ -11,7 +11,7 @@ import net.tascalate.concurrent.CompletionFuture;
 
 public class AsynchronousServerSocketChannel extends java.nio.channels.AsynchronousServerSocketChannel {
 
-    final protected java.nio.channels.AsynchronousServerSocketChannel delegate;
+    protected final java.nio.channels.AsynchronousServerSocketChannel delegate;
     
     public static AsynchronousServerSocketChannel open() throws IOException {
         return new AsynchronousServerSocketChannel(java.nio.channels.AsynchronousServerSocketChannel.open());
@@ -73,19 +73,31 @@ public class AsynchronousServerSocketChannel extends java.nio.channels.Asynchron
     }
     
     protected <V extends java.nio.channels.AsynchronousSocketChannel, A> CompletionFuture<V> doAccept(A attachment, CompletionHandler<V, ? super A> handler) {
-        final AsyncResult<V, ? super A> asyncResult = new AsyncResult<>(handler);
+        final AsyncResult<V> asyncResult = new AsyncResult<>();
         delegate.accept(attachment, new CompletionHandler<java.nio.channels.AsynchronousSocketChannel, A>() {
 
             @Override
             public void completed(java.nio.channels.AsynchronousSocketChannel result, A attachment) {
                 @SuppressWarnings("unchecked")
                 final V wrapped = (V)new AsynchronousSocketChannel(result);
-                asyncResult.handler.completed(wrapped, attachment);
+                try {
+                    asyncResult.handler.completed(wrapped, attachment);
+                } finally {
+                    if (null != handler) {
+                        handler.completed(wrapped, attachment);
+                    }
+                }
             }
 
             @Override
             public void failed(Throwable exc, A attachment) {
-                asyncResult.handler.failed(exc, attachment);
+                try {
+                    asyncResult.handler.failed(exc, attachment);
+                } finally {
+                    if (null != handler) {
+                        handler.failed(exc, attachment);
+                    }
+                }
             }
             
         });

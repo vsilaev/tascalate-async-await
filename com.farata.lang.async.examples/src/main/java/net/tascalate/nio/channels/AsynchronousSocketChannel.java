@@ -15,7 +15,7 @@ public class AsynchronousSocketChannel
     extends java.nio.channels.AsynchronousSocketChannel 
     implements CompletableAsynchronousByteChannel {
     
-    final private java.nio.channels.AsynchronousSocketChannel delegate;
+    private final java.nio.channels.AsynchronousSocketChannel delegate;
 
     public static AsynchronousSocketChannel open() throws IOException {
         return new AsynchronousSocketChannel(java.nio.channels.AsynchronousSocketChannel.open());
@@ -25,7 +25,7 @@ public class AsynchronousSocketChannel
         return new AsynchronousSocketChannel(java.nio.channels.AsynchronousSocketChannel.open(group));
     }
 
-    protected AsynchronousSocketChannel(final java.nio.channels.AsynchronousSocketChannel delegate) {
+    protected AsynchronousSocketChannel(java.nio.channels.AsynchronousSocketChannel delegate) {
         super(delegate.provider());
         this.delegate = delegate;
     }
@@ -71,120 +71,101 @@ public class AsynchronousSocketChannel
     }
 
     public <A> void connect(SocketAddress remote, A attachment, CompletionHandler<Void, ? super A> handler) {
-        doConnect(remote, attachment, handler);
+        delegate.connect(remote, attachment, handler);
     }
 
     public CompletionFuture<Void> connect(SocketAddress remote) {
-        return doConnect(remote, null, null);
+        return doConnect(remote);
     }
 
     public CompletionFuture<Integer> read(ByteBuffer dst) {
-        return doRead(dst, -1, TimeUnit.MICROSECONDS, null, null);
+        return doRead(dst, -1, TimeUnit.MICROSECONDS);
     }
 
     public CompletionFuture<Integer> read(ByteBuffer dst, long timeout, TimeUnit unit) {
-        return doRead(dst, timeout, unit, null, null);
+        return doRead(dst, timeout, unit);
     }
 
     public <A> void read(ByteBuffer dst, long timeout, TimeUnit unit, A attachment,
             CompletionHandler<Integer, ? super A> handler) {
-        doRead(dst, timeout, unit, attachment, handler);
+        delegate.read(dst, timeout, unit, attachment, handler);
     }
 
     public CompletionFuture<Long> read(ByteBuffer[] dsts, int offset, int length, long timeout, TimeUnit unit) {
-        return doRead(dsts, offset, length, timeout, unit, null, null);
+        return doRead(dsts, offset, length, timeout, unit);
     }
 
     public <A> void read(ByteBuffer[] dsts, int offset, int length, long timeout, TimeUnit unit, A attachment,
             CompletionHandler<Long, ? super A> handler) {
-        doRead(dsts, offset, length, timeout, unit, attachment, handler);
+        delegate.read(dsts, offset, length, timeout, unit, attachment, handler);
     }
 
     public CompletionFuture<Integer> write(ByteBuffer src) {
-        return doWrite(src, -1, TimeUnit.MICROSECONDS, null, null);
+        return doWrite(src, -1, TimeUnit.MICROSECONDS);
     }
 
     public CompletionFuture<Integer> write(ByteBuffer src, long timeout, TimeUnit unit) {
-        return doWrite(src, timeout, unit, null, null);
+        return doWrite(src, timeout, unit);
     }	
 
     public <A> void write(ByteBuffer src, long timeout, TimeUnit unit, A attachment,
             CompletionHandler<Integer, ? super A> handler) {
-        doWrite(src, timeout, unit, attachment, handler);
+        delegate.write(src, timeout, unit, attachment, handler);
     }
 
     public CompletionFuture<Long> write(ByteBuffer[] srcs, int offset, int length, long timeout, TimeUnit unit) {
-        return doWrite(srcs, offset, length, timeout, unit, null, null);
+        return doWrite(srcs, offset, length, timeout, unit);
     }
 
     public <A> void write(ByteBuffer[] srcs, int offset, int length, long timeout, TimeUnit unit, A attachment,
             CompletionHandler<Long, ? super A> handler) {
-        doWrite(srcs, offset, length, timeout, unit, attachment, handler);
+        delegate.write(srcs, offset, length, timeout, unit, attachment, handler);
     }
 
     public SocketAddress getLocalAddress() throws IOException {
         return delegate.getLocalAddress();
     }
 
-    protected <A> CompletionFuture<Void> doConnect(
-            final SocketAddress remote, 
-            final A attachment, 
-            final CompletionHandler<Void, ? super A> handler) {
-
-        final AsyncResult<Void, ? super A> asyncResult = new AsyncResult<>(handler);
-        delegate.connect(remote, attachment, asyncResult.handler);
+    protected CompletionFuture<Void> doConnect(SocketAddress remote) {
+        AsyncResult<Void> asyncResult = new AsyncResult<>();
+        delegate.connect(remote, null, asyncResult.handler);
         return asyncResult;
     }
 
-    protected <A> CompletionFuture<Integer> doRead(
-            final ByteBuffer dst, 
-            final long timeout,
-            final TimeUnit unit,
-            final A attachment,
-            final CompletionHandler<Integer, ? super A> handler) {
+    protected CompletionFuture<Integer> doRead(ByteBuffer dst, long timeout, TimeUnit unit) {
 
-        final AsyncResult<Integer, ? super A> asyncResult = new AsyncResult<>(handler);
-        delegate.read(dst, timeout, unit, attachment, asyncResult.handler);
+        final AsyncResult<Integer> asyncResult = new AsyncResult<>();
+        delegate.read(dst, timeout, unit, null, asyncResult.handler);
         return asyncResult;
     }
 
-    protected <A> CompletionFuture<Long> doRead(
-            final ByteBuffer[] dsts, 
-            final int offset,
-            final int length,
-            final long timeout,
-            final TimeUnit unit,
-            final A attachment,
-            final CompletionHandler<Long, ? super A> handler) {
+    protected CompletionFuture<Long> doRead(
+            ByteBuffer[] dsts, 
+            int offset,
+            int length,
+            long timeout,
+            TimeUnit unit) {
 
-        final AsyncResult<Long, ? super A> asyncResult = new AsyncResult<>(handler);
-        delegate.read(dsts, offset, length, timeout, unit, attachment, asyncResult.handler);
+        AsyncResult<Long> asyncResult = new AsyncResult<>();
+        delegate.read(dsts, offset, length, timeout, unit, null, asyncResult.handler);
         return asyncResult;
     }
 
-    protected <A> CompletionFuture<Integer> doWrite(
-            final ByteBuffer src, 
-            final long timeout, 
-            final TimeUnit unit, 
-            final A attachment, 
-            final CompletionHandler<Integer, ? super A> handler) {
-
-        final AsyncResult<Integer, ? super A> asyncResult = new AsyncResult<>(handler);
-        delegate.write(src, timeout, unit, attachment, asyncResult.handler);
+    protected CompletionFuture<Integer> doWrite(ByteBuffer src, long timeout, TimeUnit unit) {
+        AsyncResult<Integer> asyncResult = new AsyncResult<>();
+        delegate.write(src, timeout, unit, null, asyncResult.handler);
         return asyncResult;
     }
 
-    protected <A> CompletionFuture<Long> doWrite(
-            final ByteBuffer[] srcs, 
-            final int offset, 
-            final int length, 
-            final long timeout, 
-            final TimeUnit unit, 
-            final A attachment,
-            final CompletionHandler<Long, ? super A> handler) {
+    protected CompletionFuture<Long> doWrite(
+            ByteBuffer[] srcs, 
+            int offset, 
+            int length, 
+            long timeout, 
+            TimeUnit unit) {
 
-        final AsyncResult<Long, ? super A> asyncResult = new AsyncResult<>(handler);
-        delegate.write(srcs, offset, length, timeout, unit, attachment, asyncResult.handler);
+        AsyncResult<Long> asyncResult = new AsyncResult<>();
+        delegate.write(srcs, offset, length, timeout, unit, null, asyncResult.handler);
         return asyncResult;
     }
 

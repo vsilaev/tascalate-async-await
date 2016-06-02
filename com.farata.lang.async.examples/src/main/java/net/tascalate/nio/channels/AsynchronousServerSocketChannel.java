@@ -52,12 +52,16 @@ public class AsynchronousServerSocketChannel extends java.nio.channels.Asynchron
         return this;
     }
     
-    public CompletionFuture<AsynchronousSocketChannel> acceptClient() {
-        return doAccept(null, null);
+    public CompletionFuture<? extends AsynchronousSocketChannel> acceptClient() {
+        final AsyncResult<AsynchronousSocketChannel> asyncResult = new AsyncResult<>();
+        doAccept(null, asyncResult.handler);
+        return asyncResult;
     }
 
     public CompletionFuture<java.nio.channels.AsynchronousSocketChannel> accept() {
-        return doAccept(null, null);
+        final AsyncResult<java.nio.channels.AsynchronousSocketChannel> asyncResult = new AsyncResult<>();
+        doAccept(null, asyncResult.handler);
+        return asyncResult;
     }
     
     public <A> void acceptClient(A attachment, CompletionHandler<AsynchronousSocketChannel, ? super A> handler) {
@@ -72,36 +76,24 @@ public class AsynchronousServerSocketChannel extends java.nio.channels.Asynchron
         return delegate.getLocalAddress();
     }
     
-    protected <V extends java.nio.channels.AsynchronousSocketChannel, A> CompletionFuture<V> doAccept(A attachment, CompletionHandler<V, ? super A> handler) {
-        final AsyncResult<V> asyncResult = new AsyncResult<>();
+    private <V extends java.nio.channels.AsynchronousSocketChannel, A> void doAccept(A attachment, CompletionHandler<V, A> handler) {
+        if (null == handler) {
+            delegate.accept(attachment, null);
+            return;
+        }
         delegate.accept(attachment, new CompletionHandler<java.nio.channels.AsynchronousSocketChannel, A>() {
-
             @Override
             public void completed(java.nio.channels.AsynchronousSocketChannel result, A attachment) {
                 @SuppressWarnings("unchecked")
                 final V wrapped = (V)new AsynchronousSocketChannel(result);
-                try {
-                    asyncResult.handler.completed(wrapped, attachment);
-                } finally {
-                    if (null != handler) {
-                        handler.completed(wrapped, attachment);
-                    }
-                }
+                handler.completed(wrapped, attachment);
             }
 
             @Override
             public void failed(Throwable exc, A attachment) {
-                try {
-                    asyncResult.handler.failed(exc, attachment);
-                } finally {
-                    if (null != handler) {
-                        handler.failed(exc, attachment);
-                    }
-                }
+                handler.failed(exc, attachment);
             }
-            
         });
-        return asyncResult;
     }
 
 }

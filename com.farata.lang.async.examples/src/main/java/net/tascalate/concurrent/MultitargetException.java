@@ -1,4 +1,4 @@
-package com.farata.concurrent;
+package net.tascalate.concurrent;
 
 import java.util.Collections;
 import java.util.List;

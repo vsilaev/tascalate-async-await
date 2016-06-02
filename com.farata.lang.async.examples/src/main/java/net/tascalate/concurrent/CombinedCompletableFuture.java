@@ -1,4 +1,4 @@
-package com.farata.concurrent;
+package net.tascalate.concurrent;
 
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -136,5 +136,5 @@ public class CombinedCompletableFuture<T> extends RestrictedCompletableFuture<Li
     private static final int PENDING = 0;
     private static final int COMPLETED_RESULT = 1;
     private static final int COMPLETED_ERROR  = 2;
-    private static final int COMPLETED_CANCEL = 3;
+    private static final int COMPLETED_CANCEL = -1;
 }

@@ -1,4 +1,4 @@
-package com.farata.nio;
+package com.farata.lang.async.examples.nio;
 
 import java.io.IOException;
 import java.io.InputStream;

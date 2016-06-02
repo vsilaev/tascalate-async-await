@@ -16,16 +16,12 @@ import java.util.Collections;
 import java.util.concurrent.CompletionStage;
 
 import com.farata.lang.async.api.async;
-import com.farata.nio.AsyncFileChannel;
-import com.farata.nio.AsyncResultCompletionHandler;
-import com.farata.nio.ByteBufferInputStream;
+
+import net.tascalate.nio.channels.AsynchronousFileChannel;
 
 public class AsyncAwaitNioFileChannelDemo {
 
 	public static void main(final String[] argv) throws Exception {
-		
-		AsyncResultCompletionHandler.ARTIFICIAL_DELAY_BEFORE_COMPLETION = 3000;
-		
 		final AsyncAwaitNioFileChannelDemo demo = new AsyncAwaitNioFileChannelDemo();
 		final CompletionStage<String> result = demo.processFile("./.project");
 		
@@ -51,7 +47,7 @@ public class AsyncAwaitNioFileChannelDemo {
 	public @async CompletionStage<String> processFile(final String fileName) throws IOException {
 		final Path path = Paths.get(new File(fileName).toURI());
 		try (
-				final AsyncFileChannel file = new AsyncFileChannel(path, Collections.singleton(StandardOpenOption.READ), null);
+				final AsynchronousFileChannel file = AsynchronousFileChannel.open(path, Collections.singleton(StandardOpenOption.READ), null);
 				final FileLock lock = await(file.lockAll(true))
 			) {
 			System.out.println("In process, shared lock: " + lock);

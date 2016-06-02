@@ -15,6 +15,16 @@ public class RestrictedCompletableFuture<T> extends CompletableFuture<T> impleme
     }
 
     
+    @Override
+    public void obtrudeValue(T value) {
+        throw new UnsupportedOperationException();
+    }
+
+    @Override
+    public void obtrudeException(Throwable ex) {
+        throw new UnsupportedOperationException();
+    }
+
     protected boolean internalCompleteNormally(T value) {
         return super.complete(value);
     }

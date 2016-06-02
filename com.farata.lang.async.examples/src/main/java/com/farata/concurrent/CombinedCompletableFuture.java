@@ -6,22 +6,24 @@ import java.util.List;
 import java.util.concurrent.CompletionStage;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.atomic.AtomicIntegerArray;
 
 public class CombinedCompletableFuture<T> extends RestrictedCompletableFuture<List<T>> {
 
     final private T[] results;
     final private Throwable[] errors;
-    
+    final private AtomicIntegerArray completions;
+
     final private AtomicInteger resultsCount = new AtomicInteger(0); 
     final private AtomicInteger errorsCount  = new AtomicInteger(0);
-    
+
     final private AtomicBoolean done = new AtomicBoolean(false);
-    
+
     final private int minResultsCount;
     final private int maxErrorsCount;
     final private boolean cancelRemaining;
     final private CompletionStage<? extends T>[] promises;
-    
+
     @SafeVarargs
     protected CombinedCompletableFuture(final int minResultsCount, final int maxErrorsCount, final boolean cancelRemaining, final CompletionStage<? extends T>... promises) {
         if (null == promises || promises.length < 1) {
@@ -39,12 +41,15 @@ public class CombinedCompletableFuture<T> extends RestrictedCompletableFuture<Li
         this.cancelRemaining = cancelRemaining;    
         results = newArray(promises.length);
         errors = new Throwable[promises.length];
+        completions = new AtomicIntegerArray(promises.length);
         setupCompletionHandlers();
     }
 
     @Override
     public boolean cancel(boolean mayInterruptIfRunning) {
         if (done.compareAndSet(false, true)) {
+            // Synchronized around done
+            markRemainingCancelled();
             cancelPromises();
             return super.cancel(mayInterruptIfRunning);
         } else {
@@ -53,15 +58,20 @@ public class CombinedCompletableFuture<T> extends RestrictedCompletableFuture<Li
     }
 
     protected void onComplete(int idx, T result, Throwable error) {
+        if (!completions.compareAndSet(idx, PENDING, null == error ? COMPLETED_RESULT : COMPLETED_ERROR)) {
+            // Already completed
+            return;
+        }
         if (null == error) {
             // ON NEXT RESULT
             final int c = resultsCount.incrementAndGet();
             if (c <= minResultsCount) {
-                // Unsynchronized, but should be safe while every idx corresponds to max one thread
+                // Only one thread may access this due to check with "completions" 
                 results[idx] = result; 
                 if (c == minResultsCount && done.compareAndSet(false, true)) {
                     // Synchronized around done
-                    // Need a copy of elements
+                    markRemainingCancelled();
+                    // Now no other thread can modify results array.
                     internalCompleteNormally(new ArrayList<>(Arrays.asList(results)));
                     if (cancelRemaining) {
                         cancelPromises();
@@ -75,15 +85,16 @@ public class CombinedCompletableFuture<T> extends RestrictedCompletableFuture<Li
             // So if we specify that no exceptions should happen
             // we will report at least one
             if (c <= maxErrorsCount) {
-                // Unsynchronized, but should be safe while every idx corresponds to max one thread
+                // Only one thread may access this due to check with "completions"
                 errors[idx] = CompletableFutureWrapper.getRealCause(error); 
                 if (c == maxErrorsCount && done.compareAndSet(false, true)) {
                     // Synchronized around done
-                    // Need a copy of elements
+                    markRemainingCancelled();
+                    // Now no other thread can modify errors array.
                     internalCompleteExceptionally(
-                        new MultitargetException(new ArrayList<>(Arrays.asList(errors)))
-                    );
-                    
+                            new MultitargetException(new ArrayList<>(Arrays.asList(errors)))
+                            );
+
                     if (cancelRemaining) {
                         cancelPromises();
                     }
@@ -91,7 +102,13 @@ public class CombinedCompletableFuture<T> extends RestrictedCompletableFuture<Li
             }
         }
     }
-    
+
+    private void markRemainingCancelled() {
+        for (int idx = completions.length() - 1; idx >= 0; idx--) {
+            completions.compareAndSet(idx, PENDING, COMPLETED_CANCEL);
+        }
+    }
+
     private void setupCompletionHandlers() {
         int i = 0;
         for (final CompletionStage<? extends T> promise : promises) {
@@ -99,21 +116,25 @@ public class CombinedCompletableFuture<T> extends RestrictedCompletableFuture<Li
             promise.whenComplete((r, e) -> onComplete(idx, r, e));
         }        
     }
-    
-    
+
+
     private void cancelPromises() {
         for (int idx = promises.length - 1; idx >= 0; idx--) {
-            if (results[idx] == null && errors[idx] == null) {
+            if (completions.get(idx) == COMPLETED_CANCEL) {
                 CompletableFutureWrapper.cancelPromise(promises[idx], true);
             }
         }
     }
 
-    
-    
+
+
     @SuppressWarnings("unchecked")
     private static <T> T[] newArray(int length) {
         return (T[])new Object[length];
     }
-    
+
+    private static final int PENDING = 0;
+    private static final int COMPLETED_RESULT = 1;
+    private static final int COMPLETED_ERROR  = 2;
+    private static final int COMPLETED_CANCEL = 3;
 }

@@ -1,8 +1,11 @@
 package net.tascalate.concurrent;
 
+import java.util.concurrent.CancellationException;
 import java.util.concurrent.CompletionException;
 import java.util.concurrent.CompletionStage;
 import java.util.concurrent.Future;
+
+import net.javacrumbs.completionstage.CompletableCompletionStage;
 
 public class CompletableFutureWrapper<T,U> extends RestrictedCompletableFuture<T> {
     final protected CompletionStage<? extends U> delegate;
@@ -26,6 +29,9 @@ public class CompletableFutureWrapper<T,U> extends RestrictedCompletableFuture<T
         if (promise instanceof Future) {
             final Future<?> future = (Future<?>)promise;
             return future.cancel(mayInterruptIfRunning);
+        } else if (promise instanceof CompletableCompletionStage) {
+            final CompletableCompletionStage<?> stage = (CompletableCompletionStage<?>)promise;
+            return stage.completeExceptionally(new CancellationException());
         } else {
             return false;
         }

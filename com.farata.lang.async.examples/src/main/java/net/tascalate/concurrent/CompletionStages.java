@@ -42,7 +42,7 @@ public class CompletionStages {
 			    internalCompleteNormally(Collections.emptyList());  
 			}};
 		} else if (promises.length == 1) {
-	        return new CompletionFutureConverter<>(
+	        return new CompletionFutureAdapter<>(
 	                promises[0], 
 	                Collections::singletonList,
 	                function(MultitargetException::of)
@@ -55,14 +55,14 @@ public class CompletionStages {
 	
 	private static <T> CompletionFuture<T> unwrap(final CompletionStage<List<T>> original, final boolean unwrapException) {
 	    if (unwrapException) {
-	        return new CompletionFutureConverter<>(
+	        return new CompletionFutureAdapter<>(
 	                original, 
 	                CompletionStages::firstNotNullElement,
 	                e -> e instanceof MultitargetException ? 
 	                     firstNotNullElement(((MultitargetException)e).getExceptions()) : e
 	        );
 	    } else {
-	        return new CompletionFutureConverter<>(original, CompletionStages::firstNotNullElement);
+	        return new CompletionFutureAdapter<>(original, CompletionStages::firstNotNullElement);
 	    }
 	}
 
@@ -72,13 +72,13 @@ public class CompletionStages {
     
     private static <T, R> Function<T, R> function(Function<T, R> fn) { return fn; }
     
-    static class CompletionFutureConverter<T, U> extends CompletableFutureWrapper<T, U> {
+    static class CompletionFutureAdapter<T, U> extends CompletableFutureWrapper<T, U> {
 
-        CompletionFutureConverter(CompletionStage<? extends U> delegate, Function<? super U, ? extends T> onResult) {
+        CompletionFutureAdapter(CompletionStage<? extends U> delegate, Function<? super U, ? extends T> onResult) {
             this(delegate, onResult, Function.identity());
         }
         
-        CompletionFutureConverter(CompletionStage<? extends U> delegate, Function<? super U, ? extends T> onResult, Function<? super Throwable, ? extends Throwable> onError) {
+        CompletionFutureAdapter(CompletionStage<? extends U> delegate, Function<? super U, ? extends T> onResult, Function<? super Throwable, ? extends Throwable> onError) {
             super(delegate);
             delegate.whenComplete((r, e) -> {
                 if (null != e) {

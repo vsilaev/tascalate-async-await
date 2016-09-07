@@ -21,10 +21,12 @@ public class GeneratorExample {
     final private static TaskExecutorService executor = TaskExecutors.newFixedThreadPool(4);
 
     public static void main(String[] args) {
+        long startTime = System.currentTimeMillis();
         final CompletionStage<String> result = new GeneratorExample().mergeStrings();
         result.whenComplete((v, e) -> {
+            long finishTime = System.currentTimeMillis();
             if (null == e) {
-                System.out.println(v);
+                System.out.println("Calculates: " + v + "\nTask take " + (finishTime - startTime) + "ms");
             } else {
                 e.printStackTrace(System.err);
             }
@@ -150,7 +152,7 @@ public class GeneratorExample {
 
     private CompletionStage<String> waitString(final String value) {
         return executor.submit(() -> {
-            Thread.sleep(200L);
+            Thread.sleep(1500L);
             return value;
         });
     }

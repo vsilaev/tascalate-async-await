@@ -1,9 +1,8 @@
 package com.farata.lang.async.core;
 
-import java.util.concurrent.CancellationException;
+import java.lang.reflect.Method;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionStage;
-import java.util.concurrent.Future;
 
 import org.apache.commons.javaflow.api.continuable;
 
@@ -68,7 +67,7 @@ class GeneratorImpl<T> implements Generator<T> {
             if (null != producerLock) {
                 final CompletableFuture<?> lock = producerLock;
                 producerLock = null;
-                lock.completeExceptionally(new CancellationException());
+                lock.completeExceptionally(CloseSignal.INSTANCE);
             }
         }
         end();
@@ -202,8 +201,20 @@ class GeneratorImpl<T> implements Generator<T> {
         }
         
         @Override void close() {
-            if (pendingValue instanceof Future) {
-                Future.class.cast(pendingValue).cancel(true);
+            if (null != pendingValue) {
+                if (pendingValue instanceof CompletableFuture) {
+                    CompletableFuture.class.cast(pendingValue)
+                        .completeExceptionally(CloseSignal.INSTANCE);
+                } else {
+                    // Have to resort to reflection due to lack of 
+                    // better interfaces hierarchy for CompletionStage
+                    try {
+                        final Method m = pendingValue.getClass().getMethod("completeExceptionally", Throwable.class);
+                        m.invoke(pendingValue, CloseSignal.INSTANCE);
+                    } catch (final ReflectiveOperationException | RuntimeException ex) {
+                        // if no such method or it is unsupported
+                    }
+                }
             }
             pendingValue = null;
         }

@@ -1,7 +1,6 @@
 package com.farata.lang.async.core;
 
 import java.io.Serializable;
-import java.util.concurrent.CancellationException;
 import java.util.concurrent.CompletionStage;
 
 import org.apache.commons.javaflow.api.continuable;
@@ -77,7 +76,7 @@ public class AsyncExecutor implements Serializable {
                 if (error == null) {
                     resume(continuation, Either.result(result));
                 } else {
-                    if (error instanceof CancellationException) {
+                    if (CloseSignal.INSTANCE == error) {
                         continuation.terminate();
                     } else {
                         resume(continuation, Either.error(error));

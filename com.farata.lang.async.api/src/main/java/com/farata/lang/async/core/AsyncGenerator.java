@@ -7,10 +7,10 @@ import org.apache.commons.javaflow.api.continuable;
 import com.farata.lang.async.api.Generator;
 
 abstract public class AsyncGenerator<T> extends AsyncMethodBody {
-    final public GeneratorImpl<T> generator;
+    final public LazyGenerator<T> generator;
 
     protected AsyncGenerator() {
-        generator = new GeneratorImpl<>();
+        generator = new LazyGenerator<>();
     }
 
     protected @continuable void $$start$$() {

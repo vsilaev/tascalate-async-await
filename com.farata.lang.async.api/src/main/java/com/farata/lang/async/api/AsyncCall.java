@@ -30,19 +30,23 @@ public class AsyncCall {
         return AsyncExecutor.await(condition);
     }
 
-    final public static <T> CompletionStage<T> asyncResult(final T value) {
+    public static <T> CompletionStage<T> asyncResult(final T value) {
         throw new IllegalStateException("Method call must be replaced by bytecode enhancer");
     }
 
-    final public static <T> Object yield(final T readyValue) {
+    public static <T> Object yield(final T readyValue) {
         throw new IllegalStateException("Method call must be replaced by bytecode enhancer");
     }
 
-    final public static <T> Object yield(final CompletionStage<T> pendingValue) {
+    public static <T> Object yield(final CompletionStage<T> pendingValue) {
         throw new IllegalStateException("Method call must be replaced by bytecode enhancer");
     }
 
-    final public static <T> void yield(final Generator<T> values) {
+    public static <T> void yield(final Generator<T> values) {
+        throw new IllegalStateException("Method call must be replaced by bytecode enhancer");
+    }
+    
+    public static <T> Generator<T> yield() {
         throw new IllegalStateException("Method call must be replaced by bytecode enhancer");
     }
 

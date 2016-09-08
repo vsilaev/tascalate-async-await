@@ -1,6 +1,7 @@
 package com.farata.lang.async.core;
 
 import java.lang.reflect.Method;
+import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionStage;
 
@@ -8,26 +9,30 @@ import org.apache.commons.javaflow.api.continuable;
 
 import com.farata.lang.async.api.Generator;
 
-class GeneratorImpl<T> implements Generator<T> {
+class LazyGenerator<T> implements Generator<T> {
 
     private CompletableFuture<?> consumerLock;
     private CompletableFuture<?> producerLock;
     private boolean done = false;
 
     private State<T> currentState;
-    private Object producerParam;
+    private Optional<Object> producerParam = Optional.empty();
 
-    GeneratorImpl() {
+    LazyGenerator() {
         producerLock = new CompletableFuture<>();
     }
 
     @Override
-    public @continuable boolean next() {
-        return next(null);
+    public boolean next() {
+        return advance(Optional.empty());
     }
 
     @Override
     public boolean next(Object producerParam) {
+        return advance(Optional.of(null == producerParam ? NOTHING : producerParam));
+    }
+    
+    protected @continuable boolean advance(Optional<Object> producerParam) {
         // Could we advance further current state?
         if (null != currentState && currentState.advance()) {
             // Should be checked before done to let iterate over 
@@ -116,10 +121,11 @@ class GeneratorImpl<T> implements Generator<T> {
         // Order matters - set to null only after wait
         AsyncExecutor.await(producerLock);
         producerLock = null;
-        if (null == producerParam) {
+        if (!producerParam.isPresent()) {
         	return currentState == null ? null : currentState.currentValue();
         } else {
-        	return producerParam;
+            final Object value = producerParam.get();
+        	return value == NOTHING ? null : value;
         }
     }
 
@@ -208,6 +214,10 @@ class GeneratorImpl<T> implements Generator<T> {
         
         @Override void close() {
             if (null != pendingValue) {
+                // Need to double-check: probably this state is illegal
+                // Only consumer may initiate close and only consumer awaits 
+                // on the pending value.
+                // So this may be an error when we are closing non-awaited value
                 if (pendingValue instanceof CompletableFuture) {
                     CompletableFuture.class.cast(pendingValue)
                         .completeExceptionally(CloseSignal.INSTANCE);
@@ -247,4 +257,5 @@ class GeneratorImpl<T> implements Generator<T> {
     }
 
 
+    private static final Object NOTHING = new byte[0];
 }

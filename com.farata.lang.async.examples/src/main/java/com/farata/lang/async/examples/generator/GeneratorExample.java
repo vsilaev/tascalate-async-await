@@ -42,9 +42,9 @@ public class GeneratorExample {
             int i = 0;
             while (generator.next(param)) {
                 System.out.println("Received: " + generator.current());
-                param = generator.current();
+                param = "VAL #" + ++i;
                 joiner.add(generator.current());
-                if (++i == 11) {
+                if (i == 11) {
                     break;
                 }
             }

@@ -94,7 +94,8 @@ class GeneratorImpl<T> implements Generator<T> {
         producerLock = new CompletableFuture<>();
         currentState = state;
         releaseConsumerLock();
-        return producerParam;
+        // return producerParam; // To have a semi-lazy generator that forwards till next yield
+        return acquireProducerLock();
     }
 
     @continuable
@@ -108,13 +109,18 @@ class GeneratorImpl<T> implements Generator<T> {
     }
 
     @continuable
-    void acquireProducerLock() {
+    Object acquireProducerLock() {
         if (null == producerLock || producerLock.isDone()) {
-            return;
+            return null;
         }
         // Order matters - set to null only after wait
         AsyncExecutor.await(producerLock);
         producerLock = null;
+        if (null == producerParam) {
+        	return currentState == null ? null : currentState.currentValue();
+        } else {
+        	return producerParam;
+        }
     }
 
     private void releaseProducerLock() {

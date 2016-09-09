@@ -22,15 +22,11 @@ class LazyGenerator<T> implements Generator<T> {
 
     @Override
     public boolean next() {
-        return advance(NOTHING);
+        return next(NOTHING);
     }
 
     @Override
     public boolean next(Object producerParam) {
-        return advance(producerParam);
-    }
-    
-    protected @continuable boolean advance(Object producerParam) {
         // Could we advance further current state?
         if (null != currentState && currentState.advance()) {
             // Should be checked before done to let iterate over 

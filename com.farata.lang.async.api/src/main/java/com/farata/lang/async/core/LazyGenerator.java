@@ -1,7 +1,5 @@
 package com.farata.lang.async.core;
 
-import java.lang.reflect.Method;
-import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionStage;
 
@@ -16,7 +14,7 @@ class LazyGenerator<T> implements Generator<T> {
     private boolean done = false;
 
     private State<T> currentState;
-    private Optional<Object> producerParam = Optional.empty();
+    private Object producerParam = NOTHING;
 
     LazyGenerator() {
         producerLock = new CompletableFuture<>();
@@ -24,15 +22,15 @@ class LazyGenerator<T> implements Generator<T> {
 
     @Override
     public boolean next() {
-        return advance(Optional.empty());
+        return advance(NOTHING);
     }
 
     @Override
     public boolean next(Object producerParam) {
-        return advance(Optional.of(null == producerParam ? NOTHING : producerParam));
+        return advance(producerParam);
     }
     
-    protected @continuable boolean advance(Optional<Object> producerParam) {
+    protected @continuable boolean advance(Object producerParam) {
         // Could we advance further current state?
         if (null != currentState && currentState.advance()) {
             // Should be checked before done to let iterate over 
@@ -121,11 +119,10 @@ class LazyGenerator<T> implements Generator<T> {
         // Order matters - set to null only after wait
         AsyncExecutor.await(producerLock);
         producerLock = null;
-        if (!producerParam.isPresent()) {
+        if (NOTHING == producerParam) {
         	return currentState == null ? null : currentState.currentValue();
         } else {
-            final Object value = producerParam.get();
-        	return value == NOTHING ? null : value;
+        	return producerParam;
         }
     }
 
@@ -218,21 +215,8 @@ class LazyGenerator<T> implements Generator<T> {
                 // Only consumer may initiate close and only consumer awaits 
                 // on the pending value.
                 // So this may be an error when we are closing non-awaited value
-                if (pendingValue instanceof CompletableFuture) {
-                    CompletableFuture.class.cast(pendingValue)
-                        .completeExceptionally(CloseSignal.INSTANCE);
-                } else {
-                    // Have to resort to reflection due to lack of 
-                    // better interfaces hierarchy for CompletionStage
-                    try {
-                        final Method m = pendingValue.getClass().getMethod("completeExceptionally", Throwable.class);
-                        m.invoke(pendingValue, CloseSignal.INSTANCE);
-                    } catch (final ReflectiveOperationException | RuntimeException ex) {
-                        // if no such method or it is unsupported
-                    }
-                }
+                pendingValue.toCompletableFuture().completeExceptionally(CloseSignal.INSTANCE);
             }
-            pendingValue = null;
         }
     }
     

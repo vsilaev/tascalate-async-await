@@ -2,12 +2,12 @@
 	xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
 	<modelVersion>4.0.0</modelVersion>
 
-	<groupId>com.farata.lang.async</groupId>
-	<artifactId>com.farata.lang.async.parent</artifactId>
+	<groupId>net.tascalate.async</groupId>
+	<artifactId>net.tascalate.async.parent</artifactId>
 	<version>1.0-SNAPSHOT</version>
 	<packaging>pom</packaging>
 
-	<name>Java Async-Await Support</name>
+	<name>Tascalate Async/Await/Generators</name>
 	<url>http://maven.apache.org</url> 
 
 	<developers>
@@ -18,9 +18,10 @@
 	</developers>
 
 	<modules>
-		<module>com.farata.lang.async.api</module>
-		<module>com.farata.lang.async.tools.javaagent</module>
-		<module>com.farata.lang.async.examples</module>
+		<module>net.tascalate.async.api</module>
+		<module>net.tascalate.async.tools.core</module>
+		<module>net.tascalate.async.tools.javaagent</module>
+		<module>net.tascalate.async.examples</module>
 	</modules>
 
 
@@ -33,6 +34,16 @@
 			<dependency>
 				<groupId>net.tascalate.javaflow</groupId>
 				<artifactId>net.tascalate.javaflow.api</artifactId>
+				<version>2.0-SNAPSHOT</version>
+			</dependency>
+			<dependency>
+				<groupId>net.tascalate.javaflow</groupId>
+				<artifactId>net.tascalate.javaflow.spi</artifactId>
+				<version>2.0-SNAPSHOT</version>
+			</dependency>
+			<dependency>
+				<groupId>net.tascalate.javaflow</groupId>
+				<artifactId>net.tascalate.javaflow.tools.javaagent</artifactId>
 				<version>2.0-SNAPSHOT</version>
 			</dependency>
 

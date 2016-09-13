@@ -1,5 +1,6 @@
 package net.tascalate.async.core;
 
+import java.util.NoSuchElementException;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionStage;
 
@@ -13,8 +14,9 @@ class LazyGenerator<T> implements Generator<T> {
     private CompletableFuture<?> producerLock;
     private boolean done = false;
 
-    private State<T> currentState;
+    private State<T> currentState = emptyState();
     private Object producerParam = NOTHING;
+    private T latestResult = null;
 
     LazyGenerator() {
         producerLock = new CompletableFuture<>();
@@ -28,48 +30,45 @@ class LazyGenerator<T> implements Generator<T> {
     @Override
     public boolean next(Object producerParam) {
         // Could we advance further current state?
-        if (null != currentState && currentState.advance()) {
+        if (currentState.advance()) {
             // Should be checked before done to let iterate over 
             // chained generators fully
+            latestResult = currentState.currentValue();
             return true;
-        } 
+        }
         
         if (done) {
             return false;
         }
-        
-        this.producerParam = producerParam;
+
+        this.producerParam = producerParam;        
+        // Let produce some value (resumes producer)
         releaseProducerLock();
+        // Wait till value is ready (suspends consumer)
         acquireConsumerLock();
         consumerLock = new CompletableFuture<>();
-        if (null != currentState) {
-            return currentState.advance();
-        } else {
-            return false;
-        }
+        // Check everything once again after wait
+        return next(producerParam);
     }
 
     @Override
     public T current() {
-        if (null != currentState) {
-            return currentState.currentValue();
-        } else {
-            throw new IllegalStateException();
-        }
+        return currentState.currentValue();
     }
 
     @Override
     public void close() {
-        if (null != currentState) {
+        try {
             currentState.close();
-            currentState = null;
+        } finally {
+            currentState = emptyState();
             if (null != producerLock) {
                 final CompletableFuture<?> lock = producerLock;
                 producerLock = null;
                 lock.completeExceptionally(CloseSignal.INSTANCE);
             }
+            end();
         }
-        end();
     }
 
     @continuable
@@ -110,16 +109,12 @@ class LazyGenerator<T> implements Generator<T> {
     @continuable
     Object acquireProducerLock() {
         if (null == producerLock || producerLock.isDone()) {
-            return null;
+            return producerFeedback();
         }
         // Order matters - set to null only after wait
         AsyncExecutor.await(producerLock);
         producerLock = null;
-        if (NOTHING == producerParam) {
-        	return currentState == null ? null : currentState.currentValue();
-        } else {
-        	return producerParam;
-        }
+        return producerFeedback();
     }
 
     private void releaseProducerLock() {
@@ -147,6 +142,14 @@ class LazyGenerator<T> implements Generator<T> {
         }
     }
 
+    private Object producerFeedback() {
+        if (NOTHING == producerParam) {
+            return latestResult;
+        } else {
+            return producerParam;
+        }        
+    }
+    
     abstract static class State<T> {
         abstract @continuable boolean advance();
         abstract T currentValue();
@@ -235,6 +238,28 @@ class LazyGenerator<T> implements Generator<T> {
             source.close();
         }
     }
+    
+    @SuppressWarnings("unchecked")
+    private static <T> State<T> emptyState() {
+        return (State<T>) EMPTY_STATE;
+    }
+    
+    private final static State<?> EMPTY_STATE = new State<Object>() {
+        
+        @Override
+        Object currentValue() {
+            throw new NoSuchElementException();
+        }
+        
+        @Override
+        void close() {
+        }
+        
+        @Override
+        boolean advance() {
+            return false;
+        }
+    };
 
 
     private static final Object NOTHING = new byte[0];

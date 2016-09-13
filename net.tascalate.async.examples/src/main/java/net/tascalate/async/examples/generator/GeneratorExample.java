@@ -5,7 +5,11 @@ import static net.tascalate.async.api.AsyncCall.await;
 
 import java.util.Date;
 import java.util.StringJoiner;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CompletionException;
 import java.util.concurrent.CompletionStage;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 
 import org.apache.commons.javaflow.api.continuable;
 
@@ -13,12 +17,10 @@ import net.tascalate.async.api.Generator;
 import net.tascalate.async.api.async;
 import net.tascalate.async.core.AsyncExecutor;
 import net.tascalate.async.core.AsyncGenerator;
-import net.tascalate.concurrent.TaskExecutorService;
-import net.tascalate.concurrent.TaskExecutors;
 
 public class GeneratorExample {
 
-    final private static TaskExecutorService executor = TaskExecutors.newFixedThreadPool(4);
+    final private static ExecutorService executor = Executors.newFixedThreadPool(4);
 
     public static void main(String[] args) {
         long startTime = System.currentTimeMillis();
@@ -44,7 +46,7 @@ public class GeneratorExample {
                 System.out.println("Received: " + generator.current());
                 param = "VAL #" + ++i;
                 joiner.add(generator.current());
-                if (i == 11) {
+                if (i == 17) {
                     break;
                 }
             }
@@ -67,6 +69,16 @@ public class GeneratorExample {
                     String s = await(waitString("InternalAsync"));
                     System.out.println("INTERNALLY: " + s);
 
+                    o = $$yield(Generator.empty(), this);
+                    System.out.println("AFTER EMPTY: " + o);
+                    
+                    o = $$yield(Generator.produce("RV-1", "RV-2", "RV-3"), this);
+                    System.out.println("AFTER LIST READY: " + o);
+                    
+                    o = $$yield(Generator.await(waitString("PV-1", 100L), waitString("PV-2", 100L), waitString("PV-3", 200L)), this);
+                    System.out.println("AFTER LIST PENDING: " + o);
+
+                    
                     o = $$yield(waitString("DEF"), this);
                     System.out.println("Processed: " + o + ", " + new Date());
 
@@ -151,9 +163,19 @@ public class GeneratorExample {
     }
 
     private CompletionStage<String> waitString(final String value) {
-        return executor.submit(() -> {
-            Thread.sleep(1500L);
+        return waitString(value, 150L);
+    }
+    
+    private CompletionStage<String> waitString(final String value, final long delay) {
+        final CompletableFuture<String> promise = CompletableFuture.supplyAsync(() -> {
+            try { 
+                Thread.sleep(delay);
+            } catch (final InterruptedException ex) {
+                Thread.currentThread().interrupt();
+                throw new CompletionException(ex);
+            }
             return value;
-        });
+        }, executor);
+        return promise;
     }
 }

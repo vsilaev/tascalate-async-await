@@ -1,4 +1,4 @@
-package net.tascalate.async.core;
+package net.tascalate.async.api;
 
 /**
  * @author Valery Silaev

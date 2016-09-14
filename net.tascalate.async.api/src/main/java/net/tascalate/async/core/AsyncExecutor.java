@@ -8,6 +8,8 @@ import org.apache.commons.javaflow.api.Continuation;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 
+import net.tascalate.async.api.NoActiveAsyncCallException;
+
 /**
  * 
  * @author Valery Silaev

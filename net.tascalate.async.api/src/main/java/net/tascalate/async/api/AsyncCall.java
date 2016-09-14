@@ -5,7 +5,6 @@ import java.util.concurrent.CompletionStage;
 import org.apache.commons.javaflow.api.continuable;
 
 import net.tascalate.async.core.AsyncExecutor;
-import net.tascalate.async.core.NoActiveAsyncCallException;
 
 /**
  * @author Valery Silaev

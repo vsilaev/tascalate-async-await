@@ -86,9 +86,6 @@ public class PendingValuesGenerator<T> implements Generator<T> {
         remaining.set(-1);
         current.close();
         current = Generator.empty();
-        synchronized (switchConsumerLock) {
-            consumerLock.completeExceptionally(CloseSignal.INSTANCE);                
-        }
     }
 
     public static <T> Generator<T> create(Stream<CompletionStage<T>> pendingValues) {

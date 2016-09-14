@@ -45,4 +45,17 @@ class Either<R, E extends Throwable> implements Serializable {
             return result;
         }
     }
+    
+    R doneUnchecked() {
+        if (isError()) {
+            return sneakyThrow(error);
+        } else {
+            return result;
+        }
+    }
+    
+    @SuppressWarnings("unchecked")
+    private static <T, E extends Throwable> T sneakyThrow(Throwable ex) throws E {
+        throw (E)ex;
+    }
 }

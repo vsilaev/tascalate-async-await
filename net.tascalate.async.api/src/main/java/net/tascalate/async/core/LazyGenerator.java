@@ -58,17 +58,13 @@ class LazyGenerator<T> implements Generator<T> {
 
     @Override
     public void close() {
-        try {
-            currentState.close();
-        } finally {
-            currentState = emptyState();
-            if (null != producerLock) {
-                final CompletableFuture<?> lock = producerLock;
-                producerLock = null;
-                lock.completeExceptionally(CloseSignal.INSTANCE);
-            }
-            end();
+        currentState.close();
+        if (null != producerLock) {
+            final CompletableFuture<?> lock = producerLock;
+            producerLock = null;
+            lock.completeExceptionally(CloseSignal.INSTANCE);
         }
+        end();
     }
 
     @continuable
@@ -103,6 +99,7 @@ class LazyGenerator<T> implements Generator<T> {
 
     void end() {
         done = true;
+        currentState = emptyState();
         releaseConsumerLock();
     }
 
@@ -214,7 +211,8 @@ class LazyGenerator<T> implements Generator<T> {
                 // Only consumer may initiate close and only consumer awaits 
                 // on the pending value.
                 // So this may be an error when we are closing non-awaited value
-                pendingValue.toCompletableFuture().completeExceptionally(CloseSignal.INSTANCE);
+                pendingValue.toCompletableFuture().cancel(true);
+                pendingValue = null;
             }
         }
     }

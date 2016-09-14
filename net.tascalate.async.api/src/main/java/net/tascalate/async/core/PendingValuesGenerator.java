@@ -16,31 +16,24 @@ import net.tascalate.async.api.Generator;
 public class PendingValuesGenerator<T> implements Generator<T> {
     
     final private Object switchConsumerLock = new byte[]{};
-    final private BlockingQueue<T> produced = new LinkedBlockingQueue<>();
+    final private BlockingQueue<Either<T, Throwable>> produced = new LinkedBlockingQueue<>();
     final private AtomicInteger remaining = new AtomicInteger(0);
     
     private CompletableFuture<Void> consumerLock = new CompletableFuture<>();
     private Generator<T> current = Generator.empty();
     
     final private BiConsumer<T, Throwable> handler = (result, error) -> {
-        if (null != error) {
-            remaining.decrementAndGet();
-            synchronized (switchConsumerLock) {
-                consumerLock.completeExceptionally(error); ///???
-            }
-        } else {
-            try {
-                remaining.decrementAndGet();
-                produced.put(result);
-                synchronized (switchConsumerLock) {
-                    consumerLock.complete(null);
-                }
-            } catch (InterruptedException e) {
-                throw new RuntimeException(e); // Shouldn't happen for queue with unlimited size
-            }
+        try {
+            produced.put(null != error ? Either.error(error) : Either.result(result));
+        } catch (InterruptedException e) {
+            throw new RuntimeException(e); // Shouldn't happen for queue with unlimited size
+        }
+
+        remaining.decrementAndGet();
+        synchronized (switchConsumerLock) {
+            consumerLock.complete(null);
         }
     };
-
     
     private PendingValuesGenerator() {  }
 
@@ -51,29 +44,36 @@ public class PendingValuesGenerator<T> implements Generator<T> {
             return true;
         }
 
-        final Collection<T> readyValues = new ArrayList<>();
-        produced.drainTo(readyValues);
-        
-        if (!readyValues.isEmpty()) {
-            // If we are consuming slower than producing 
-            // then use available results right away
-            current = Generator.produce(readyValues);
-            return current.next();
+        int unprocessed = remaining.get();
+        if (unprocessed < 0) {
+            // Forcibly closed
+            return false;
         } else {
-            int remainingPromises = remaining.get();
-            if (remainingPromises <= 0) {
-                current = Generator.empty();
-                return false;
-            } else {
-                // Otherwise await for any result...
-                synchronized (switchConsumerLock) {
-                    AsyncExecutor.await(consumerLock);
-                    consumerLock = new CompletableFuture<>();
-                }
-                // ... and try again
+            final Collection<Either<T, Throwable>> readyValues = new ArrayList<>();
+            produced.drainTo(readyValues);
+
+            if (!readyValues.isEmpty()) {
+                // If we are consuming slower than producing 
+                // then use available results right away
+                current = Generator.produce(readyValues.stream().map(Either::doneUnchecked));
                 return next(producerParam);
+            } else {
+                // Otherwise await for any result...            
+                if (unprocessed > 0) {
+                    synchronized (switchConsumerLock) {
+                        AsyncExecutor.await(consumerLock);
+                        consumerLock = new CompletableFuture<>();
+                    }
+                    // ... and try again
+                    return next(producerParam);
+                } else {
+                    //...or stop if no more results...
+                    current = Generator.empty();
+                    return false;
+                }
             }
         }
+        
     }
 
     @Override
@@ -83,14 +83,11 @@ public class PendingValuesGenerator<T> implements Generator<T> {
 
     @Override
     public void close() {
-        try {
-            current.close();
-        } finally {
-            current = Generator.empty();
-            remaining.set(0);
-            synchronized (switchConsumerLock) {
-                consumerLock.completeExceptionally(CloseSignal.INSTANCE);                
-            }
+        remaining.set(-1);
+        current.close();
+        current = Generator.empty();
+        synchronized (switchConsumerLock) {
+            consumerLock.completeExceptionally(CloseSignal.INSTANCE);                
         }
     }
 

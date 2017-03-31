@@ -15,6 +15,9 @@ import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 
+import net.javacrumbs.completionstage.CompletionStageFactory;
+import net.javacrumbs.completionstage.spi.CompletableCompletionStageFactory;
+
 public class TaskExecutors {
     /**
      * Creates a thread pool that reuses a fixed number of threads
@@ -146,6 +149,7 @@ public class TaskExecutors {
     
     static class TaskExecutorServiceAdapter implements TaskExecutorService {
         private final ExecutorService delegate;
+        private final CompletableCompletionStageFactory completionStageFactory = new CompletionStageFactory(this);
         
         TaskExecutorServiceAdapter(ExecutorService executor) { 
             delegate = executor;
@@ -175,19 +179,19 @@ public class TaskExecutors {
             return delegate.awaitTermination(timeout, unit);
         }
 
-        public <T> CompletionFuture<T> submit(Callable<T> callable) {
+        public <T> Promise<T> submit(Callable<T> callable) {
             final CompletableTask<T> task = createTask(callable); 
             delegate.execute(task);
             return task;
         }
 
-        public <T> CompletionFuture<T> submit(Runnable codeBlock, T result) {
+        public <T> Promise<T> submit(Runnable codeBlock, T result) {
             final CompletableTask<T> task = createTask(Executors.callable(codeBlock, result)); 
             delegate.execute(task);
             return task;
         }
 
-        public CompletionFuture<?> submit(Runnable codeBlock) {
+        public Promise<?> submit(Runnable codeBlock) {
             final CompletableTask<?> task = createTask(Executors.callable(codeBlock, null)); 
             delegate.execute(task);
             return task;
@@ -213,7 +217,7 @@ public class TaskExecutors {
         }
         
         protected <T> CompletableTask<T> createTask(Callable<T> callable) {
-            return CompletableTask.create(this, callable);        
+            return new CompletableTask<T>(completionStageFactory, callable);        
         }
         
     }

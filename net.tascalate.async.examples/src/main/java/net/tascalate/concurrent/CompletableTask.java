@@ -3,107 +3,82 @@ package net.tascalate.concurrent;
 import java.util.concurrent.Callable;
 import java.util.concurrent.CancellationException;
 import java.util.concurrent.ExecutionException;
-import java.util.concurrent.Executor;
-import java.util.concurrent.Executors;
 import java.util.concurrent.FutureTask;
 import java.util.concurrent.RunnableFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 
-import net.javacrumbs.completionstage.CompletionStageFactory;
-import net.javacrumbs.completionstage.SimpleCompletionStage;
+import net.javacrumbs.completionstage.CompletableCompletionStage;
+import net.javacrumbs.completionstage.spi.CompletableCompletionStageFactory;
 
-class CompletableTask<V> extends SimpleCompletionStage<V> implements CompletionFuture<V>, RunnableFuture<V> {
-    private final RunnableFuture<V> delegate;
+class CompletableTask<V> extends DelegatingCompletionStage<V, CompletableCompletionStage<V>> implements Promise<V>, RunnableFuture<V> {
+    private final RunnableFuture<V> internalTask;
 
-    static <V> CompletableTask<V> create(Executor executor, Callable<V> callable) {
-        return new CompletableTask<>(executor, callable);
-    }
-    
-    static <V> CompletableTask<V> create(Executor executor, Runnable runnable, V value) {
-        return create(executor, Executors.callable(runnable, value));
-    }
-    
-    protected CompletableTask(final Executor executor, Callable<V> callable) {
-        super(executor, new CompletionStageFactory(executor));
-        this.delegate = new FutureTaskWithCompletion(callable);
+    CompletableTask(final CompletableCompletionStageFactory factory, Callable<V> callable) {
+        super(factory.createCompletionStage());
+        this.internalTask = new InternalTask(callable);
     }
     
     @Override
     public void run() {
-        delegate.run();
+        internalTask.run();
     }
 
     @Override
     public boolean cancel(boolean mayInterruptIfRunning) {
-        return delegate.cancel(mayInterruptIfRunning);
+        return internalTask.cancel(mayInterruptIfRunning);
     }
 
     @Override
     public boolean isCancelled() {
-        return delegate.isCancelled();
+        return internalTask.isCancelled();
     }
 
     @Override
     public boolean isDone() {
-        return delegate.isDone();
+        return internalTask.isDone();
     }
 
     @Override
     public V get() throws InterruptedException, ExecutionException {
-        return delegate.get();
+        return internalTask.get();
     }
 
     @Override
     public V get(long timeout, TimeUnit unit) throws InterruptedException, ExecutionException, TimeoutException {
-        return delegate.get(timeout, unit);
-    }
-
-    @Override
-    public boolean complete(V result) {
-        throw new UnsupportedOperationException();
+        return internalTask.get(timeout, unit);
     }
     
-    @Override 
-    public boolean completeExceptionally(Throwable ex) {
-        throw new UnsupportedOperationException();
-    };
-    
-    @Override
-    public void doComplete(V result, Throwable throwable) {
-        throw new UnsupportedOperationException();
+    boolean onSuccess(V result) {
+        return completionStage.complete(result);
     }
     
-    boolean internalComplete(V result) {
-        return super.complete(result);
-    }
-    
-    boolean internalCompleteExceptionally(Throwable ex) {
-        return super.completeExceptionally(ex);
+    boolean onError(Throwable ex) {
+        return completionStage.completeExceptionally(ex);
     };
 
-    private class FutureTaskWithCompletion extends FutureTask<V> {
+    private class InternalTask extends FutureTask<V> {
 
-        FutureTaskWithCompletion(Callable<V> callable) {
+        InternalTask(Callable<V> callable) {
             super(callable);
         }
 
         @Override
         protected void set(V v) {
             super.set(v);
-            internalComplete(v);
+            onSuccess(v);
         };
         
         @Override
         protected void setException(Throwable t) {
             super.setException(t);
-            internalCompleteExceptionally(t);
+            onError(t);
         };
         
         @Override 
         protected void done() {
             if (isCancelled()) {
-                internalCompleteExceptionally(new CancellationException());
+                onError(new CancellationException());
             }
         }
     }

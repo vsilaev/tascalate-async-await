@@ -9,8 +9,8 @@ public class J8Examples {
         final TaskExecutorService executorService = TaskExecutors.newFixedThreadPool(3);
         
         for (int i : Arrays.asList(9, -9, 42)) {
-            final CompletionFuture<Integer> task1 = executorService.submit(() -> awaitAndProduce1(i, 1500));
-            final CompletionFuture<Integer> task2 = executorService.submit(() -> awaitAndProduce2(i + 1));
+            final Promise<Integer> task1 = executorService.submit(() -> awaitAndProduce1(i, 1500));
+            final Promise<Integer> task2 = executorService.submit(() -> awaitAndProduce2(i + 1));
             task1.thenCombineAsync(
                      task2, 
                      (a,b) -> a + b
@@ -24,7 +24,7 @@ public class J8Examples {
             }
         }
         
-        CompletionStages.atLeast(
+        Promises.atLeast(
                 4, //Change to 5 or 6 to see the difference -- will end up exceptionally
                 executorService.submit(() -> awaitAndProduceN(2)),
                 executorService.submit(() -> awaitAndProduceN(3)),

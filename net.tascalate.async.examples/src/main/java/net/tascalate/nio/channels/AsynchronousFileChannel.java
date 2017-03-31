@@ -10,7 +10,7 @@ import java.nio.file.attribute.FileAttribute;
 import java.util.Set;
 import java.util.concurrent.ExecutorService;
 
-import net.tascalate.concurrent.CompletionFuture;
+import net.tascalate.concurrent.Promise;
 
 public class AsynchronousFileChannel extends java.nio.channels.AsynchronousFileChannel {
 
@@ -58,15 +58,15 @@ public class AsynchronousFileChannel extends java.nio.channels.AsynchronousFileC
         delegate.lock(position, size, shared);
     }
 
-    public CompletionFuture<FileLock> lockAll() {
+    public Promise<FileLock> lockAll() {
         return lockAll(false);
     }
 
-    public CompletionFuture<FileLock> lockAll(boolean shared) {
+    public Promise<FileLock> lockAll(boolean shared) {
         return doLock(0, Long.MAX_VALUE, shared);
     }
 
-    public CompletionFuture<FileLock> lock(long position, long size, boolean shared) {
+    public Promise<FileLock> lock(long position, long size, boolean shared) {
         return doLock(position, size, shared);
     }
 
@@ -78,7 +78,7 @@ public class AsynchronousFileChannel extends java.nio.channels.AsynchronousFileC
         delegate.read(dst, position, attachment, handler);
     }
 
-    public CompletionFuture<Integer> read(ByteBuffer dst, long position) {
+    public Promise<Integer> read(ByteBuffer dst, long position) {
         AsyncResult<Integer> asyncResult = new AsyncResult<>();
         delegate.read(dst, position, null, asyncResult.handler);
         return asyncResult;
@@ -88,13 +88,13 @@ public class AsynchronousFileChannel extends java.nio.channels.AsynchronousFileC
         delegate.write(src, position, attachment, handler);
     }
 
-    public CompletionFuture<Integer> write(ByteBuffer src, long position) {
+    public Promise<Integer> write(ByteBuffer src, long position) {
         AsyncResult<Integer> asyncResult = new AsyncResult<>();
         delegate.write(src, position, null, asyncResult.handler);
         return asyncResult;
     }
 
-    protected CompletionFuture<FileLock> doLock(long position, long size, boolean shared) {
+    protected Promise<FileLock> doLock(long position, long size, boolean shared) {
         AsyncResult<FileLock> asyncResult = new AsyncResult<>();
         delegate.lock(position, size, shared, null, asyncResult.handler);
         return asyncResult;

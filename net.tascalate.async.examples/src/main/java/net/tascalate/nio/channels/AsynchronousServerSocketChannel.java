@@ -7,7 +7,7 @@ import java.nio.channels.AsynchronousChannelGroup;
 import java.nio.channels.CompletionHandler;
 import java.util.Set;
 
-import net.tascalate.concurrent.CompletionFuture;
+import net.tascalate.concurrent.Promise;
 
 public class AsynchronousServerSocketChannel extends java.nio.channels.AsynchronousServerSocketChannel {
 
@@ -52,13 +52,13 @@ public class AsynchronousServerSocketChannel extends java.nio.channels.Asynchron
         return this;
     }
     
-    public CompletionFuture<? extends AsynchronousSocketChannel> acceptClient() {
+    public Promise<? extends AsynchronousSocketChannel> acceptClient() {
         final AsyncResult<AsynchronousSocketChannel> asyncResult = new AsyncResult<>();
         doAccept(null, asyncResult.handler);
         return asyncResult;
     }
 
-    public CompletionFuture<java.nio.channels.AsynchronousSocketChannel> accept() {
+    public Promise<java.nio.channels.AsynchronousSocketChannel> accept() {
         final AsyncResult<java.nio.channels.AsynchronousSocketChannel> asyncResult = new AsyncResult<>();
         doAccept(null, asyncResult.handler);
         return asyncResult;

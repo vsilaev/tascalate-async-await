@@ -8,7 +8,7 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicIntegerArray;
 
-public class CombinedCompletableFuture<T> extends RestrictedCompletableFuture<List<T>> {
+class AggregatingPromise<T> extends CompletablePromise<List<T>> {
 
     final private T[] results;
     final private Throwable[] errors;
@@ -25,7 +25,7 @@ public class CombinedCompletableFuture<T> extends RestrictedCompletableFuture<Li
     final private CompletionStage<? extends T>[] promises;
 
     @SafeVarargs
-    protected CombinedCompletableFuture(final int minResultsCount, final int maxErrorsCount, final boolean cancelRemaining, final CompletionStage<? extends T>... promises) {
+    AggregatingPromise(final int minResultsCount, final int maxErrorsCount, final boolean cancelRemaining, final CompletionStage<? extends T>... promises) {
         if (null == promises || promises.length < 1) {
             throw new IllegalArgumentException("There are should be at least one promise specified");
         }
@@ -57,7 +57,7 @@ public class CombinedCompletableFuture<T> extends RestrictedCompletableFuture<Li
         }
     }
 
-    protected void onComplete(int idx, T result, Throwable error) {
+    void onComplete(int idx, T result, Throwable error) {
         if (!completions.compareAndSet(idx, PENDING, null == error ? COMPLETED_RESULT : COMPLETED_ERROR)) {
             // Already completed
             return;
@@ -72,7 +72,7 @@ public class CombinedCompletableFuture<T> extends RestrictedCompletableFuture<Li
                     // Synchronized around done
                     markRemainingCancelled();
                     // Now no other thread can modify results array.
-                    internalCompleteNormally(new ArrayList<>(Arrays.asList(results)));
+                    onSuccess(new ArrayList<>(Arrays.asList(results)));
                     if (cancelRemaining) {
                         cancelPromises();
                     }                    
@@ -86,12 +86,12 @@ public class CombinedCompletableFuture<T> extends RestrictedCompletableFuture<Li
             // we will report at least one
             if (c <= maxErrorsCount) {
                 // Only one thread may access this due to check with "completions"
-                errors[idx] = CompletableFutureWrapper.getRealCause(error); 
+                errors[idx] = CompletablePromise.getRealCause(error); 
                 if (c == maxErrorsCount && done.compareAndSet(false, true)) {
                     // Synchronized around done
                     markRemainingCancelled();
                     // Now no other thread can modify errors array.
-                    internalCompleteExceptionally(
+                    onError(
                             new MultitargetException(new ArrayList<>(Arrays.asList(errors)))
                             );
 
@@ -121,11 +121,10 @@ public class CombinedCompletableFuture<T> extends RestrictedCompletableFuture<Li
     private void cancelPromises() {
         for (int idx = promises.length - 1; idx >= 0; idx--) {
             if (completions.get(idx) == COMPLETED_CANCEL) {
-                CompletableFutureWrapper.cancelPromise(promises[idx], true);
+                CompletablePromise.cancelPromise(promises[idx], true);
             }
         }
     }
-
 
 
     @SuppressWarnings("unchecked")

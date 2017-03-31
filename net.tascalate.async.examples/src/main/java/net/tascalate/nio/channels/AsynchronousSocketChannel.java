@@ -9,7 +9,7 @@ import java.nio.channels.CompletionHandler;
 import java.util.Set;
 import java.util.concurrent.TimeUnit;
 
-import net.tascalate.concurrent.CompletionFuture;
+import net.tascalate.concurrent.Promise;
 
 public class AsynchronousSocketChannel 
     extends java.nio.channels.AsynchronousSocketChannel 
@@ -74,15 +74,15 @@ public class AsynchronousSocketChannel
         delegate.connect(remote, attachment, handler);
     }
 
-    public CompletionFuture<Void> connect(SocketAddress remote) {
+    public Promise<Void> connect(SocketAddress remote) {
         return doConnect(remote);
     }
 
-    public CompletionFuture<Integer> read(ByteBuffer dst) {
+    public Promise<Integer> read(ByteBuffer dst) {
         return doRead(dst, -1, TimeUnit.MICROSECONDS);
     }
 
-    public CompletionFuture<Integer> read(ByteBuffer dst, long timeout, TimeUnit unit) {
+    public Promise<Integer> read(ByteBuffer dst, long timeout, TimeUnit unit) {
         return doRead(dst, timeout, unit);
     }
 
@@ -91,7 +91,7 @@ public class AsynchronousSocketChannel
         delegate.read(dst, timeout, unit, attachment, handler);
     }
 
-    public CompletionFuture<Long> read(ByteBuffer[] dsts, int offset, int length, long timeout, TimeUnit unit) {
+    public Promise<Long> read(ByteBuffer[] dsts, int offset, int length, long timeout, TimeUnit unit) {
         return doRead(dsts, offset, length, timeout, unit);
     }
 
@@ -100,11 +100,11 @@ public class AsynchronousSocketChannel
         delegate.read(dsts, offset, length, timeout, unit, attachment, handler);
     }
 
-    public CompletionFuture<Integer> write(ByteBuffer src) {
+    public Promise<Integer> write(ByteBuffer src) {
         return doWrite(src, -1, TimeUnit.MICROSECONDS);
     }
 
-    public CompletionFuture<Integer> write(ByteBuffer src, long timeout, TimeUnit unit) {
+    public Promise<Integer> write(ByteBuffer src, long timeout, TimeUnit unit) {
         return doWrite(src, timeout, unit);
     }	
 
@@ -113,7 +113,7 @@ public class AsynchronousSocketChannel
         delegate.write(src, timeout, unit, attachment, handler);
     }
 
-    public CompletionFuture<Long> write(ByteBuffer[] srcs, int offset, int length, long timeout, TimeUnit unit) {
+    public Promise<Long> write(ByteBuffer[] srcs, int offset, int length, long timeout, TimeUnit unit) {
         return doWrite(srcs, offset, length, timeout, unit);
     }
 
@@ -126,20 +126,20 @@ public class AsynchronousSocketChannel
         return delegate.getLocalAddress();
     }
 
-    protected CompletionFuture<Void> doConnect(SocketAddress remote) {
+    protected Promise<Void> doConnect(SocketAddress remote) {
         AsyncResult<Void> asyncResult = new AsyncResult<>();
         delegate.connect(remote, null, asyncResult.handler);
         return asyncResult;
     }
 
-    protected CompletionFuture<Integer> doRead(ByteBuffer dst, long timeout, TimeUnit unit) {
+    protected Promise<Integer> doRead(ByteBuffer dst, long timeout, TimeUnit unit) {
 
         final AsyncResult<Integer> asyncResult = new AsyncResult<>();
         delegate.read(dst, timeout, unit, null, asyncResult.handler);
         return asyncResult;
     }
 
-    protected CompletionFuture<Long> doRead(
+    protected Promise<Long> doRead(
             ByteBuffer[] dsts, 
             int offset,
             int length,
@@ -151,13 +151,13 @@ public class AsynchronousSocketChannel
         return asyncResult;
     }
 
-    protected CompletionFuture<Integer> doWrite(ByteBuffer src, long timeout, TimeUnit unit) {
+    protected Promise<Integer> doWrite(ByteBuffer src, long timeout, TimeUnit unit) {
         AsyncResult<Integer> asyncResult = new AsyncResult<>();
         delegate.write(src, timeout, unit, null, asyncResult.handler);
         return asyncResult;
     }
 
-    protected CompletionFuture<Long> doWrite(
+    protected Promise<Long> doWrite(
             ByteBuffer[] srcs, 
             int offset, 
             int length, 

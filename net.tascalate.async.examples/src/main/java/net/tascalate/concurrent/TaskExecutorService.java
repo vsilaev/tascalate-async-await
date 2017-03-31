@@ -5,10 +5,10 @@ import java.util.concurrent.ExecutorService;
 
 public interface TaskExecutorService extends ExecutorService {
 
-    <T> CompletionFuture<T> submit(Callable<T> task);
+    <T> Promise<T> submit(Callable<T> task);
     
-    <T> CompletionFuture<T> submit(Runnable task, T result);
+    <T> Promise<T> submit(Runnable task, T result);
     
-    CompletionFuture<?> submit(Runnable task);
+    Promise<?> submit(Runnable task);
 
 }

@@ -5,11 +5,11 @@ import java.nio.ByteBuffer;
 import java.nio.channels.AsynchronousByteChannel;
 import java.nio.channels.CompletionHandler;
 
-import net.tascalate.concurrent.CompletionFuture;
+import net.tascalate.concurrent.Promise;
 
 public interface CompletableAsynchronousByteChannel extends AsynchronousByteChannel {
-    CompletionFuture<Integer> read(ByteBuffer dst);
-    CompletionFuture<Integer> write(ByteBuffer src);
+    Promise<Integer> read(ByteBuffer dst);
+    Promise<Integer> write(ByteBuffer src);
     
     public static CompletableAsynchronousByteChannel adapt(AsynchronousByteChannel original) {
         if (original instanceof CompletableAsynchronousByteChannel) {
@@ -26,7 +26,7 @@ public interface CompletableAsynchronousByteChannel extends AsynchronousByteChan
         }
 
         @Override
-        public CompletionFuture<Integer> read(ByteBuffer dst) {
+        public Promise<Integer> read(ByteBuffer dst) {
             AsyncResult<Integer> asyncResult = new AsyncResult<>();
             delegate.read(dst, null, asyncResult.handler);
             return asyncResult;
@@ -38,7 +38,7 @@ public interface CompletableAsynchronousByteChannel extends AsynchronousByteChan
         }
         
         @Override
-        public CompletionFuture<Integer> write(ByteBuffer src) {
+        public Promise<Integer> write(ByteBuffer src) {
             AsyncResult<Integer> asyncResult = new AsyncResult<>();
             delegate.write(src, null, asyncResult.handler);
             return asyncResult;

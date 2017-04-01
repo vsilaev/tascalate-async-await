@@ -16,13 +16,13 @@ import java.util.function.BiFunction;
 import java.util.function.Consumer;
 import java.util.function.Function;
 
-abstract class BlockingCompletionStage<T> extends CompletionStageAdapter<T> implements Promise<T> {
+abstract class AbstractCompletableTask<T> extends CompletionStageAdapter<T> implements Promise<T> {
 	
 	private final CallbackRegistry<T> callbackRegistry = new CallbackRegistry<>();
 	protected final RunnableFuture<T> task;
 	protected final Callable<T> action;
 
-	protected BlockingCompletionStage(Executor defaultExecutor, Callable<T> action) {
+	protected AbstractCompletableTask(Executor defaultExecutor, Callable<T> action) {
 		super(defaultExecutor);
 		this.action = action;
 		this.task = new StageTransition(action);
@@ -96,7 +96,7 @@ abstract class BlockingCompletionStage<T> extends CompletionStageAdapter<T> impl
     
     @Override
     public <U> CompletionStage<U> thenApplyAsync(Function<? super T, ? extends U> fn, Executor executor) {
-    	BlockingCompletionStage<U> nextStage = internalCreateCompletionStage(executor);
+    	AbstractCompletableTask<U> nextStage = internalCreateCompletionStage(executor);
         addCallbacks(nextStage, fn, executor);
         return nextStage;
     }
@@ -162,7 +162,7 @@ abstract class BlockingCompletionStage<T> extends CompletionStageAdapter<T> impl
                                                            Function<? super R, U> fn,
                                                            Executor executor) {
     	
-    	BlockingCompletionStage<R> nextStage = internalCreateCompletionStage(executor);
+    	AbstractCompletableTask<R> nextStage = internalCreateCompletionStage(executor);
 
 
         // Next stage is not exposed to the client, so we can
@@ -203,16 +203,17 @@ abstract class BlockingCompletionStage<T> extends CompletionStageAdapter<T> impl
     public <U> CompletionStage<U> thenComposeAsync(Function<? super T, ? extends CompletionStage<U>> fn, 
     		                                       Executor executor) {
     	
-    	BlockingCompletionStage<U> nextStage = internalCreateCompletionStage(executor);
-    	BlockingCompletionStage<Void> tempStage = internalCreateCompletionStage(executor);
+    	AbstractCompletableTask<U> nextStage = internalCreateCompletionStage(executor);
+    	AbstractCompletableTask<Void> tempStage = internalCreateCompletionStage(executor);
     	
     	// Success path, just return value
     	// Failure path, just re-throw exception
+    	Executor helperExecutor = SAME_THREAD_EXECUTOR;
     	BiConsumer<? super U, ? super Throwable> moveToNextStage = (r, e) -> {
     		if (null == e)
-    			runDirectly(nextStage, Function.identity(), r, executor);
+    			runDirectly(nextStage, Function.identity(), r, helperExecutor);
     		else
-    			runDirectly(nextStage, BlockingCompletionStage::forwardException, e, executor);
+    			runDirectly(nextStage, AbstractCompletableTask::forwardException, e, helperExecutor);
     	};
     	
     	// Important -- tempStage is the target here
@@ -229,14 +230,14 @@ abstract class BlockingCompletionStage<T> extends CompletionStageAdapter<T> impl
     
     @Override
     public CompletionStage<T> exceptionally(Function<Throwable, ? extends T> fn) {
-    	BlockingCompletionStage<T> nextStage = internalCreateCompletionStage(getDefaultExecutor());
+    	AbstractCompletableTask<T> nextStage = internalCreateCompletionStage(getDefaultExecutor());
         addCallbacks(nextStage, Function.identity(), fn, SAME_THREAD_EXECUTOR);
         return nextStage;
     }
     
     @Override
     public CompletionStage<T> whenCompleteAsync(BiConsumer<? super T, ? super Throwable> action, Executor executor) {
-    	BlockingCompletionStage<T> nextStage = internalCreateCompletionStage(getDefaultExecutor());
+    	AbstractCompletableTask<T> nextStage = internalCreateCompletionStage(getDefaultExecutor());
         addCallbacks(nextStage, 
             result -> {
             	action.accept(result, null);
@@ -256,7 +257,7 @@ abstract class BlockingCompletionStage<T> extends CompletionStageAdapter<T> impl
     
     @Override
     public <U> CompletionStage<U> handleAsync(BiFunction<? super T, Throwable, ? extends U> fn, Executor executor) {
-    	BlockingCompletionStage<U> nextStage = internalCreateCompletionStage(executor);
+    	AbstractCompletableTask<U> nextStage = internalCreateCompletionStage(executor);
         addCallbacks(
         	nextStage, 
         	result -> fn.apply(result, null),
@@ -288,11 +289,11 @@ abstract class BlockingCompletionStage<T> extends CompletionStageAdapter<T> impl
     }
     
     
-    protected <U> BlockingCompletionStage<U> internalCreateCompletionStage(Executor executor) {
+    protected <U> AbstractCompletableTask<U> internalCreateCompletionStage(Executor executor) {
     	return createCompletionStage(executor == SAME_THREAD_EXECUTOR ? getDefaultExecutor() : executor);
     }
     
-    abstract protected <U> BlockingCompletionStage<U> createCompletionStage(Executor executor);
+    abstract protected <U> AbstractCompletableTask<U> createCompletionStage(Executor executor);
     
     private <V, R> Function<V, R> consumerAsFunction(Consumer<? super V> action) {
         return result -> {
@@ -320,13 +321,13 @@ abstract class BlockingCompletionStage<T> extends CompletionStageAdapter<T> impl
         }
     }
 
-    private <U> void addCallbacks(BlockingCompletionStage<U> targetStage, 
+    private <U> void addCallbacks(AbstractCompletableTask<U> targetStage, 
     		                      Function<? super T, ? extends U> successCallback, 
     		                      Executor executor) {
-    	addCallbacks(targetStage, successCallback, BlockingCompletionStage::forwardException, executor);
+    	addCallbacks(targetStage, successCallback, AbstractCompletableTask::forwardException, executor);
     }
     
-    private <U> void addCallbacks(BlockingCompletionStage<U> targetStage, 
+    private <U> void addCallbacks(AbstractCompletableTask<U> targetStage, 
     		                      Function<? super T, ? extends U> successCallback, 
     		                      Function<Throwable, ? extends U> failureCallback, 
     		                      Executor executor) {
@@ -340,7 +341,7 @@ abstract class BlockingCompletionStage<T> extends CompletionStageAdapter<T> impl
         callbackRegistry.addCallbacks(targetSetup, successCallback, failureCallback, executor);
     }
     
-    private static <S, U> void runDirectly(BlockingCompletionStage<U> targetStage, 
+    private static <S, U> void runDirectly(AbstractCompletableTask<U> targetStage, 
                                            Function<? super S, ? extends U> callback, 
                                            S value, 
                                            Executor executor) {

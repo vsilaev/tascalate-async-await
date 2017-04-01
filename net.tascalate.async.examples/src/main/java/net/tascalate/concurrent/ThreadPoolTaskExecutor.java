@@ -8,14 +8,9 @@ import java.util.concurrent.ThreadFactory;
 import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
 
-import net.javacrumbs.completionstage.CompletionStageFactory;
-import net.javacrumbs.completionstage.spi.CompletableCompletionStageFactory;
-
 public class ThreadPoolTaskExecutor extends ThreadPoolExecutor implements TaskExecutorService {
-    
-    private final CompletableCompletionStageFactory completionStageFactory = new CompletionStageFactory(this);
-    
-    public ThreadPoolTaskExecutor(int corePoolSize, int maximumPoolSize, long keepAliveTime, TimeUnit unit,
+
+	public ThreadPoolTaskExecutor(int corePoolSize, int maximumPoolSize, long keepAliveTime, TimeUnit unit,
             BlockingQueue<Runnable> workQueue, RejectedExecutionHandler handler) {
         super(corePoolSize, maximumPoolSize, keepAliveTime, unit, workQueue, handler);
     }
@@ -58,7 +53,7 @@ public class ThreadPoolTaskExecutor extends ThreadPoolExecutor implements TaskEx
 
     @Override
     protected <T> CompletableTask<T> newTaskFor(Callable<T> callable) {
-        return new CompletableTask<>(completionStageFactory, callable);
+        return new CompletableTask<>(this, callable);
     }
 
 }

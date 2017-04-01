@@ -1,5 +1,6 @@
 package net.tascalate.concurrent;
 
+import java.lang.reflect.Method;
 import java.util.concurrent.CancellationException;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
@@ -8,8 +9,6 @@ import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
-
-import net.javacrumbs.completionstage.CompletableCompletionStage;
 
 public class CompletablePromise<T> extends DelegatingCompletionStage<T, CompletableFuture<T>> implements Promise<T> {
     
@@ -58,16 +57,31 @@ public class CompletablePromise<T> extends DelegatingCompletionStage<T, Completa
         if (promise instanceof Future) {
             final Future<?> future = (Future<?>)promise;
             return future.cancel(mayInterruptIfRunning);
-        } else if (promise instanceof CompletableCompletionStage) {
-            final CompletableCompletionStage<?> stage = (CompletableCompletionStage<?>)promise;
-            return stage.completeExceptionally(new CancellationException());
         } else {
-            return false;
+            final Method m = completeExceptionallyMethodOf(promise);
+            if (null != m) {
+            	try {
+            		return (Boolean)m.invoke(promise,  new CancellationException());
+            	} catch (final ReflectiveOperationException ex) {
+            		return false;
+            	}
+            } else {
+            	return false;
+            }
         }
     }
     
     static Throwable getRealCause(final Throwable error) {
         final Throwable cause = error instanceof CompletionException ? error.getCause() : null;
         return null == cause ? error : cause;
+    }
+    
+    private static Method completeExceptionallyMethodOf(CompletionStage<?> promise) {
+    	try {
+    		final Class<?> clazz = promise.getClass();
+    		return clazz.getMethod("completeExceptionally", Throwable.class);
+    	} catch (ReflectiveOperationException | SecurityException ex) {
+    		return null;
+    	} 
     }
 }

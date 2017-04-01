@@ -15,9 +15,6 @@ import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 
-import net.javacrumbs.completionstage.CompletionStageFactory;
-import net.javacrumbs.completionstage.spi.CompletableCompletionStageFactory;
-
 public class TaskExecutors {
     /**
      * Creates a thread pool that reuses a fixed number of threads
@@ -149,7 +146,6 @@ public class TaskExecutors {
     
     static class TaskExecutorServiceAdapter implements TaskExecutorService {
         private final ExecutorService delegate;
-        private final CompletableCompletionStageFactory completionStageFactory = new CompletionStageFactory(this);
         
         TaskExecutorServiceAdapter(ExecutorService executor) { 
             delegate = executor;
@@ -217,7 +213,7 @@ public class TaskExecutors {
         }
         
         protected <T> CompletableTask<T> createTask(Callable<T> callable) {
-            return new CompletableTask<T>(completionStageFactory, callable);        
+            return new CompletableTask<T>(this, callable);        
         }
         
     }

@@ -14,8 +14,8 @@ class AggregatingPromise<T> extends CompletablePromise<List<T>> {
     final private Throwable[] errors;
     final private AtomicIntegerArray completions;
 
-    final private AtomicInteger resultsCount = new AtomicInteger(0); 
-    final private AtomicInteger errorsCount  = new AtomicInteger(0);
+    final private AtomicInteger resultsCount = new AtomicInteger(0);
+    final private AtomicInteger errorsCount = new AtomicInteger(0);
 
     final private AtomicBoolean done = new AtomicBoolean(false);
 
@@ -25,20 +25,18 @@ class AggregatingPromise<T> extends CompletablePromise<List<T>> {
     final private CompletionStage<? extends T>[] promises;
 
     @SafeVarargs
-    AggregatingPromise(final int minResultsCount, final int maxErrorsCount, final boolean cancelRemaining, final CompletionStage<? extends T>... promises) {
+    AggregatingPromise(final int minResultsCount, final int maxErrorsCount, final boolean cancelRemaining,
+                       final CompletionStage<? extends T>... promises) {
+        
         if (null == promises || promises.length < 1) {
             throw new IllegalArgumentException("There are should be at least one promise specified");
         }
         this.promises = promises;
         this.minResultsCount = minResultsCount < 0 ? 
-                promises.length :
-                Math.max(1, Math.min(promises.length, minResultsCount))
-                ;
+            promises.length : Math.max(1, Math.min(promises.length, minResultsCount));
         this.maxErrorsCount = maxErrorsCount < 0 ? 
-                promises.length - minResultsCount :
-                Math.max(0, Math.min(maxErrorsCount, promises.length - minResultsCount))
-                ;
-        this.cancelRemaining = cancelRemaining;    
+            promises.length - minResultsCount : Math.max(0, Math.min(maxErrorsCount, promises.length - minResultsCount));
+        this.cancelRemaining = cancelRemaining;
         results = newArray(promises.length);
         errors = new Throwable[promises.length];
         completions = new AtomicIntegerArray(promises.length);
@@ -66,8 +64,9 @@ class AggregatingPromise<T> extends CompletablePromise<List<T>> {
             // ON NEXT RESULT
             final int c = resultsCount.incrementAndGet();
             if (c <= minResultsCount) {
-                // Only one thread may access this due to check with "completions" 
-                results[idx] = result; 
+                // Only one thread may access this due to check with
+                // "completions"
+                results[idx] = result;
                 if (c == minResultsCount && done.compareAndSet(false, true)) {
                     // Synchronized around done
                     markRemainingCancelled();
@@ -75,7 +74,7 @@ class AggregatingPromise<T> extends CompletablePromise<List<T>> {
                     onSuccess(new ArrayList<>(Arrays.asList(results)));
                     if (cancelRemaining) {
                         cancelPromises();
-                    }                    
+                    }
                 }
             }
         } else {
@@ -85,15 +84,14 @@ class AggregatingPromise<T> extends CompletablePromise<List<T>> {
             // So if we specify that no exceptions should happen
             // we will report at least one
             if (c <= maxErrorsCount) {
-                // Only one thread may access this due to check with "completions"
-                errors[idx] = CompletablePromise.getRealCause(error); 
+                // Only one thread may access this due to check with
+                // "completions"
+                errors[idx] = CompletablePromise.getRealCause(error);
                 if (c == maxErrorsCount && done.compareAndSet(false, true)) {
                     // Synchronized around done
                     markRemainingCancelled();
                     // Now no other thread can modify errors array.
-                    onError(
-                            new MultitargetException(new ArrayList<>(Arrays.asList(errors)))
-                            );
+                    onError(new MultitargetException(new ArrayList<>(Arrays.asList(errors))));
 
                     if (cancelRemaining) {
                         cancelPromises();
@@ -114,9 +112,8 @@ class AggregatingPromise<T> extends CompletablePromise<List<T>> {
         for (final CompletionStage<? extends T> promise : promises) {
             final int idx = i++;
             promise.whenComplete((r, e) -> onComplete(idx, r, e));
-        }        
+        }
     }
-
 
     private void cancelPromises() {
         for (int idx = promises.length - 1; idx >= 0; idx--) {
@@ -126,14 +123,13 @@ class AggregatingPromise<T> extends CompletablePromise<List<T>> {
         }
     }
 
-
     @SuppressWarnings("unchecked")
     private static <T> T[] newArray(int length) {
-        return (T[])new Object[length];
+        return (T[]) new Object[length];
     }
 
     private static final int PENDING = 0;
     private static final int COMPLETED_RESULT = 1;
-    private static final int COMPLETED_ERROR  = 2;
+    private static final int COMPLETED_ERROR = 2;
     private static final int COMPLETED_CANCEL = -1;
 }

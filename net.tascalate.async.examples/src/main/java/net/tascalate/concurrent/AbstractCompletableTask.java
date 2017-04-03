@@ -295,7 +295,7 @@ abstract class AbstractCompletableTask<T> extends CompletionStageAdapter<T> impl
     abstract protected <U> AbstractCompletableTask<U> createCompletionStage(Executor executor);
     
     private <U> AbstractCompletableTask<U> internalCreateCompletionStage(Executor executor) {
-    	// Preserve default async executor, or use user-supplied executir as default
+    	// Preserve default async executor, or use user-supplied executor as default
     	// But don't let SAME_THREAD_EXECUTOR to be a default async executor
     	return createCompletionStage(executor == SAME_THREAD_EXECUTOR ? getDefaultExecutor() : executor);
     }

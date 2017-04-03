@@ -10,7 +10,7 @@ import java.util.function.Function;
 
 public class DelegatingCompletionStage<T, D extends CompletionStage<T>> implements CompletionStage<T> {
     final protected D completionStage;
-    
+
     protected DelegatingCompletionStage(final D delegate) {
         this.completionStage = delegate;
     }
@@ -59,7 +59,10 @@ public class DelegatingCompletionStage<T, D extends CompletionStage<T>> implemen
         return completionStage.thenCombineAsync(other, fn);
     }
 
-    public <U, V> CompletionStage<V> thenCombineAsync(CompletionStage<? extends U> other, BiFunction<? super T, ? super U, ? extends V> fn, Executor executor) {
+    public <U, V> CompletionStage<V> thenCombineAsync(CompletionStage<? extends U> other,
+                                                      BiFunction<? super T, ? super U, ? extends V> fn, 
+                                                      Executor executor) {
+        
         return completionStage.thenCombineAsync(other, fn, executor);
     }
 
@@ -71,7 +74,10 @@ public class DelegatingCompletionStage<T, D extends CompletionStage<T>> implemen
         return completionStage.thenAcceptBothAsync(other, action);
     }
 
-    public <U> CompletionStage<Void> thenAcceptBothAsync(CompletionStage<? extends U> other, BiConsumer<? super T, ? super U> action, Executor executor) {
+    public <U> CompletionStage<Void> thenAcceptBothAsync(CompletionStage<? extends U> other,
+                                                         BiConsumer<? super T, ? super U> action, 
+                                                         Executor executor) {
+        
         return completionStage.thenAcceptBothAsync(other, action, executor);
     }
 
@@ -95,8 +101,10 @@ public class DelegatingCompletionStage<T, D extends CompletionStage<T>> implemen
         return completionStage.applyToEitherAsync(other, fn);
     }
 
-    public <U> CompletionStage<U> applyToEitherAsync(CompletionStage<? extends T> other, Function<? super T, U> fn,
-            Executor executor) {
+    public <U> CompletionStage<U> applyToEitherAsync(CompletionStage<? extends T> other, 
+                                                     Function<? super T, U> fn,
+                                                     Executor executor) {
+        
         return completionStage.applyToEitherAsync(other, fn, executor);
     }
 
@@ -108,7 +116,10 @@ public class DelegatingCompletionStage<T, D extends CompletionStage<T>> implemen
         return completionStage.acceptEitherAsync(other, action);
     }
 
-    public CompletionStage<Void> acceptEitherAsync(CompletionStage<? extends T> other, Consumer<? super T> action, Executor executor) {
+    public CompletionStage<Void> acceptEitherAsync(CompletionStage<? extends T> other, 
+                                                   Consumer<? super T> action,
+                                                   Executor executor) {
+        
         return completionStage.acceptEitherAsync(other, action, executor);
     }
 
@@ -167,6 +178,5 @@ public class DelegatingCompletionStage<T, D extends CompletionStage<T>> implemen
     public CompletableFuture<T> toCompletableFuture() {
         return completionStage.toCompletableFuture();
     }
-    
-    
+
 }

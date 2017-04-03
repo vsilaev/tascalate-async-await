@@ -15,19 +15,19 @@ class CallbackRegistry<T> {
     /**
      * Adds the given callbacks to this registry.
      */
-    <U> void addCallbacks(Function<? super Callable<U>, ? extends Runnable> targetSetup, 
-    		              Function<? super T, ? extends U> successCallback, 
-    		              Function<Throwable, ? extends U> failureCallback, 
-    		              Executor executor) {
-    	
+    <U> void addCallbacks(Function<? super Callable<U>, ? extends Runnable> targetSetup,
+                          Function<? super T, ? extends U> successCallback, 
+                          Function<Throwable, ? extends U> failureCallback,
+                          Executor executor) {
+
         Objects.requireNonNull(successCallback, "'successCallback' must not be null");
         Objects.requireNonNull(failureCallback, "'failureCallback' must not be null");
         Objects.requireNonNull(executor, "'executor' must not be null");
 
         @SuppressWarnings("unchecked")
-        Function<? super Callable<?>, ? extends  Runnable> typedTargetSetup = 
-            (Function<? super Callable<?>, ? extends Runnable>)targetSetup;
-        
+        Function<? super Callable<?>, ? extends Runnable> typedTargetSetup = 
+            (Function<? super Callable<?>, ? extends Runnable>) targetSetup;
+
         synchronized (mutex) {
             state = state.addCallbacks(typedTargetSetup, successCallback, failureCallback, executor);
         }
@@ -36,7 +36,8 @@ class CallbackRegistry<T> {
     /**
      * To be called to set the result value.
      *
-     * @param result the result value
+     * @param result
+     *            the result value
      * @return true if this result will be used (first result registered)
      */
     boolean success(T result) {
@@ -56,7 +57,8 @@ class CallbackRegistry<T> {
     /**
      * To be called to set the failure exception
      *
-     * @param failure the exception
+     * @param failure
+     *            the exception
      * @return true if this result will be used (first result registered)
      */
     boolean failure(Throwable failure) {
@@ -73,14 +75,14 @@ class CallbackRegistry<T> {
     }
 
     /**
-     * State of the registry. All subclasses are meant to be used form a synchronized block and are NOT
-     * thread safe on their own.
+     * State of the registry. All subclasses are meant to be used form a
+     * synchronized block and are NOT thread safe on their own.
      */
     private static abstract class State<S> {
-        protected abstract State<S> addCallbacks(Function<? super Callable<?>, ? extends Runnable> targetSetup, 
-        		                                 Function<? super S, ?> successCallback, 
-        		                                 Function<Throwable, ?> failureCallback, 
-        		                                 Executor executor);
+        protected abstract State<S> addCallbacks(Function<? super Callable<?>, ? extends Runnable> targetSetup,
+                                                 Function<? super S, ?> successCallback, 
+                                                 Function<Throwable, ?> failureCallback, 
+                                                 Executor executor);
 
         protected State<S> getSuccessState(S result) {
             throw new IllegalStateException("success method should not be called multiple times");
@@ -102,17 +104,18 @@ class CallbackRegistry<T> {
     }
 
     /**
-     * Result is not known yet and no callbacks registered. Using shared instance so we do not allocate instance where
-     * it may not be needed.
+     * Result is not known yet and no callbacks registered. Using shared
+     * instance so we do not allocate instance where it may not be needed.
      */
     private static class InitialState<S> extends State<S> {
         private static final InitialState<Object> instance = new InitialState<>();
 
         @Override
-        protected State<S> addCallbacks(Function<? super Callable<?>, ? extends Runnable> targetSetup, 
+        protected State<S> addCallbacks(Function<? super Callable<?>, ? extends Runnable> targetSetup,
                                         Function<? super S, ?> successCallback, 
                                         Function<Throwable, ?> failureCallback, 
                                         Executor executor) {
+            
             IntermediateState<S> intermediateState = new IntermediateState<>();
             intermediateState.addCallbacks(targetSetup, successCallback, failureCallback, executor);
             return intermediateState;
@@ -146,10 +149,11 @@ class CallbackRegistry<T> {
         private final Queue<CallbackHolder<? super S>> callbacks = new LinkedList<>();
 
         @Override
-        protected State<S> addCallbacks(Function<? super Callable<?>, ? extends Runnable> targetSetup, 
+        protected State<S> addCallbacks(Function<? super Callable<?>, ? extends Runnable> targetSetup,
                                         Function<? super S, ?> successCallback, 
                                         Function<Throwable, ?> failureCallback, 
                                         Executor executor) {
+            
             callbacks.add(new CallbackHolder<>(targetSetup, successCallback, failureCallback, executor));
             return this;
         }
@@ -161,7 +165,8 @@ class CallbackRegistry<T> {
 
         @Override
         protected void callSuccessCallbacks(S result) {
-            // no need to remove callbacks from the queue, this instance will be thrown away at once
+            // no need to remove callbacks from the queue, this instance will be
+            // thrown away at once
             for (CallbackHolder<? super S> callback : callbacks) {
                 callback.callSuccessCallback(result);
             }
@@ -174,7 +179,8 @@ class CallbackRegistry<T> {
 
         @Override
         protected void callFailureCallbacks(Throwable failure) {
-            // no need to remove callbacks from the queue, this instance will be thrown away at once
+            // no need to remove callbacks from the queue, this instance will be
+            // thrown away at once
             for (CallbackHolder<? super S> callback : callbacks) {
                 callback.callFailureCallback(failure);
             }
@@ -197,10 +203,11 @@ class CallbackRegistry<T> {
         }
 
         @Override
-        protected State<S> addCallbacks(Function<? super Callable<?>, ? extends Runnable> targetSetup, 
+        protected State<S> addCallbacks(Function<? super Callable<?>, ? extends Runnable> targetSetup,
                                         Function<? super S, ?> successCallback, 
                                         Function<Throwable, ?> failureCallback, 
                                         Executor executor) {
+            
             callCallback(targetSetup, successCallback, result, executor);
             return this;
         }
@@ -217,27 +224,27 @@ class CallbackRegistry<T> {
         }
 
         @Override
-        protected State<S> addCallbacks(Function<? super Callable<?>, ? extends Runnable> targetSetup, 
+        protected State<S> addCallbacks(Function<? super Callable<?>, ? extends Runnable> targetSetup,
                                         Function<? super S, ?> successCallback, 
                                         Function<Throwable, ?> failureCallback, 
                                         Executor executor) {
+            
             callCallback(targetSetup, failureCallback, failure, executor);
             return this;
         }
     }
 
-
     private static final class CallbackHolder<S> {
-    	private final Function<? super Callable<?>, ? extends Runnable> targetSetup;
+        private final Function<? super Callable<?>, ? extends Runnable> targetSetup;
         private final Function<? super S, ?> successCallback;
         private final Function<Throwable, ?> failureCallback;
         private final Executor executor;
 
-        private CallbackHolder(Function<? super Callable<?>, ? extends Runnable> targetSetup, 
+        private CallbackHolder(Function<? super Callable<?>, ? extends Runnable> targetSetup,
                                Function<? super S, ?> successCallback, 
-                               Function<Throwable, ?> failureCallback,
+                               Function<Throwable, ?> failureCallback, 
                                Executor executor) {
-        	
+
             this.targetSetup = targetSetup;
             this.successCallback = successCallback;
             this.failureCallback = failureCallback;
@@ -253,13 +260,13 @@ class CallbackRegistry<T> {
         }
     }
 
-    static <S, U> void callCallback(Function<? super Callable<U>, ? extends Runnable> targetSetup, 
+    static <S, U> void callCallback(Function<? super Callable<U>, ? extends Runnable> targetSetup,
                                     Function<? super S, ? extends U> callback, 
-                                    S value, Executor executor) {
-    	
-    	Callable<U> callable = () -> callback.apply(value);
-    	executor.execute( targetSetup.apply(callable) );
+                                    S value, 
+                                    Executor executor) {
+
+        Callable<U> callable = () -> callback.apply(value);
+        executor.execute(targetSetup.apply(callable));
     }
 
 }
-

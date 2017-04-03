@@ -11,11 +11,11 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 
 public class CompletablePromise<T> extends DelegatingCompletionStage<T, CompletableFuture<T>> implements Promise<T> {
-    
+
     public CompletablePromise() {
         this(new CompletableFuture<>());
     }
-    
+
     public CompletablePromise(CompletableFuture<T> delegate) {
         super(delegate);
     }
@@ -23,7 +23,7 @@ public class CompletablePromise<T> extends DelegatingCompletionStage<T, Completa
     protected boolean onSuccess(T value) {
         return completionStage.complete(value);
     }
-    
+
     protected boolean onError(Throwable ex) {
         return completionStage.completeExceptionally(ex);
     }
@@ -52,36 +52,36 @@ public class CompletablePromise<T> extends DelegatingCompletionStage<T, Completa
     public T get(long timeout, TimeUnit unit) throws InterruptedException, ExecutionException, TimeoutException {
         return completionStage.get(timeout, unit);
     }
-    
+
     static boolean cancelPromise(final CompletionStage<?> promise, final boolean mayInterruptIfRunning) {
         if (promise instanceof Future) {
-            final Future<?> future = (Future<?>)promise;
+            final Future<?> future = (Future<?>) promise;
             return future.cancel(mayInterruptIfRunning);
         } else {
             final Method m = completeExceptionallyMethodOf(promise);
             if (null != m) {
-            	try {
-            		return (Boolean)m.invoke(promise,  new CancellationException());
-            	} catch (final ReflectiveOperationException ex) {
-            		return false;
-            	}
+                try {
+                    return (Boolean) m.invoke(promise, new CancellationException());
+                } catch (final ReflectiveOperationException ex) {
+                    return false;
+                }
             } else {
-            	return false;
+                return false;
             }
         }
     }
-    
+
     static Throwable getRealCause(final Throwable error) {
         final Throwable cause = error instanceof CompletionException ? error.getCause() : null;
         return null == cause ? error : cause;
     }
-    
+
     private static Method completeExceptionallyMethodOf(CompletionStage<?> promise) {
-    	try {
-    		final Class<?> clazz = promise.getClass();
-    		return clazz.getMethod("completeExceptionally", Throwable.class);
-    	} catch (ReflectiveOperationException | SecurityException ex) {
-    		return null;
-    	} 
+        try {
+            final Class<?> clazz = promise.getClass();
+            return clazz.getMethod("completeExceptionally", Throwable.class);
+        } catch (ReflectiveOperationException | SecurityException ex) {
+            return null;
+        }
     }
 }

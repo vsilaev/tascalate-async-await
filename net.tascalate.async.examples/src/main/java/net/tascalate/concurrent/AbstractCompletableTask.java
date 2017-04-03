@@ -85,13 +85,6 @@ abstract class AbstractCompletableTask<T> extends CompletionStageAdapter<T> impl
             super.setException(t);
             onError(t);
         };
-        
-        @Override 
-        protected void done() {
-            if (isCancelled()) {
-                //;
-            }
-        }
     }
     
     @Override
@@ -120,7 +113,9 @@ abstract class AbstractCompletableTask<T> extends CompletionStageAdapter<T> impl
     }
 
     @Override
-    public <U> CompletionStage<Void> thenAcceptBothAsync(CompletionStage<? extends U> other, BiConsumer<? super T, ? super U> action, Executor executor) {
+    public <U> CompletionStage<Void> thenAcceptBothAsync(CompletionStage<? extends U> other, 
+    		                                             BiConsumer<? super T, ? super U> action, 
+    		                                             Executor executor) {
         return thenCombineAsync(
             other,
             // transform BiConsumer to BiFunction
@@ -133,7 +128,9 @@ abstract class AbstractCompletableTask<T> extends CompletionStageAdapter<T> impl
     }
 
     @Override
-    public CompletionStage<Void> runAfterBothAsync(CompletionStage<?> other, Runnable action, Executor executor) {
+    public CompletionStage<Void> runAfterBothAsync(CompletionStage<?> other, 
+    		                                       Runnable action, 
+    		                                       Executor executor) {
         return thenCombineAsync(
             other,
             // transform Runnable to BiFunction
@@ -167,8 +164,10 @@ abstract class AbstractCompletableTask<T> extends CompletionStageAdapter<T> impl
 
         // Next stage is not exposed to the client, so we can
         // short-circuit its initiation - just fire callbacks
-        // without task execution (unlike as in thenComposeAsync)
-        // In ceratin sense, nextStage here is bogus: neither
+        // without task execution (unlike as in other methods,
+    	// event in thenComposeAsync with its ad-hoc execution)
+    	
+        // In certain sense, nextStage here is bogus: neither
         // of Future-defined methods are functional.    	
         BiConsumer<R, Throwable> action = (result, failure) -> {
             if (failure == null) {
@@ -206,6 +205,9 @@ abstract class AbstractCompletableTask<T> extends CompletionStageAdapter<T> impl
     	AbstractCompletableTask<U> nextStage = internalCreateCompletionStage(executor);
     	AbstractCompletableTask<Void> tempStage = internalCreateCompletionStage(executor);
     	
+    	// We must ALWAYS run through the execution
+    	// of nextStage.task when this nextStage is 
+    	// exposed to the client, even in a "trivial" case:
     	// Success path, just return value
     	// Failure path, just re-throw exception
     	Executor helperExecutor = SAME_THREAD_EXECUTOR;
@@ -220,7 +222,7 @@ abstract class AbstractCompletableTask<T> extends CompletionStageAdapter<T> impl
         addCallbacks(
         	tempStage,
             consumerAsFunction(r -> fn.apply(r).whenComplete(moveToNextStage)),
-            e -> { moveToNextStage.accept(null, e); return null; },
+            e -> { moveToNextStage.accept(null, e); return null; }, /* must-have if fn.apply above failed */
             executor
         );
         
@@ -272,6 +274,8 @@ abstract class AbstractCompletableTask<T> extends CompletionStageAdapter<T> impl
     @Override
     public CompletableFuture<T> toCompletableFuture() {
         CompletableFuture<T> completableFuture = new CompletableFuture<>();
+		// nextStage is CompletableFuture rather than AbstractCompletableTask
+		// so trigger completion on ad-hoc runnable rather than on nextStage.task 
         Function<Callable<T>, Runnable> setup = c -> () -> {
 			try {
 				c.call();
@@ -287,15 +291,16 @@ abstract class AbstractCompletableTask<T> extends CompletionStageAdapter<T> impl
         );
         return completableFuture;
     }
+
+    abstract protected <U> AbstractCompletableTask<U> createCompletionStage(Executor executor);
     
-    
-    protected <U> AbstractCompletableTask<U> internalCreateCompletionStage(Executor executor) {
+    private <U> AbstractCompletableTask<U> internalCreateCompletionStage(Executor executor) {
+    	// Preserve default async executor, or use user-supplied executir as default
+    	// But don't let SAME_THREAD_EXECUTOR to be a default async executor
     	return createCompletionStage(executor == SAME_THREAD_EXECUTOR ? getDefaultExecutor() : executor);
     }
     
-    abstract protected <U> AbstractCompletableTask<U> createCompletionStage(Executor executor);
-    
-    private <V, R> Function<V, R> consumerAsFunction(Consumer<? super V> action) {
+    private static <V, R> Function<V, R> consumerAsFunction(Consumer<? super V> action) {
         return result -> {
             action.accept(result);
             return null;

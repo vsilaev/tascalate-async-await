@@ -238,7 +238,7 @@ class CallbackRegistry<T> {
                                Function<Throwable, ?> failureCallback,
                                Executor executor) {
         	
-        	this.targetSetup = targetSetup;
+            this.targetSetup = targetSetup;
             this.successCallback = successCallback;
             this.failureCallback = failureCallback;
             this.executor = executor;

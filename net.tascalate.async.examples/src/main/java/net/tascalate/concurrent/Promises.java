@@ -3,6 +3,7 @@ package net.tascalate.concurrent;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionStage;
 import java.util.function.BiConsumer;
 import java.util.function.Consumer;
@@ -21,7 +22,11 @@ public class Promises {
             return (Promise<T>) stage;
         }
 
-        final CompletablePromise<T> result = _from(stage);
+        if (stage instanceof CompletableFuture) {
+            return new CompletablePromise<>((CompletableFuture<T>)stage);
+        }
+        
+        final CompletablePromise<T> result = createLinkedPromise(stage);
         stage.whenComplete(handler(result::onSuccess, result::onError));
         return result;
     }
@@ -30,7 +35,7 @@ public class Promises {
                                   Function<? super T, ? extends R> resultConverter,
                                   Function<? super Throwable, ? extends Throwable> errorConverter) {
         
-        final CompletablePromise<R> result = _from(stage);
+        final CompletablePromise<R> result = createLinkedPromise(stage);
         stage.whenComplete(
             handler(acceptConverted(result::onSuccess, resultConverter),
             acceptConverted(result::onError, errorConverter))
@@ -38,7 +43,7 @@ public class Promises {
         return result;
     }
 
-    private static <T, R> CompletablePromise<R> _from(CompletionStage<T> stage) {
+    private static <T, R> CompletablePromise<R> createLinkedPromise(CompletionStage<T> stage) {
         return new CompletablePromise<R>() {
             @Override
             public boolean cancel(boolean mayInterruptIfRunning) {

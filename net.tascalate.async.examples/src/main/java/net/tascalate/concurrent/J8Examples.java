@@ -30,7 +30,7 @@ public class J8Examples {
         Promises.atLeast(
                 4, //Change to 5 or 6 to see the difference -- will end up exceptionally
                 executorService.submit(() -> awaitAndProduceN(2)),
-                intermidiate = (Promise<Integer>)
+                intermidiate = 
                 executorService.submit(() -> awaitAndProduceN(3)).thenAcceptAsync(J8Examples::multByX).thenApply((v) -> 1234),
                 executorService.submit(() -> awaitAndProduceN(5)),
                 executorService.submit(() -> awaitAndProduceN(6)),

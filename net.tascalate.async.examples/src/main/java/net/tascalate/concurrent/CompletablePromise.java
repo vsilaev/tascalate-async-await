@@ -9,7 +9,7 @@ import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 
-public class CompletablePromise<T> extends DelegatingCompletionStage<T, CompletableFuture<T>> implements Promise<T> {
+public class CompletablePromise<T> extends AbstractDelegatingPromise<T, CompletableFuture<T>> implements Promise<T> {
 
     public CompletablePromise() {
         this(new CompletableFuture<>());
@@ -77,5 +77,10 @@ public class CompletablePromise<T> extends DelegatingCompletionStage<T, Completa
         } catch (ReflectiveOperationException | SecurityException ex) {
             return null;
         }
+    }
+
+    @Override
+    protected <U> Promise<U> wrap(CompletionStage<U> original) {
+        return new CompletablePromise<>((CompletableFuture<U>)original);
     }
 }

@@ -16,7 +16,7 @@ import java.util.function.BiFunction;
 import java.util.function.Consumer;
 import java.util.function.Function;
 
-abstract class AbstractCompletableTask<T> extends CompletionStageAdapter<T> implements Promise<T> {
+abstract class AbstractCompletableTask<T> extends PromiseAdapter<T> implements Promise<T> {
 
     private final CallbackRegistry<T> callbackRegistry = new CallbackRegistry<>();
     protected final RunnableFuture<T> task;
@@ -95,34 +95,34 @@ abstract class AbstractCompletableTask<T> extends CompletionStageAdapter<T> impl
     }
 
     @Override
-    public <U> CompletionStage<U> thenApplyAsync(Function<? super T, ? extends U> fn, Executor executor) {
+    public <U> Promise<U> thenApplyAsync(Function<? super T, ? extends U> fn, Executor executor) {
         AbstractCompletableTask<U> nextStage = internalCreateCompletionStage(executor);
         addCallbacks(nextStage, fn, executor);
         return nextStage;
     }
 
     @Override
-    public CompletionStage<Void> thenAcceptAsync(Consumer<? super T> action, Executor executor) {
+    public Promise<Void> thenAcceptAsync(Consumer<? super T> action, Executor executor) {
         return thenApplyAsync(consumerAsFunction(action), executor);
     }
 
     @Override
-    public CompletionStage<Void> thenRunAsync(Runnable action, Executor executor) {
+    public Promise<Void> thenRunAsync(Runnable action, Executor executor) {
         return thenApplyAsync(runnableAsFunction(action), executor);
     }
 
     @Override
-    public <U, V> CompletionStage<V> thenCombineAsync(CompletionStage<? extends U> other,
-                                                      BiFunction<? super T, ? super U, ? extends V> fn, 
-                                                      Executor executor) {
+    public <U, V> Promise<V> thenCombineAsync(CompletionStage<? extends U> other,
+                                              BiFunction<? super T, ? super U, ? extends V> fn, 
+                                              Executor executor) {
 
         return thenCompose(result1 -> other.thenApplyAsync(result2 -> fn.apply(result1, result2), executor));
     }
 
     @Override
-    public <U> CompletionStage<Void> thenAcceptBothAsync(CompletionStage<? extends U> other,
-                                                         BiConsumer<? super T, ? super U> action, 
-                                                         Executor executor) {
+    public <U> Promise<Void> thenAcceptBothAsync(CompletionStage<? extends U> other,
+                                                 BiConsumer<? super T, ? super U> action, 
+                                                 Executor executor) {
         return thenCombineAsync(other,
                 // transform BiConsumer to BiFunction
                 (t, u) -> {
@@ -132,9 +132,9 @@ abstract class AbstractCompletableTask<T> extends CompletionStageAdapter<T> impl
     }
 
     @Override
-    public CompletionStage<Void> runAfterBothAsync(CompletionStage<?> other, 
-                                                   Runnable action, 
-                                                   Executor executor) {
+    public Promise<Void> runAfterBothAsync(CompletionStage<?> other, 
+                                           Runnable action, 
+                                           Executor executor) {
         return thenCombineAsync(other,
                 // transform Runnable to BiFunction
                 (t, r) -> {
@@ -144,31 +144,31 @@ abstract class AbstractCompletableTask<T> extends CompletionStageAdapter<T> impl
     }
 
     @Override
-    public <U> CompletionStage<U> applyToEitherAsync(CompletionStage<? extends T> other, 
-                                                     Function<? super T, U> fn,
-                                                     Executor executor) {
+    public <U> Promise<U> applyToEitherAsync(CompletionStage<? extends T> other, 
+                                             Function<? super T, U> fn,
+                                             Executor executor) {
 
         return doApplyToEitherAsync(this, other, fn, executor);
     }
 
     @Override
-    public CompletionStage<Void> acceptEitherAsync(CompletionStage<? extends T> other,
-                                                   Consumer<? super T> action,
-                                                   Executor executor) {
+    public Promise<Void> acceptEitherAsync(CompletionStage<? extends T> other,
+                                           Consumer<? super T> action,
+                                           Executor executor) {
 
         return applyToEitherAsync(other, consumerAsFunction(action), executor);
     }
 
     @Override
-    public CompletionStage<Void> runAfterEitherAsync(CompletionStage<?> other, 
-                                                     Runnable action, 
-                                                     Executor executor) {
+    public Promise<Void> runAfterEitherAsync(CompletionStage<?> other, 
+                                             Runnable action, 
+                                             Executor executor) {
         
         return doApplyToEitherAsync(this, other, runnableAsFunction(action), executor);
     }
 
     @Override
-    public <U> CompletionStage<U> thenComposeAsync(Function<? super T, ? extends CompletionStage<U>> fn, Executor executor) {
+    public <U> Promise<U> thenComposeAsync(Function<? super T, ? extends CompletionStage<U>> fn, Executor executor) {
 
         AbstractCompletableTask<U> nextStage = internalCreateCompletionStage(executor);
         AbstractCompletableTask<Void> tempStage = internalCreateCompletionStage(executor);
@@ -198,14 +198,14 @@ abstract class AbstractCompletableTask<T> extends CompletionStageAdapter<T> impl
     }
 
     @Override
-    public CompletionStage<T> exceptionally(Function<Throwable, ? extends T> fn) {
+    public Promise<T> exceptionally(Function<Throwable, ? extends T> fn) {
         AbstractCompletableTask<T> nextStage = internalCreateCompletionStage(getDefaultExecutor());
         addCallbacks(nextStage, Function.identity(), fn, SAME_THREAD_EXECUTOR);
         return nextStage;
     }
 
     @Override
-    public CompletionStage<T> whenCompleteAsync(BiConsumer<? super T, ? super Throwable> action, Executor executor) {
+    public Promise<T> whenCompleteAsync(BiConsumer<? super T, ? super Throwable> action, Executor executor) {
         AbstractCompletableTask<T> nextStage = internalCreateCompletionStage(getDefaultExecutor());
         addCallbacks(
             nextStage, 
@@ -227,7 +227,7 @@ abstract class AbstractCompletableTask<T> extends CompletionStageAdapter<T> impl
     }
 
     @Override
-    public <U> CompletionStage<U> handleAsync(BiFunction<? super T, Throwable, ? extends U> fn, Executor executor) {
+    public <U> Promise<U> handleAsync(BiFunction<? super T, Throwable, ? extends U> fn, Executor executor) {
         AbstractCompletableTask<U> nextStage = internalCreateCompletionStage(executor);
         addCallbacks(
             nextStage, 
@@ -267,10 +267,10 @@ abstract class AbstractCompletableTask<T> extends CompletionStageAdapter<T> impl
      * {@link #runAfterEitherAsync} which has unexpected type of parameter
      * "other". The alternative is to ignore compiler warning.
      */
-    private <R, U> CompletionStage<U> doApplyToEitherAsync(CompletionStage<? extends R> first,
-                                                           CompletionStage<? extends R> second, 
-                                                           Function<? super R, U> fn, 
-                                                           Executor executor) {
+    private <R, U> Promise<U> doApplyToEitherAsync(CompletionStage<? extends R> first,
+                                                   CompletionStage<? extends R> second, 
+                                                   Function<? super R, U> fn, 
+                                                   Executor executor) {
 
         AbstractCompletableTask<R> nextStage = internalCreateCompletionStage(executor);
 

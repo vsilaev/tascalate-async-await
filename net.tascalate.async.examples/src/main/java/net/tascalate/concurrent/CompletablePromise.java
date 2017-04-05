@@ -3,7 +3,6 @@ package net.tascalate.concurrent;
 import java.lang.reflect.Method;
 import java.util.concurrent.CancellationException;
 import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.CompletionException;
 import java.util.concurrent.CompletionStage;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Future;
@@ -69,11 +68,6 @@ public class CompletablePromise<T> extends DelegatingCompletionStage<T, Completa
                 return false;
             }
         }
-    }
-
-    static Throwable getRealCause(final Throwable error) {
-        final Throwable cause = error instanceof CompletionException ? error.getCause() : null;
-        return null == cause ? error : cause;
     }
 
     private static Method completeExceptionallyMethodOf(CompletionStage<?> promise) {

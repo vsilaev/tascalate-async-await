@@ -1,6 +1,5 @@
 package net.tascalate.concurrent;
 
-import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
@@ -36,10 +35,10 @@ public class Promises {
                                   Function<? super Throwable, ? extends Throwable> errorConverter) {
         
         final CompletablePromise<R> result = createLinkedPromise(stage);
-        stage.whenComplete(
-            handler(acceptConverted(result::onSuccess, resultConverter),
-            acceptConverted(result::onError, errorConverter))
-        );
+        stage.whenComplete(handler(
+            acceptConverted(result::onSuccess, resultConverter),
+            acceptConverted(result::onError, errorConverter)
+        ));
         return result;
     }
 
@@ -92,27 +91,21 @@ public class Promises {
         } else if (minResultsCount == 0) {
             return readyValue(Collections.emptyList());
         } else if (promises.length == 1) {
-            return from(promises[0], Collections::singletonList, Function.<Throwable> identity()
-                                                                 .andThen(CompletablePromise::getRealCause)
-                                                                 .andThen(MultitargetException::of));
+            return from(promises[0], Collections::singletonList, Function.<Throwable> identity());
         } else {
             return new AggregatingPromise<>(minResultsCount, maxErrorsCount, cancelRemaining, promises);
         }
     }
 
     private static <T> Promise<T> unwrap(final CompletionStage<List<T>> original, final boolean unwrapException) {
-        if (unwrapException) {
-            return from(original, 
-                        Promises::firstNotNullElement, 
-                        e -> e instanceof MultitargetException ? 
-                            firstNotNullElement(((MultitargetException) e).getExceptions()) : e);
-        } else {
-            return from(original.thenApply(Promises::firstNotNullElement));
-        }
-    }
-
-    private static <T> T firstNotNullElement(final Collection<T> collection) {
-        return collection.stream().filter(e -> null != e).findAny().get();
+        return from(
+            original,
+            c -> c.stream().filter(el -> null != el).findFirst().get(),
+            unwrapException ? 
+                ex -> ex instanceof MultitargetException ? MultitargetException.class.cast(ex).getFirstException().get() : ex
+                :
+                Function.identity()
+        );
     }
 
     private static <T> BiConsumer<T, ? super Throwable> handler(Consumer<? super T> onResult, Consumer<? super Throwable> onError) {

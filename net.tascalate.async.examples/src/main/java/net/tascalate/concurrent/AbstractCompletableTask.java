@@ -52,12 +52,20 @@ abstract class AbstractCompletableTask<T> extends CompletionStageAdapter<T> impl
 
     @Override
     public T get() throws InterruptedException, ExecutionException {
-        return task.get();
+        try {
+            return task.get();
+        } catch (ExecutionException ex) {
+            throw rewrapExecutionException(ex);
+        }
     }
 
     @Override
     public T get(long timeout, TimeUnit unit) throws InterruptedException, ExecutionException, TimeoutException {
-        return task.get(timeout, unit);
+        try {
+            return task.get(timeout, unit);
+        } catch (ExecutionException ex) {
+            throw rewrapExecutionException(ex);
+        }
     }
 
     boolean onSuccess(T result) {
@@ -319,6 +327,16 @@ abstract class AbstractCompletableTask<T> extends CompletionStageAdapter<T> impl
             return new CompletionException(e);
         }
     }
+    
+    private static ExecutionException rewrapExecutionException(ExecutionException ex) {
+        if (ex.getCause() instanceof CompletionException) {
+            Throwable completionExceptionReason = ex.getCause().getCause();
+            if (null != completionExceptionReason) {
+                return new ExecutionException(ex.getMessage(), completionExceptionReason);
+            }
+        }
+        return ex;
+    }    
 
     private <U> void addCallbacks(AbstractCompletableTask<U> targetStage,
                                   Function<? super T, ? extends U> successCallback, 

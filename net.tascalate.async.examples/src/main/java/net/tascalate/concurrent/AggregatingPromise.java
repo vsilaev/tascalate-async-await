@@ -86,7 +86,7 @@ class AggregatingPromise<T> extends CompletablePromise<List<T>> {
             if (c <= maxErrorsCount) {
                 // Only one thread may access this due to check with
                 // "completions"
-                errors[idx] = CompletablePromise.getRealCause(error);
+                errors[idx] = error;
                 if (c == maxErrorsCount && done.compareAndSet(false, true)) {
                     // Synchronized around done
                     markRemainingCancelled();

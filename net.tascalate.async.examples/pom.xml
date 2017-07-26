@@ -32,9 +32,9 @@
 		</dependency>
 		
 		<dependency>
-    		<groupId>net.tascalate.concurrent</groupId>
-    		<artifactId>net.tascalate.concurrent.lib</artifactId>
-    		<version>0.5.2</version>
+    			<groupId>net.tascalate.concurrent</groupId>
+	    		<artifactId>net.tascalate.concurrent.lib</artifactId>
+    			<version>0.5.2</version>
 		</dependency>
 
 		<dependency>

@@ -14,7 +14,7 @@ class AsyncResult<V> extends CompletablePromise<V> {
 
         @Override
         public void failed(Throwable exc, Object attachment) {
-            onError(exc);     
+            onFailure(exc);     
         }
     };
 

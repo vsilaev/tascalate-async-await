@@ -30,34 +30,38 @@ public class AsyncAwaitClassFileTransformer implements ClassFileTransformer {
 			                final Class<?> classBeingRedefined, 
 			                final ProtectionDomain protectionDomain, 
 			                final byte[] classfileBuffer) throws IllegalClassFormatException {
-		
-		final ClassLoader classLoader = getSafeClassLoader(originalClassLoader);
-				
-		final AsyncAwaitClassFileGenerator generator = new AsyncAwaitClassFileGenerator();
-		final byte[] transformed = generator.transform(className, classfileBuffer, new ClasspathResourceLoader(classLoader));
-		if (null == transformed) {
-			return postProcess(classLoader, className, classBeingRedefined, protectionDomain, classfileBuffer);	
-		}
-		
-		final Map<String, byte[]> extraClasses = generator.getGeneratedClasses(new ClasspathResourceLoader(classLoader));
-		generator.reset(); 
-		
-		// Define new classes and then redefine inner classes
-		final byte[] finalResult = postProcess(classLoader, className, classBeingRedefined, protectionDomain, transformed);
-		final Map<String, byte[]> inMemoryResources = renameInMemoryResources(extraClasses);
-		inMemoryResources.put(className + ".class", finalResult);
-		
-		ExtendedClasspathResourceLoader.runWithInMemoryResources(
-			new Runnable() {
-				@Override
-				public void run() {
-					defineGeneratedClasses(classLoader, protectionDomain, extraClasses);
-				}
-			}, 
-			inMemoryResources
-		);
-		return finalResult;
-
+	    try{		
+    		final ClassLoader classLoader = getSafeClassLoader(originalClassLoader);
+    				
+    		final AsyncAwaitClassFileGenerator generator = new AsyncAwaitClassFileGenerator();
+    		final byte[] transformed = generator.transform(className, classfileBuffer, new ClasspathResourceLoader(classLoader));
+    		if (null == transformed) {
+    			return postProcess(classLoader, className, classBeingRedefined, protectionDomain, classfileBuffer);	
+    		}
+    		
+    		final Map<String, byte[]> extraClasses = generator.getGeneratedClasses(new ClasspathResourceLoader(classLoader));
+    		generator.reset(); 
+    		
+    		// Define new classes and then redefine inner classes
+    		final byte[] finalResult = postProcess(classLoader, className, classBeingRedefined, protectionDomain, transformed);
+    		final Map<String, byte[]> inMemoryResources = renameInMemoryResources(extraClasses);
+    		inMemoryResources.put(className + ".class", finalResult);
+    		
+    		ExtendedClasspathResourceLoader.runWithInMemoryResources(
+    			new Runnable() {
+    				@Override
+    				public void run() {
+    					defineGeneratedClasses(classLoader, protectionDomain, extraClasses);
+    				}
+    			}, 
+    			inMemoryResources
+    		);
+    		return finalResult;
+        } catch (Error | RuntimeException ex) {
+            System.err.println("--->");
+            ex.printStackTrace(System.err);
+            throw ex;
+        }
 	}
 	
 	protected byte[] postProcess(final ClassLoader classLoader, final String className, 

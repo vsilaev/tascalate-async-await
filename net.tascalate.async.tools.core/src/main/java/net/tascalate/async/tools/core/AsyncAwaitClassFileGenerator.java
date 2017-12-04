@@ -118,7 +118,6 @@ public class AsyncAwaitClassFileGenerator {
 
         log.info("Transforming blocking method: " + classNode.name + "." + originalAsyncMethodNode.name
                 + originalAsyncMethodNode.desc);
-
         // Remove @async annotation
         removeAsyncAnnotation(originalAsyncMethodNode);
 
@@ -216,7 +215,7 @@ public class AsyncAwaitClassFileGenerator {
 
         String constructorDesc = Type.getMethodDescriptor(
             Type.VOID_TYPE,
-            isStatic ? argTypes : prependArray(argTypes, Type.getReturnType("L" + originalOuterClass.name + ";"))
+            isStatic ? argTypes : prependArray(argTypes, Type.getObjectType(originalOuterClass.name))
         );
 
         MethodVisitor mv = asyncRunnableClass.visitMethod(0, "<init>", constructorDesc, null, null);
@@ -472,7 +471,7 @@ public class AsyncAwaitClassFileGenerator {
 
         String constructorDesc = Type.getMethodDescriptor(
             Type.VOID_TYPE, 
-            isStatic ? originalArgTypes : prependArray(originalArgTypes, Type.getReturnType("L" + classNode.name + ";"))
+            isStatic ? originalArgTypes : prependArray(originalArgTypes, Type.getObjectType(classNode.name))
         );
         
         replacementAsyncMethodNode.visitMethodInsn(INVOKESPECIAL, asyncTaskClassName, "<init>", constructorDesc, false);
@@ -564,7 +563,7 @@ public class AsyncAwaitClassFileGenerator {
 
         String name = createAccessMethodName(methods);
         Type[] originalArgTypes = Type.getArgumentTypes(targetMethodNode.desc);
-        Type[] argTypes = isStatic ? originalArgTypes : prependArray(originalArgTypes, Type.getReturnType("L" + classNode.name + ";"));
+        Type[] argTypes = isStatic ? originalArgTypes : prependArray(originalArgTypes, Type.getObjectType(classNode.name));
         Type returnType = Type.getReturnType(targetMethodNode.desc);
         String desc = Type.getMethodDescriptor(returnType, argTypes);
 
@@ -604,8 +603,8 @@ public class AsyncAwaitClassFileGenerator {
         }
 
         String name = createAccessMethodName(methods);
-        Type[] argTypes = isStatic ? new Type[0] : new Type[] { Type.getReturnType("L" + classNode.name + ";") };
-        Type returnType = Type.getReturnType(targetFieldNode.desc);
+        Type[] argTypes = isStatic ? new Type[0] : new Type[] { Type.getObjectType(classNode.name) };
+        Type returnType = Type.getType(targetFieldNode.desc);
         String desc = Type.getMethodDescriptor(returnType, argTypes);
 
         accessMethodNode = new MethodNode(ACC_STATIC + ACC_SYNTHETIC, name, desc, null, null);
@@ -645,10 +644,10 @@ public class AsyncAwaitClassFileGenerator {
 
         String name = createAccessMethodName(methods);
         Type[] argTypes = isStatic ? 
-                new Type[] { Type.getReturnType(targetFieldNode.desc) } : 
-                new Type[] { Type.getReturnType("L" + classNode.name + ";"), Type.getReturnType(targetFieldNode.desc) };
+                new Type[] { Type.getType(targetFieldNode.desc) } : 
+                new Type[] { Type.getObjectType(classNode.name), Type.getType(targetFieldNode.desc) };                
                 
-        Type returnType = Type.getReturnType("V"); // <-- void
+        Type returnType = Type.VOID_TYPE;
         String desc = Type.getMethodDescriptor(returnType, argTypes);
 
         accessMethodNode = new MethodNode(ACC_STATIC + ACC_SYNTHETIC, name, desc, null, null);

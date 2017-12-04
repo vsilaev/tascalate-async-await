@@ -1,7 +1,7 @@
 package net.tascalate.async.examples.generator;
 
 import static net.tascalate.async.api.AsyncCall.asyncResult;
-import static net.tascalate.async.api.AsyncCall.await;
+//import static net.tascalate.async.api.AsyncCall.await;
 
 import java.util.Date;
 import java.util.StringJoiner;
@@ -59,58 +59,53 @@ public class GeneratorExample {
         final AsyncGenerator<String> method = new AsyncGenerator<String>() {
 
             @Override
-            public void run() {
-                $$start$$();
-                try {
-                    Object o;
-                    o = $$yield(waitString("ABC"), this);
-                    System.out.println("Processed: " + o + ", " + new Date());
+            public void doRun() {
+                Object o;
+                o = $$yield$$(waitString("ABC"), this);
+                System.out.println("Processed: " + o + ", " + new Date());
 
-                    String s = await(waitString("InternalAsync"));
-                    System.out.println("INTERNALLY: " + s);
+                String s = $$await$$(waitString("InternalAsync"), this);
+                System.out.println("INTERNALLY: " + s);
 
-                    o = $$yield(Generator.empty(), this);
-                    System.out.println("AFTER EMPTY: " + o);
-                    
-                    o = $$yield(Generator.produce("RV-1", "RV-2", "RV-3"), this);
-                    System.out.println("AFTER LIST READY: " + o);
-                    
-                    o = $$yield(Generator.await(waitString("PV-1", 100L), waitString("PV-2", 100L), waitString("PV-3", 200L)), this);
-                    System.out.println("AFTER LIST PENDING: " + o);
+                o = $$yield$$(Generator.empty(), this);
+                System.out.println("AFTER EMPTY: " + o);
+                
+                o = $$yield$$(Generator.produce("RV-1", "RV-2", "RV-3"), this);
+                System.out.println("AFTER LIST READY: " + o);
+                
+                o = $$yield$$(Generator.await(waitString("PV-1", 100L), waitString("PV-2", 100L), waitString("PV-3", 200L)), this);
+                System.out.println("AFTER LIST PENDING: " + o);
 
-                    
-                    o = $$yield(waitString("DEF"), this);
-                    System.out.println("Processed: " + o + ", " + new Date());
+                
+                o = $$yield$$(waitString("DEF"), this);
+                System.out.println("Processed: " + o + ", " + new Date());
 
-                    o = $$yield("NO-WAIT", this);
-                    System.out.println("Processed: " + o + ", " + new Date());
+                o = $$yield$$("NO-WAIT", this);
+                System.out.println("Processed: " + o + ", " + new Date());
 
-                    $$yield(chainedGenerator(), this);
+                $$yield$$(chainedGenerator(), this);
 
-                    try (Generator<String> nested = moreStrings()) {
-                        while (nested.next()) {
-                            System.out.println("Nested: " + nested.current());
-                            if (Integer.parseInt(nested.current()) % 2 == 0) {
-                                o = $$yield(waitString("NESTED-" + nested.current()), this);
-                                System.out.println("Nested Processed: " + o + ", " + new Date());
-                            }
+                try (Generator<String> nested = moreStrings()) {
+                    while (nested.next()) {
+                        System.out.println("Nested: " + nested.current());
+                        if (Integer.parseInt(nested.current()) % 2 == 0) {
+                            o = $$yield$$(waitString("NESTED-" + nested.current()), this);
+                            System.out.println("Nested Processed: " + o + ", " + new Date());
                         }
                     }
-
-                    String x;
-                    $$yield(x = await(waitString("AWYV")), this);
-
-                    System.out.println("Awaited&Yielded:" + x);
-
-                    o = $$yield(waitString("XYZ"), this);
-                    System.out.println("Processed Final: " + o + ", " + new Date());
-
-                    o = $$yield(waitString("SHOULD BE SKIPPEDM IN OUTOUT"), this);
-
-                } finally {
-                    System.out.println("::produceStrings FINALLY CALLED::");
-                    $$finish$$();
                 }
+
+                String x;
+                $$yield$$(x = $$await$$(waitString("AWYV"), this), this);
+
+                System.out.println("Awaited&Yielded:" + x);
+
+                o = $$yield$$(waitString("XYZ"), this);
+                System.out.println("Processed Final: " + o + ", " + new Date());
+
+                o = $$yield$$(waitString("SHOULD BE SKIPPEDM IN OUTOUT"), this);
+
+                System.out.println("::produceStrings FINALLY CALLED::");
             }
 
         };
@@ -122,18 +117,12 @@ public class GeneratorExample {
     Generator<String> moreStrings() {
         final AsyncGenerator<String> method = new AsyncGenerator<String>() {
             @Override
-            public void run() {
-                $$start$$();
-                try {
-                    $$yield(waitString("111"), this);
-                    $$yield(waitString("222"), this);
-                    $$yield("333", this);
-                    $$yield(waitString("444"), this);
-
-                } finally {
-                    System.out.println("::moreStrings FINALLY CALLED::");
-                    $$finish$$();
-                }
+            public void doRun() {
+                $$yield$$(waitString("111"), this);
+                $$yield$$(waitString("222"), this);
+                $$yield$$("333", this);
+                $$yield$$(waitString("444"), this);
+                System.out.println("::moreStrings FINALLY CALLED::");
             }
         };
         AsyncExecutor.execute(method);
@@ -144,18 +133,13 @@ public class GeneratorExample {
     Generator<String> chainedGenerator() {
         final AsyncGenerator<String> method = new AsyncGenerator<String>() {
             @Override
-            public void run() {
-                $$start$$();
-                try {
-                    $$yield(waitString("CHAINED-1"), this);
-                    $$yield(waitString("CHAINED-2"), this);
-                    $$yield("CHAINED-3", this);
-                    $$yield(waitString("CHAINED-4"), this);
+            public void doRun() {
+                $$yield$$(waitString("CHAINED-1"), this);
+                $$yield$$(waitString("CHAINED-2"), this);
+                $$yield$$("CHAINED-3", this);
+                $$yield$$(waitString("CHAINED-4"), this);
 
-                } finally {
-                    System.out.println("::chainedGenerator FINALLY CALLED::");
-                    $$finish$$();
-                }
+                System.out.println("::chainedGenerator FINALLY CALLED::");
             }
         };
         AsyncExecutor.execute(method);

@@ -85,12 +85,16 @@ public class AsyncAwaitClassFileTransformer implements ClassFileTransformer {
 		for (Map.Entry<String, byte[]> e : generatedClasses.entrySet()) {
 			byte[] bytes;
 			try {
-				log.debug("TRANSOFRMING: " + e.getKey());
-				bytes = this.transform(classLoader, e.getKey(), null, protectionDomain, e.getValue());
-				log.debug("TRANSOFRMED: " + e.getKey());
+				log.info("TRANSOFRMING: " + e.getKey());
+				bytes = transform(classLoader, e.getKey(), null, protectionDomain, e.getValue());
+				e.setValue(bytes);
+				log.info("TRANSOFRMED: " + e.getKey());
 			} catch (final IllegalClassFormatException ex) {
 				log.error(ex);
 				throw new RuntimeException(ex);
+			} catch (Error | RuntimeException ex) {
+			    log.error(ex);
+			    throw ex;
 			}
 			if (bytes == null) {
 				continue;

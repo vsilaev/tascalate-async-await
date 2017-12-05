@@ -1,30 +1,37 @@
 package net.tascalate.async.core;
 
-import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionStage;
 
-abstract public class AsyncTask<V> extends AsyncMethodBody {
-    final public CompletionStage<V> future;
-    // Just regular CompletableFuture, continuation handling should be added via
-    // CompletableFuture.whenComplete in AsyncExecutor.await -> setupContinuation
+import org.apache.commons.javaflow.api.continuable;
+
+import net.tascalate.concurrent.Promise;
+
+abstract public class AsyncTask<V> implements Runnable {
+    public final Promise<V> future;
 
     protected AsyncTask() {
-        this.future = createFuture();
+        this.future = new ResultPromise<>();
     }
+    
+    @Override
+    public final @continuable void run() {
+        try {
+            doRun();
+        } catch (Throwable ex) {
+            final ResultPromise<V> future = (ResultPromise<V>)this.future;
+            future.internalCompleWithException(ex);
+        }
+    }
+    
+    abstract protected @continuable void doRun() throws Throwable;
 
-    final protected static <V> CompletionStage<V> $$result$$(final V value, final AsyncTask<V> self) {
-        final CompletionStage<V> future = self.future;
-        future.toCompletableFuture().complete(value);
+    protected static <V> CompletionStage<V> $$result$$(final V value, final AsyncTask<V> self) {
+        final ResultPromise<V> future = (ResultPromise<V>)self.future;
+        future.internalCompleWithResult(value);
         return future;
     }
-
-    final protected CompletionStage<V> $$fault$$(final Throwable exception) {
-        future.toCompletableFuture().completeExceptionally(exception);
-        return future;
+    
+    protected @continuable static <T, V> T $$await$$(final CompletionStage<T> future, final AsyncTask<V> self) {
+        return AsyncExecutor.await(future);
     }
-
-    final private static <V> CompletionStage<V> createFuture() {
-        return new CompletableFuture<V>();
-    }
-
 }

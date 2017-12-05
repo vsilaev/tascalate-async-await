@@ -1,7 +1,8 @@
 package net.tascalate.async.examples.generator;
 
 import static net.tascalate.async.api.AsyncCall.asyncResult;
-//import static net.tascalate.async.api.AsyncCall.await;
+import static net.tascalate.async.api.AsyncCall.yield;
+import static net.tascalate.async.api.AsyncCall.await;
 
 import java.util.Date;
 import java.util.StringJoiner;
@@ -11,12 +12,8 @@ import java.util.concurrent.CompletionStage;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
-import org.apache.commons.javaflow.api.continuable;
-
 import net.tascalate.async.api.Generator;
 import net.tascalate.async.api.async;
-import net.tascalate.async.core.AsyncExecutor;
-import net.tascalate.async.core.AsyncGenerator;
 
 public class GeneratorExample {
 
@@ -24,7 +21,9 @@ public class GeneratorExample {
 
     public static void main(String[] args) {
         long startTime = System.currentTimeMillis();
-        final CompletionStage<String> result = new GeneratorExample().mergeStrings();
+        final GeneratorExample example = new GeneratorExample();
+        //example.asyncOperation();
+        final CompletionStage<String> result = example.mergeStrings();
         result.whenComplete((v, e) -> {
             long finishTime = System.currentTimeMillis();
             if (null == e) {
@@ -53,104 +52,105 @@ public class GeneratorExample {
         }
         return asyncResult(joiner.toString());
     }
+    
 
-    @continuable
+    @async
+    void asyncOperation() {
+        System.out.println("Before await!");
+        System.out.println("Done");
+        System.out.println(asyncStrings());
+        await( waitString("111") );
+        System.out.println("After await!");
+    }
+
+    @async
+    static Generator<String> asyncStrings() {
+        yield(waitString("111"));
+        yield(waitString("222"));
+        yield("333");
+        yield(waitString("444"));
+        
+        System.out.println("::moreStrings FINALLY CALLED::");
+        return yield();
+    } 
+    
+    @async
     Generator<String> produceStrings() {
-        final AsyncGenerator<String> method = new AsyncGenerator<String>() {
+        Object o;
+        o = yield(waitString("ABC"));
+        System.out.println("Processed: " + o + ", " + new Date());
 
-            @Override
-            public void doRun() {
-                Object o;
-                o = $$yield$$(waitString("ABC"), this);
-                System.out.println("Processed: " + o + ", " + new Date());
+        String s = await(waitString("InternalAsync"));
+        System.out.println("INTERNALLY: " + s);
 
-                String s = $$await$$(waitString("InternalAsync"), this);
-                System.out.println("INTERNALLY: " + s);
+        o = yield(Generator.empty());
+        System.out.println("AFTER EMPTY: " + o);
+        
+        o = yield(Generator.produce("RV-1", "RV-2", "RV-3"));
+        System.out.println("AFTER LIST READY: " + o);
+        
+        o = yield(Generator.await(waitString("PV-1", 100L), waitString("PV-2", 100L), waitString("PV-3", 200L)));
+        System.out.println("AFTER LIST PENDING: " + o);
 
-                o = $$yield$$(Generator.empty(), this);
-                System.out.println("AFTER EMPTY: " + o);
-                
-                o = $$yield$$(Generator.produce("RV-1", "RV-2", "RV-3"), this);
-                System.out.println("AFTER LIST READY: " + o);
-                
-                o = $$yield$$(Generator.await(waitString("PV-1", 100L), waitString("PV-2", 100L), waitString("PV-3", 200L)), this);
-                System.out.println("AFTER LIST PENDING: " + o);
+        
+        o = yield(waitString("DEF"));
+        System.out.println("Processed: " + o + ", " + new Date());
 
-                
-                o = $$yield$$(waitString("DEF"), this);
-                System.out.println("Processed: " + o + ", " + new Date());
+        o = yield("NO-WAIT");
+        System.out.println("Processed: " + o + ", " + new Date());
 
-                o = $$yield$$("NO-WAIT", this);
-                System.out.println("Processed: " + o + ", " + new Date());
+        yield(chainedGenerator());
 
-                $$yield$$(chainedGenerator(), this);
-
-                try (Generator<String> nested = moreStrings()) {
-                    while (nested.next()) {
-                        System.out.println("Nested: " + nested.current());
-                        if (Integer.parseInt(nested.current()) % 2 == 0) {
-                            o = $$yield$$(waitString("NESTED-" + nested.current()), this);
-                            System.out.println("Nested Processed: " + o + ", " + new Date());
-                        }
-                    }
+        try (Generator<String> nested = moreStrings()) {
+            while (nested.next()) {
+                System.out.println("Nested: " + nested.current());
+                if (Integer.parseInt(nested.current()) % 2 == 0) {
+                    o = yield(waitString("NESTED-" + nested.current()));
+                    System.out.println("Nested Processed: " + o + ", " + new Date());
                 }
-
-                String x;
-                $$yield$$(x = $$await$$(waitString("AWYV"), this), this);
-
-                System.out.println("Awaited&Yielded:" + x);
-
-                o = $$yield$$(waitString("XYZ"), this);
-                System.out.println("Processed Final: " + o + ", " + new Date());
-
-                o = $$yield$$(waitString("SHOULD BE SKIPPEDM IN OUTOUT"), this);
-
-                System.out.println("::produceStrings FINALLY CALLED::");
             }
+        }
 
-        };
-        AsyncExecutor.execute(method);
-        return method.generator;
+        String x;
+        yield(x = await(waitString("AWYV")));
+
+        System.out.println("Awaited&Yielded:" + x);
+
+        o = yield(waitString("XYZ"));
+        System.out.println("Processed Final: " + o + ", " + new Date());
+
+        o = yield(waitString("SHOULD BE SKIPPEDM IN OUTOUT"));
+
+        System.out.println("::produceStrings FINALLY CALLED::");
+        return null;
     }
 
-    @continuable
+    @async
     Generator<String> moreStrings() {
-        final AsyncGenerator<String> method = new AsyncGenerator<String>() {
-            @Override
-            public void doRun() {
-                $$yield$$(waitString("111"), this);
-                $$yield$$(waitString("222"), this);
-                $$yield$$("333", this);
-                $$yield$$(waitString("444"), this);
-                System.out.println("::moreStrings FINALLY CALLED::");
-            }
-        };
-        AsyncExecutor.execute(method);
-        return method.generator;
+        yield(waitString("111"));
+        yield(waitString("222"));
+        yield("333");
+        yield(waitString("444"));
+        System.out.println("::moreStrings FINALLY CALLED::");
+        return null;
     }
 
-    @continuable
+    @async
     Generator<String> chainedGenerator() {
-        final AsyncGenerator<String> method = new AsyncGenerator<String>() {
-            @Override
-            public void doRun() {
-                $$yield$$(waitString("CHAINED-1"), this);
-                $$yield$$(waitString("CHAINED-2"), this);
-                $$yield$$("CHAINED-3", this);
-                $$yield$$(waitString("CHAINED-4"), this);
+        yield(waitString("CHAINED-1"));
+        yield(waitString("CHAINED-2"));
+        yield("CHAINED-3");
+        yield(waitString("CHAINED-4"));
 
-                System.out.println("::chainedGenerator FINALLY CALLED::");
-            }
-        };
-        AsyncExecutor.execute(method);
-        return method.generator;
+        System.out.println("::chainedGenerator FINALLY CALLED::");
+        return null;
     }
-
-    private CompletionStage<String> waitString(final String value) {
+    
+    static CompletionStage<String> waitString(final String value) {
         return waitString(value, 150L);
     }
     
-    private CompletionStage<String> waitString(final String value, final long delay) {
+    static CompletionStage<String> waitString(final String value, final long delay) {
         final CompletableFuture<String> promise = CompletableFuture.supplyAsync(() -> {
             try { 
                 Thread.sleep(delay);

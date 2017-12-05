@@ -6,14 +6,15 @@ import org.apache.commons.javaflow.api.continuable;
 
 import net.tascalate.async.api.Generator;
 
-abstract public class AsyncGenerator<T> extends AsyncMethodBody {
+abstract public class AsyncGenerator<T> implements Runnable {
     final public LazyGenerator<T> generator;
 
     protected AsyncGenerator() {
         generator = new LazyGenerator<>();
     }
     
-    public final void run() {
+    @Override
+    public final @continuable void run() {
     	generator.begin();
     	try {
     		doRun();
@@ -26,6 +27,10 @@ abstract public class AsyncGenerator<T> extends AsyncMethodBody {
 
     protected @continuable static <T, V> T $$await$$(CompletionStage<T> future, AsyncGenerator<V> self) {
     	return AsyncExecutor.await(future);
+    }
+    
+    protected static <T> Generator<T> $$yield$$(AsyncGenerator<T> self) {
+        return self.generator;
     }
     
     protected @continuable static <T> Object $$yield$$(T readyValue, AsyncGenerator<T> self) {

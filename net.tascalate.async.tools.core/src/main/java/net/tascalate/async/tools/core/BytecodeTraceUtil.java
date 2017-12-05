@@ -10,7 +10,9 @@ import org.objectweb.asm.tree.ClassNode;
 import org.objectweb.asm.tree.MethodInsnNode;
 import org.objectweb.asm.tree.MethodNode;
 import org.objectweb.asm.tree.VarInsnNode;
+import org.objectweb.asm.util.Textifier;
 import org.objectweb.asm.util.TraceClassVisitor;
+import org.objectweb.asm.util.TraceMethodVisitor;
 
 /**
  * @author
@@ -23,7 +25,7 @@ class BytecodeTraceUtil {
         ClassVisitor cv = new TraceClassVisitor(out);
 
         ClassReader cr = new ClassReader(clazz);
-        cr.accept(cv, Opcodes.ASM4);
+        cr.accept(cv, Opcodes.ASM5);
 
         strOut.flush();
         return strOut.toString();
@@ -40,15 +42,10 @@ class BytecodeTraceUtil {
     }
 
     public static String toString(MethodNode mn) {
-        // StringWriter strOut = new StringWriter();
-        // PrintWriter out = new PrintWriter(strOut);
-        // TraceMethodVisitor tmv = new TraceMethodVisitor(out);
-        //
-        // mn.accept(tmv);
-        //
-        // strOut.flush();
-        // return strOut.toString();
-        return mn.toString();
+         Textifier t = new Textifier();
+         TraceMethodVisitor tmv = new TraceMethodVisitor(t);
+         mn.accept(tmv);
+         return t.toString();
     }
 
     public static String toString(VarInsnNode vin) {

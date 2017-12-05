@@ -24,8 +24,10 @@ import org.objectweb.asm.tree.MethodNode;
 public class AsyncAwaitClassFileGenerator {
 
     private final static Log log = LogFactory.getLog(AsyncAwaitClassFileGenerator.class);
-    private final static Type TYPE_COMPLETION_STAGE = Type.getObjectType("java/util/concurrent/CompletionStage");
+    
+    private final static Type TYPE_COMPLETION_STAGE  = Type.getObjectType("java/util/concurrent/CompletionStage");
     private final static Type TYPE_TASCALATE_PROMISE = Type.getObjectType("net/tascalate/concurrent/Promise");
+    private final static Type TYPE_GENERATOR         = Type.getObjectType("net/tascalate/async/api/Generator");
     
     // New generated classes
     private final List<ClassNode> newClasses = new ArrayList<ClassNode>();
@@ -88,7 +90,11 @@ public class AsyncAwaitClassFileGenerator {
                 Type returnType = Type.getReturnType(methodNode.desc);
                 AbstractMethodTransformer transformer = null;
                 if (TYPE_COMPLETION_STAGE.equals(returnType) || TYPE_TASCALATE_PROMISE.equals(returnType) || Type.VOID_TYPE.equals(returnType)) {
-                    transformer = new AsynResultMethodTransformer(classNode, originalInnerClasses, methodNode, newClasses, accessMethods);
+                    transformer = new AsyncResultMethodTransformer(classNode, originalInnerClasses, methodNode, newClasses, accessMethods);
+                } else if (TYPE_GENERATOR.equals(returnType)) {
+                    transformer = new AsyncGeneratorMethodTransformer(classNode, originalInnerClasses, methodNode, newClasses, accessMethods);
+                } else {
+                    // throw ex?
                 }
                 if (null != transformer) {
                     transformer.transform();

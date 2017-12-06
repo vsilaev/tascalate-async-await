@@ -63,7 +63,7 @@ public class GeneratorExample {
             while (generator.next()) {
                 System.out.println("Received: " + generator.current());
             }
-        } catch (FileNotFoundException ex) {
+        } catch (FileNotFoundException | IllegalArgumentException ex) {
             System.out.println("EXCEPTION!!!!");
             return asyncResult("ERROR: " + ex);
         }
@@ -145,6 +145,7 @@ public class GeneratorExample {
         yield(waitString("111"));
         yield(waitString("222"));
         yield("333");
+        yield(waitError(1));
         yield(waitString("444"));
         throw new FileNotFoundException();
     }
@@ -173,6 +174,19 @@ public class GeneratorExample {
                 throw new CompletionException(ex);
             }
             return value;
+        }, executor);
+        return promise;
+    }
+    
+    static CompletionStage<String> waitError(final long delay) {
+        final CompletionStage<String> promise = CompletableTask.supplyAsync(() -> {
+            try { 
+                Thread.sleep(delay);
+            } catch (final InterruptedException ex) {
+                Thread.currentThread().interrupt();
+                throw new CompletionException(ex);
+            }
+            throw new IllegalArgumentException("Just for fun!");
         }, executor);
         return promise;
     }

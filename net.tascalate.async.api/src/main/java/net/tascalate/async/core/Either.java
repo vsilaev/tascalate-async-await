@@ -55,7 +55,7 @@ class Either<R, E extends Throwable> implements Serializable {
     }
     
     @SuppressWarnings("unchecked")
-    private static <T, E extends Throwable> T sneakyThrow(Throwable ex) throws E {
+    static <T, E extends Throwable> T sneakyThrow(Throwable ex) throws E {
         throw (E)ex;
     }
 }

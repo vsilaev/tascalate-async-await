@@ -4,6 +4,7 @@ import static net.tascalate.async.api.AsyncCall.asyncResult;
 import static net.tascalate.async.api.AsyncCall.yield;
 import static net.tascalate.async.api.AsyncCall.await;
 
+import java.io.FileNotFoundException;
 import java.util.Date;
 import java.util.StringJoiner;
 import java.util.concurrent.CompletionException;
@@ -23,8 +24,11 @@ public class GeneratorExample {
         long startTime = System.currentTimeMillis();
         final GeneratorExample example = new GeneratorExample();
         example.asyncOperation();
-        final CompletionStage<String> result = example.mergeStrings();
-        result.whenComplete((v, e) -> {
+        final CompletionStage<String> result1 = example.mergeStrings();
+        final CompletionStage<String> result2 = example.iterateStringsEx();
+        
+        result2.thenCombine(result1, (v1, v2) -> "\n" + v1 + "\n" + v2)
+        .whenComplete((v, e) -> {
             long finishTime = System.currentTimeMillis();
             if (null == e) {
                 System.out.println("Calculates: " + v + "\nTask take " + (finishTime - startTime) + "ms");
@@ -51,6 +55,19 @@ public class GeneratorExample {
             }
         }
         return asyncResult(joiner.toString());
+    }
+    
+    @async
+    CompletionStage<String> iterateStringsEx() {
+        try (Generator<String> generator = moreStringsEx()) {
+            while (generator.next()) {
+                System.out.println("Received: " + generator.current());
+            }
+        } catch (FileNotFoundException ex) {
+            System.out.println("EXCEPTION!!!!");
+            return asyncResult("ERROR: " + ex);
+        }
+        return asyncResult("NO ERROR");
     }
     
     @async
@@ -121,6 +138,15 @@ public class GeneratorExample {
         yield(waitString("444"));
         System.out.println("::moreStrings FINALLY CALLED::");
         return yield();
+    }
+    
+    @async
+    private Generator<String> moreStringsEx() throws FileNotFoundException {
+        yield(waitString("111"));
+        yield(waitString("222"));
+        yield("333");
+        yield(waitString("444"));
+        throw new FileNotFoundException();
     }
 
     @async

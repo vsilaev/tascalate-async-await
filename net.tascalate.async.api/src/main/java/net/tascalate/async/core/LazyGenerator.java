@@ -12,6 +12,7 @@ class LazyGenerator<T> implements Generator<T> {
 
     private CompletableFuture<?> consumerLock;
     private CompletableFuture<?> producerLock;
+    private Throwable lastError = null;
     private boolean done = false;
 
     private State<T> currentState = emptyState();
@@ -29,6 +30,11 @@ class LazyGenerator<T> implements Generator<T> {
 
     @Override
     public boolean next(Object producerParam) {
+        if (null != lastError) {
+            Throwable error = lastError;
+            lastError = null;
+            Either.sneakyThrow(error);
+        }
         // Could we advance further current state?
         if (currentState.advance()) {
             // Should be checked before done to let iterate over 
@@ -64,7 +70,7 @@ class LazyGenerator<T> implements Generator<T> {
             producerLock = null;
             lock.completeExceptionally(CloseSignal.INSTANCE);
         }
-        end();
+        end(null);
     }
 
     @continuable
@@ -97,9 +103,10 @@ class LazyGenerator<T> implements Generator<T> {
         acquireProducerLock();
     }
 
-    void end() {
+    void end(Throwable ex) {
         done = true;
         currentState = emptyState();
+        lastError = ex;
         releaseConsumerLock();
     }
 

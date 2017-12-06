@@ -16,14 +16,20 @@ abstract public class AsyncGenerator<T> implements Runnable {
     @Override
     public final @continuable void run() {
     	generator.begin();
+    	boolean success = false;
     	try {
     		doRun();
+    		success = true;
+    	} catch (Throwable ex) {
+    	    generator.end(ex);
     	} finally {
-    	    generator.end();
+    	    if (success) {
+    	        generator.end(null);
+    	    }
     	}
     }
     
-    abstract protected @continuable void doRun();
+    abstract protected @continuable void doRun() throws Throwable;
 
     protected @continuable static <T, V> T $$await$$(CompletionStage<T> future, AsyncGenerator<V> self) {
     	return AsyncExecutor.await(future);

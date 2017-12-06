@@ -58,7 +58,7 @@ public class AsyncGeneratorMethodTransformer extends AbstractMethodTransformer {
         log.debug("Method has " + argTypes.length + " arguments");
 
         MethodNode asyncRunMethod = (MethodNode)asyncRunnableClass.visitMethod(
-            ACC_PROTECTED, "doRun", "()V", null, null
+            ACC_PROTECTED, "doRun", "()V", null, new String[]{"java/lang/Throwable"}
         );
 
         asyncRunMethod.visitAnnotation(CONTINUABLE_ANNOTATION_DESCRIPTOR, true);

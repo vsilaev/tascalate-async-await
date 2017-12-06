@@ -22,15 +22,15 @@ public class AsyncCall {
         throw new IllegalStateException("Method call must be replaced by bytecode enhancer");
     }
 
-    public static <T> Object yield(final T readyValue) {
+    public static <T> Object yield(final T readyValue) throws NoActiveAsyncCallException {
         throw new IllegalStateException("Method call must be replaced by bytecode enhancer");
     }
 
-    public static <T> Object yield(final CompletionStage<T> pendingValue) {
+    public static <T> Object yield(final CompletionStage<T> pendingValue) throws NoActiveAsyncCallException {
         throw new IllegalStateException("Method call must be replaced by bytecode enhancer");
     }
 
-    public static <T> Object yield(final Generator<T> values) {
+    public static <T> Object yield(final Generator<T> values) throws NoActiveAsyncCallException {
         throw new IllegalStateException("Method call must be replaced by bytecode enhancer");
     }
 

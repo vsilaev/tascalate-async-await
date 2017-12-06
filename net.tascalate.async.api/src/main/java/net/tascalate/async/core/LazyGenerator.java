@@ -7,6 +7,7 @@ import java.util.concurrent.CompletionStage;
 import org.apache.commons.javaflow.api.continuable;
 
 import net.tascalate.async.api.Generator;
+import net.tascalate.concurrent.Promises;
 
 class LazyGenerator<T> implements Generator<T> {
 
@@ -30,6 +31,8 @@ class LazyGenerator<T> implements Generator<T> {
 
     @Override
     public boolean next(Object producerParam) {
+        // If we have synchronous error in generator method
+        // (as opposed to asynchronous that is managed by consumerLock
         if (null != lastError) {
             Throwable error = lastError;
             lastError = null;
@@ -106,6 +109,8 @@ class LazyGenerator<T> implements Generator<T> {
     void end(Throwable ex) {
         done = true;
         currentState = emptyState();
+        // Set synchronous error in generator method
+        // (as opposed to asynchronous that is managed by consumerLock        
         lastError = ex;
         releaseConsumerLock();
     }
@@ -218,7 +223,7 @@ class LazyGenerator<T> implements Generator<T> {
                 // Only consumer may initiate close and only consumer awaits 
                 // on the pending value.
                 // So this may be an error when we are closing non-awaited value
-                pendingValue.toCompletableFuture().cancel(true);
+                Promises.from(pendingValue).cancel(true);
                 pendingValue = null;
             }
         }

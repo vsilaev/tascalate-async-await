@@ -145,6 +145,8 @@ public class GeneratorExample {
         yield(waitString("111"));
         yield(waitString("222"));
         yield("333");
+        // Comment out to check synchronously thrown exception
+        // Below is asynchronously sent one
         yield(waitError(1));
         yield(waitString("444"));
         throw new FileNotFoundException();

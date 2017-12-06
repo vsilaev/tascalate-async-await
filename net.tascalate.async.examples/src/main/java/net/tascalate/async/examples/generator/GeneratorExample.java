@@ -6,7 +6,6 @@ import static net.tascalate.async.api.AsyncCall.await;
 
 import java.util.Date;
 import java.util.StringJoiner;
-import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
 import java.util.concurrent.CompletionStage;
 import java.util.concurrent.ExecutorService;
@@ -14,6 +13,7 @@ import java.util.concurrent.Executors;
 
 import net.tascalate.async.api.Generator;
 import net.tascalate.async.api.async;
+import net.tascalate.concurrent.CompletableTask;
 
 public class GeneratorExample {
 
@@ -22,7 +22,7 @@ public class GeneratorExample {
     public static void main(String[] args) {
         long startTime = System.currentTimeMillis();
         final GeneratorExample example = new GeneratorExample();
-        //example.asyncOperation();
+        example.asyncOperation();
         final CompletionStage<String> result = example.mergeStrings();
         result.whenComplete((v, e) -> {
             long finishTime = System.currentTimeMillis();
@@ -53,26 +53,13 @@ public class GeneratorExample {
         return asyncResult(joiner.toString());
     }
     
-
     @async
     void asyncOperation() {
         System.out.println("Before await!");
         System.out.println("Done");
-        System.out.println(asyncStrings());
         await( waitString("111") );
         System.out.println("After await!");
     }
-
-    @async
-    static Generator<String> asyncStrings() {
-        yield(waitString("111"));
-        yield(waitString("222"));
-        yield("333");
-        yield(waitString("444"));
-        
-        System.out.println("::moreStrings FINALLY CALLED::");
-        return yield();
-    } 
     
     @async
     Generator<String> produceStrings() {
@@ -122,17 +109,18 @@ public class GeneratorExample {
         o = yield(waitString("SHOULD BE SKIPPEDM IN OUTOUT"));
 
         System.out.println("::produceStrings FINALLY CALLED::");
-        return null;
+        return yield();
     }
 
+    // Private to ensure that generated accessor methods work 
     @async
-    Generator<String> moreStrings() {
+    private Generator<String> moreStrings() {
         yield(waitString("111"));
         yield(waitString("222"));
         yield("333");
         yield(waitString("444"));
         System.out.println("::moreStrings FINALLY CALLED::");
-        return null;
+        return yield();
     }
 
     @async
@@ -143,7 +131,7 @@ public class GeneratorExample {
         yield(waitString("CHAINED-4"));
 
         System.out.println("::chainedGenerator FINALLY CALLED::");
-        return null;
+        return yield();
     }
     
     static CompletionStage<String> waitString(final String value) {
@@ -151,7 +139,7 @@ public class GeneratorExample {
     }
     
     static CompletionStage<String> waitString(final String value, final long delay) {
-        final CompletableFuture<String> promise = CompletableFuture.supplyAsync(() -> {
+        final CompletionStage<String> promise = CompletableTask.supplyAsync(() -> {
             try { 
                 Thread.sleep(delay);
             } catch (final InterruptedException ex) {

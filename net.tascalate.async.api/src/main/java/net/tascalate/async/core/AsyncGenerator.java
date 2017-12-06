@@ -19,7 +19,7 @@ abstract public class AsyncGenerator<T> implements Runnable {
     	try {
     		doRun();
     	} finally {
-    		 generator.end();
+    	    generator.end();
     	}
     }
     

@@ -45,58 +45,7 @@ public class AsyncResultMethodTransformer extends AbstractMethodTransformer {
     
     @Override
     protected MethodNode createReplacementAsyncMethod(String asyncTaskClassName) {
-        boolean isStatic = (originalAsyncMethod.access & Opcodes.ACC_STATIC) != 0;
-        int thisArgShift = isStatic ? 0 : 1;
-        Type[] originalArgTypes = Type.getArgumentTypes(originalAsyncMethod.desc);
-        int originalArity = originalArgTypes.length;
-
-        MethodNode replacementAsyncMethodNode = new MethodNode(
-            originalAsyncMethod.access, originalAsyncMethod.name, originalAsyncMethod.desc, null, null
-        );
-
-        replacementAsyncMethodNode.visitAnnotation(CONTINUABLE_ANNOTATION_DESCRIPTOR, true);
-        replacementAsyncMethodNode.visitCode();
-
-        replacementAsyncMethodNode.visitTypeInsn(NEW, asyncTaskClassName);
-        replacementAsyncMethodNode.visitInsn(DUP);
-        if (!isStatic) {
-            // Reference to outer this
-            replacementAsyncMethodNode.visitVarInsn(ALOAD, 0);
-        }
-
-        // load all method arguments into stack
-        for (int i = 0; i < originalArity; i++) {
-            // Shifted for this if necessary
-            replacementAsyncMethodNode.visitVarInsn(originalArgTypes[i].getOpcode(ILOAD), i + thisArgShift);
-        }
-
-        String constructorDesc = Type.getMethodDescriptor(
-            Type.VOID_TYPE, 
-            isStatic ? originalArgTypes : prependArray(originalArgTypes, Type.getObjectType(classNode.name))
-        );
-        
-        replacementAsyncMethodNode.visitMethodInsn(INVOKESPECIAL, asyncTaskClassName, "<init>", constructorDesc, false);
-        replacementAsyncMethodNode.visitVarInsn(ASTORE, originalArity + thisArgShift);
-
-        replacementAsyncMethodNode.visitVarInsn(ALOAD, originalArity + thisArgShift);
-        replacementAsyncMethodNode.visitMethodInsn(INVOKESTATIC, ASYNC_EXECUTOR_NAME, "execute", "(Ljava/lang/Runnable;)V", false);
-
-        Type returnType = Type.getReturnType(originalAsyncMethod.desc);
-        boolean hasResult = !Type.VOID_TYPE.equals(returnType); 
-        if (hasResult) {
-            replacementAsyncMethodNode.visitVarInsn(ALOAD, originalArity + thisArgShift);
-            replacementAsyncMethodNode.visitFieldInsn(GETFIELD, ASYNC_TASK_NAME, "future", TASCALATE_PROMISE_DESCRIPTOR);
-            replacementAsyncMethodNode.visitInsn(ARETURN);
-        } else {
-            replacementAsyncMethodNode.visitInsn(RETURN);
-        }
-
-        replacementAsyncMethodNode.visitMaxs(
-            Math.max(1, originalArity + thisArgShift), // for AsyncTask constructor call
-            originalArity + thisArgShift + (hasResult ? 1 : 0) // args count + outer this (for non static) + future var
-        );
-        replacementAsyncMethodNode.visitEnd();
-        return replacementAsyncMethodNode;
+        return createReplacementAsyncMethod(asyncTaskClassName, ASYNC_TASK_NAME, "future", TASCALATE_PROMISE_DESCRIPTOR);
     }
     
     @Override
@@ -147,6 +96,7 @@ public class AsyncResultMethodTransformer extends AbstractMethodTransformer {
         InsnList newInstructions = new InsnList();
         newInstructions.add(methodStart);
 
+        Type returnType = Type.getReturnType(originalAsyncMethod.desc);
         // Instructions
         for (AbstractInsnNode insn = originalAsyncMethod.instructions.getFirst(); null != insn; insn = insn.getNext()) {
             if (insn instanceof VarInsnNode) {
@@ -235,6 +185,9 @@ public class AsyncResultMethodTransformer extends AbstractMethodTransformer {
                 } else if (min.getOpcode() == INVOKESTATIC && ASYNC_CALL_NAME.equals(min.owner)) {
                     switch (min.name) {
                         case "asyncResult":
+                            if (Type.VOID_TYPE.equals(returnType)) {
+                                throw new IllegalStateException("Async result must be used only inside methods that return value");
+                            }
                             newInstructions.add(new VarInsnNode(ALOAD, 0));
                             newInstructions.add(
                                 new MethodInsnNode(INVOKESTATIC, 
@@ -293,14 +246,11 @@ public class AsyncResultMethodTransformer extends AbstractMethodTransformer {
         */
         newInstructions.add(methodEnd);
 
-        Type returnType = Type.getReturnType(originalAsyncMethod.desc);
         boolean hasResult = !Type.VOID_TYPE.equals(returnType); 
         if (hasResult) {
             // POP value from stack that was placed before ARETURN
             newInstructions.add(new InsnNode(POP));
         }
-        // Frame is computed anyway
-        // newInstructions.add(new FrameNode(F_SAME, 0, null, 0, null));
         newInstructions.add(new InsnNode(RETURN));
 
         asyncRunMethod.instructions = newInstructions;

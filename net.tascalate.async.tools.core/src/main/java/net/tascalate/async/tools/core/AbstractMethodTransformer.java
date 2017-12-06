@@ -191,6 +191,61 @@ abstract public class AbstractMethodTransformer {
         return (MethodNode) mv;        
     }
     
+    protected MethodNode createReplacementAsyncMethod(String asyncTaskClassName, String runnableBaseClass, String runnableFieldName, String runnableFieldDescriptor) {
+        boolean isStatic = (originalAsyncMethod.access & Opcodes.ACC_STATIC) != 0;
+        int thisArgShift = isStatic ? 0 : 1;
+        Type[] originalArgTypes = Type.getArgumentTypes(originalAsyncMethod.desc);
+        int originalArity = originalArgTypes.length;
+
+        MethodNode replacementAsyncMethodNode = new MethodNode(
+            originalAsyncMethod.access, originalAsyncMethod.name, originalAsyncMethod.desc, null, null
+        );
+
+        replacementAsyncMethodNode.visitAnnotation(CONTINUABLE_ANNOTATION_DESCRIPTOR, true);
+        replacementAsyncMethodNode.visitCode();
+
+        replacementAsyncMethodNode.visitTypeInsn(NEW, asyncTaskClassName);
+        replacementAsyncMethodNode.visitInsn(DUP);
+        if (!isStatic) {
+            // Reference to outer this
+            replacementAsyncMethodNode.visitVarInsn(ALOAD, 0);
+        }
+
+        // load all method arguments into stack
+        for (int i = 0; i < originalArity; i++) {
+            // Shifted for this if necessary
+            replacementAsyncMethodNode.visitVarInsn(originalArgTypes[i].getOpcode(ILOAD), i + thisArgShift);
+        }
+
+        String constructorDesc = Type.getMethodDescriptor(
+            Type.VOID_TYPE, 
+            isStatic ? originalArgTypes : prependArray(originalArgTypes, Type.getObjectType(classNode.name))
+        );
+        
+        replacementAsyncMethodNode.visitMethodInsn(INVOKESPECIAL, asyncTaskClassName, "<init>", constructorDesc, false);
+        replacementAsyncMethodNode.visitVarInsn(ASTORE, originalArity + thisArgShift);
+
+        replacementAsyncMethodNode.visitVarInsn(ALOAD, originalArity + thisArgShift);
+        replacementAsyncMethodNode.visitMethodInsn(INVOKESTATIC, ASYNC_EXECUTOR_NAME, "execute", "(Ljava/lang/Runnable;)V", false);
+
+        Type returnType = Type.getReturnType(originalAsyncMethod.desc);
+        boolean hasResult = !Type.VOID_TYPE.equals(returnType); 
+        if (hasResult) {
+            replacementAsyncMethodNode.visitVarInsn(ALOAD, originalArity + thisArgShift);
+            replacementAsyncMethodNode.visitFieldInsn(GETFIELD, runnableBaseClass, runnableFieldName, runnableFieldDescriptor);
+            replacementAsyncMethodNode.visitInsn(ARETURN);
+        } else {
+            replacementAsyncMethodNode.visitInsn(RETURN);
+        }
+
+        replacementAsyncMethodNode.visitMaxs(
+            Math.max(1, originalArity + thisArgShift), // for AsyncTask constructor call
+            originalArity + thisArgShift + (hasResult ? 1 : 0) // args count + outer this (for non static) + future var
+        );
+        replacementAsyncMethodNode.visitEnd();
+        return replacementAsyncMethodNode;
+    }
+    
     protected void createAccessMethodsForAsyncMethod() {
         List<MethodNode> methods = methodsOf(classNode);
         for (Iterator<?> i = originalAsyncMethod.instructions.iterator(); i.hasNext();) {

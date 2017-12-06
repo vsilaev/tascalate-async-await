@@ -27,7 +27,6 @@ import org.objectweb.asm.tree.TryCatchBlockNode;
 import org.objectweb.asm.tree.VarInsnNode;
 
 public class AsyncGeneratorMethodTransformer extends AbstractMethodTransformer {
-//    protected final static String TASCALATE_PROMISE_DESCRIPTOR = "Lnet/tascalate/concurrent/Promise;";
     protected final static String ASYNC_GENERATOR_NAME = "net/tascalate/async/core/AsyncGenerator";
     protected final static String LAZY_GENERATOR_DESCRIPTOR = "Lnet/tascalate/async/core/LazyGenerator;";
     
@@ -46,52 +45,7 @@ public class AsyncGeneratorMethodTransformer extends AbstractMethodTransformer {
     
     @Override
     protected MethodNode createReplacementAsyncMethod(String asyncTaskClassName) {
-        boolean isStatic = (originalAsyncMethod.access & Opcodes.ACC_STATIC) != 0;
-        int thisArgShift = isStatic ? 0 : 1;
-        Type[] originalArgTypes = Type.getArgumentTypes(originalAsyncMethod.desc);
-        int originalArity = originalArgTypes.length;
-
-        MethodNode replacementAsyncMethodNode = new MethodNode(
-            originalAsyncMethod.access, originalAsyncMethod.name, originalAsyncMethod.desc, null, null
-        );
-
-        replacementAsyncMethodNode.visitAnnotation(CONTINUABLE_ANNOTATION_DESCRIPTOR, true);
-        replacementAsyncMethodNode.visitCode();
-
-        replacementAsyncMethodNode.visitTypeInsn(NEW, asyncTaskClassName);
-        replacementAsyncMethodNode.visitInsn(DUP);
-        if (!isStatic) {
-            // Reference to outer this
-            replacementAsyncMethodNode.visitVarInsn(ALOAD, 0);
-        }
-
-        // load all method arguments into stack
-        for (int i = 0; i < originalArity; i++) {
-            // Shifted for this if necessary
-            replacementAsyncMethodNode.visitVarInsn(originalArgTypes[i].getOpcode(ILOAD), i + thisArgShift);
-        }
-
-        String constructorDesc = Type.getMethodDescriptor(
-            Type.VOID_TYPE, 
-            isStatic ? originalArgTypes : prependArray(originalArgTypes, Type.getObjectType(classNode.name))
-        );
-        
-        replacementAsyncMethodNode.visitMethodInsn(INVOKESPECIAL, asyncTaskClassName, "<init>", constructorDesc, false);
-        replacementAsyncMethodNode.visitVarInsn(ASTORE, originalArity + thisArgShift);
-
-        replacementAsyncMethodNode.visitVarInsn(ALOAD, originalArity + thisArgShift);
-        replacementAsyncMethodNode.visitMethodInsn(INVOKESTATIC, ASYNC_EXECUTOR_NAME, "execute", "(Ljava/lang/Runnable;)V", false);
-
-        replacementAsyncMethodNode.visitVarInsn(ALOAD, originalArity + thisArgShift);
-        replacementAsyncMethodNode.visitFieldInsn(GETFIELD, ASYNC_GENERATOR_NAME, "generator", LAZY_GENERATOR_DESCRIPTOR);
-        replacementAsyncMethodNode.visitInsn(ARETURN);
-
-        replacementAsyncMethodNode.visitMaxs(
-            Math.max(1, originalArity + thisArgShift), // for AsyncTask constructor call
-            originalArity + thisArgShift + 1 // args count + outer this (for non static) + future var
-        );
-        replacementAsyncMethodNode.visitEnd();
-        return replacementAsyncMethodNode;
+        return createReplacementAsyncMethod(asyncTaskClassName, ASYNC_GENERATOR_NAME, "generator", LAZY_GENERATOR_DESCRIPTOR);
     }
    
     @Override
@@ -109,12 +63,7 @@ public class AsyncGeneratorMethodTransformer extends AbstractMethodTransformer {
 
         asyncRunMethod.visitAnnotation(CONTINUABLE_ANNOTATION_DESCRIPTOR, true);
 
-        // Local variables
-        // amn.localVariables = methodNode.localVariables;
-
         LabelNode methodStart = new LabelNode();
-        //LabelNode globalCatchEnd = new LabelNode();
-        //LabelNode globalCatchHandler = new LabelNode();
         LabelNode methodEnd = new LabelNode();
 
         Map<LabelNode, LabelNode> labelsMap = new IdentityHashMap<>();
@@ -131,12 +80,6 @@ public class AsyncGeneratorMethodTransformer extends AbstractMethodTransformer {
             tryCatchBlocks.add(new TryCatchBlockNode(labelsMap.get(tn.start), labelsMap.get(tn.end),
                     labelsMap.get(tn.handler), tn.type));
         }
-        // Should be the latest -- surrounding try-catch-all
-        /*
-        tryCatchBlocks.add(
-            new TryCatchBlockNode(methodStart, globalCatchEnd, globalCatchHandler, "java/lang/Throwable")
-        );
-        */
         asyncRunMethod.tryCatchBlocks = tryCatchBlocks;
 
         InsnList newInstructions = new InsnList();
@@ -236,7 +179,10 @@ public class AsyncGeneratorMethodTransformer extends AbstractMethodTransformer {
                                 new MethodInsnNode(INVOKESTATIC, 
                                                    ASYNC_GENERATOR_NAME, 
                                                    "$$yield$$", 
-                                                   Type.getMethodDescriptor(Type.getReturnType(min.desc), appendArray(args, Type.getObjectType(ASYNC_GENERATOR_NAME))),
+                                                   Type.getMethodDescriptor(
+                                                       Type.getReturnType(min.desc), 
+                                                       appendArray(args, Type.getObjectType(ASYNC_GENERATOR_NAME))
+                                                   ),
                                                    false
                                 )
                             );
@@ -268,32 +214,10 @@ public class AsyncGeneratorMethodTransformer extends AbstractMethodTransformer {
             // do not make changes
             newInstructions.add(insn.clone(labelsMap));
         }
-        /*
-        newInstructions.add(globalCatchHandler);
-
-        // Frame is computed anyway
-        newInstructions.add(new FrameNode(Opcodes.F_SAME1, 0, null, 1, new Object[] { "java/lang/Throwable" }));
-
-        newInstructions.add(new VarInsnNode(ASTORE, 1));
-        newInstructions.add(new VarInsnNode(ALOAD, 0));
-        newInstructions.add(new VarInsnNode(ALOAD, 1));
-        newInstructions.add(
-            new MethodInsnNode(INVOKEVIRTUAL, 
-                               ASYNC_TASK_NAME, 
-                               "$$fault$$",                
-                               "(Ljava/lang/Throwable;)" + COMPLETION_STAGE_DESCRIPTOR, 
-                               false
-            )
-        );
-        newInstructions.add(globalCatchEnd);
-        */
         newInstructions.add(methodEnd);
 
         // POP value from stack that was placed before ARETURN
         newInstructions.add(new InsnNode(POP));
-
-        // Frame is computed anyway
-        // newInstructions.add(new FrameNode(F_SAME, 0, null, 0, null));
         newInstructions.add(new InsnNode(RETURN));
 
         asyncRunMethod.instructions = newInstructions;

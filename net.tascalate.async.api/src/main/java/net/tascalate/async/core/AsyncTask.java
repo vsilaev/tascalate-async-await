@@ -17,6 +17,8 @@ abstract public class AsyncTask<V> implements Runnable {
     public final @continuable void run() {
         try {
             doRun();
+            // ensure that promise is resolved
+            $$result$$(null, this);
         } catch (Throwable ex) {
             final ResultPromise<V> future = (ResultPromise<V>)this.future;
             future.internalCompleWithException(ex);

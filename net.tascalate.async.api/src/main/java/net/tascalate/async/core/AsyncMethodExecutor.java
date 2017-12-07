@@ -17,13 +17,13 @@ import net.tascalate.async.api.NoActiveAsyncCallException;
  * 
  * @author Valery Silaev
  */
-public class AsyncExecutor implements Serializable {
+public class AsyncMethodExecutor implements Serializable {
 
     private static final long serialVersionUID = 1L;
 
-    private static final Log log = LogFactory.getLog(AsyncExecutor.class);
+    private static final Log log = LogFactory.getLog(AsyncMethodExecutor.class);
 
-    private static final AsyncExecutor INSTANCE = new AsyncExecutor();
+    private static final AsyncMethodExecutor INSTANCE = new AsyncMethodExecutor();
 
     /**
      * Execute the {@link AsyncMethodBody}.

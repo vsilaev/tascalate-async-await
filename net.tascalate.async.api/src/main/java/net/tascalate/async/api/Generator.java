@@ -26,29 +26,37 @@ public interface Generator<T> extends AutoCloseable {
         return (Generator<T>)ReadyValuesGenerator.EMPTY;
     }
 
-    @SafeVarargs
-    public static <T> Generator<T> produce(T... readyValues) {
-        return produce(Stream.of(readyValues));
+    public static <T> Generator<T> of(T readyValue) {
+    	return of(Stream.of(readyValue));
     }
     
-    public static <T> Generator<T> produce(Stream<? extends T> readyValues) {
+    @SafeVarargs
+    public static <T> Generator<T> of(T... readyValues) {
+        return of(Stream.of(readyValues));
+    }
+    
+    public static <T> Generator<T> of(Stream<? extends T> readyValues) {
         return new ReadyValuesGenerator<>(readyValues);
     }
     
-    public static <T> Generator<T> produce(Iterable<? extends T> readyValues) {
+    public static <T> Generator<T> of(Iterable<? extends T> readyValues) {
         return new ReadyValuesGenerator<>(readyValues);
     }
 
+    public static <T> Generator<T> of(CompletionStage<T> pendingValue) {
+    	return ofUnordered(Stream.of(pendingValue));
+    }
+    
     @SafeVarargs
-    public static <T> Generator<T> await(CompletionStage<T>... pendingValues) {
-        return await(Stream.of(pendingValues));
+    public static <T> Generator<T> ofUnordered(CompletionStage<T>... pendingValues) {
+        return ofUnordered(Stream.of(pendingValues));
     }
 
-    public static <T> Generator<T> await(Stream<CompletionStage<T>> pendingValues) {
+    public static <T> Generator<T> ofUnordered(Stream<CompletionStage<T>> pendingValues) {
         return PendingValuesGenerator.create(pendingValues);
     }
     
-    public static <T> Generator<T> await(Iterable<CompletionStage<T>> pendingValues) {
+    public static <T> Generator<T> ofUnordered(Iterable<CompletionStage<T>> pendingValues) {
         return PendingValuesGenerator.create(pendingValues);
     }
 }

@@ -121,7 +121,7 @@ class LazyGenerator<T> implements Generator<T> {
             return producerFeedback();
         }
         // Order matters - set to null only after wait
-        AsyncExecutor.await(producerLock);
+        AsyncMethodExecutor.await(producerLock);
         producerLock = null;
         return producerFeedback();
     }
@@ -139,7 +139,7 @@ class LazyGenerator<T> implements Generator<T> {
             return;
         }
         // Order matters - set to null only after wait        
-        AsyncExecutor.await(consumerLock);
+        AsyncMethodExecutor.await(consumerLock);
         consumerLock = null;
     }
 
@@ -205,7 +205,7 @@ class LazyGenerator<T> implements Generator<T> {
             if (null == pendingValue) {
                 return false;
             }
-            readyValue = AsyncExecutor.await(pendingValue);
+            readyValue = AsyncMethodExecutor.await(pendingValue);
             pendingValue = null;
             return true;
         }

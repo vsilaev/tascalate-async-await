@@ -36,6 +36,6 @@ abstract public class AsyncTask<V> extends AsyncMethodBody {
     }
     
     protected @continuable static <T, V> T $$await$$(final CompletionStage<T> future, final AsyncTask<V> self) {
-        return AsyncExecutor.await(future);
+        return AsyncMethodExecutor.await(future);
     }
 }

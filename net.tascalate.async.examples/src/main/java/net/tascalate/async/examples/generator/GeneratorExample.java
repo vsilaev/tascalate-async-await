@@ -90,10 +90,10 @@ public class GeneratorExample {
         o = yield(Generator.empty());
         System.out.println("AFTER EMPTY: " + o);
         
-        o = yield(Generator.produce("RV-1", "RV-2", "RV-3"));
+        o = yield(Generator.of("RV-1", "RV-2", "RV-3"));
         System.out.println("AFTER LIST READY: " + o);
         
-        o = yield(Generator.await(waitString("PV-1", 100L), waitString("PV-2", 100L), waitString("PV-3", 200L)));
+        o = yield(Generator.ofUnordered(waitString("PV-1", 100L), waitString("PV-2", 100L), waitString("PV-3", 200L)));
         System.out.println("AFTER LIST PENDING: " + o);
 
         

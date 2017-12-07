@@ -34,7 +34,7 @@ abstract public class AsyncGenerator<T> extends AsyncMethodBody {
     abstract protected @continuable void doRun() throws Throwable;
 
     protected @continuable static <T, V> T $$await$$(CompletionStage<T> future, AsyncGenerator<V> self) {
-    	return AsyncExecutor.await(future);
+    	return AsyncMethodExecutor.await(future);
     }
     
     protected static <T> Generator<T> $$yield$$(AsyncGenerator<T> self) {

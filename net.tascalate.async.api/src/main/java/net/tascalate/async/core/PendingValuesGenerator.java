@@ -55,13 +55,13 @@ public class PendingValuesGenerator<T> implements Generator<T> {
             if (!readyValues.isEmpty()) {
                 // If we are consuming slower than producing 
                 // then use available results right away
-                current = Generator.produce(readyValues.stream().map(Either::doneUnchecked));
+                current = Generator.of(readyValues.stream().map(Either::doneUnchecked));
                 return next(producerParam);
             } else {
                 // Otherwise await for any result...            
                 if (unprocessed > 0) {
                     synchronized (switchConsumerLock) {
-                        AsyncExecutor.await(consumerLock);
+                        AsyncMethodExecutor.await(consumerLock);
                         consumerLock = new CompletableFuture<>();
                     }
                     // ... and try again

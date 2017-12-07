@@ -14,7 +14,7 @@ abstract public class AsyncMethodBody implements Runnable {
     
     abstract public @continuable void run();
     
-    public ContextualExecutor contextualExecutor() {
+    ContextualExecutor contextualExecutor() {
         return contextualExecutor;
     }
 }

@@ -3,9 +3,10 @@ package net.tascalate.async.core;
 import java.io.Serializable;
 import java.util.concurrent.CompletionStage;
 
+import org.apache.commons.javaflow.api.Continuation;
 import org.apache.commons.javaflow.api.continuable;
 import org.apache.commons.javaflow.core.StackRecorder;
-import org.apache.commons.javaflow.api.Continuation;
+
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 

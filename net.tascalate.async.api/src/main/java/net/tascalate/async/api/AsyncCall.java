@@ -14,7 +14,7 @@ public class AsyncCall {
      * The {@link async} method will be suspended until {@link CompletionStage}
      * returns or throws the result.
      */
-    public static <T> T await(final CompletionStage<T> condition) throws NoActiveAsyncCallException {
+    public static <T> T await(CompletionStage<T> condition) throws NoActiveAsyncCallException {
         throw new IllegalStateException("Method call must be replaced by bytecode enhancer");
     }
 
@@ -22,15 +22,15 @@ public class AsyncCall {
         throw new IllegalStateException("Method call must be replaced by bytecode enhancer");
     }
 
-    public static <T> Object yield(final T readyValue) throws NoActiveAsyncCallException {
+    public static <T> Object yield(T readyValue) throws NoActiveAsyncCallException {
         throw new IllegalStateException("Method call must be replaced by bytecode enhancer");
     }
 
-    public static <T> Object yield(final CompletionStage<T> pendingValue) throws NoActiveAsyncCallException {
+    public static <T> Object yield(CompletionStage<T> pendingValue) throws NoActiveAsyncCallException {
         throw new IllegalStateException("Method call must be replaced by bytecode enhancer");
     }
 
-    public static <T> Object yield(final Generator<T> values) throws NoActiveAsyncCallException {
+    public static <T> Object yield(Generator<T> values) throws NoActiveAsyncCallException {
         throw new IllegalStateException("Method call must be replaced by bytecode enhancer");
     }
 

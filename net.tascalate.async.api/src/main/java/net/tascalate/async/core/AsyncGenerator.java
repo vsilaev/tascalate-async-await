@@ -6,7 +6,7 @@ import org.apache.commons.javaflow.api.continuable;
 
 import net.tascalate.async.api.Generator;
 
-abstract public class AsyncGenerator<T> implements Runnable {
+abstract public class AsyncGenerator<T> extends AsyncMethodBody {
     final public LazyGenerator<T> generator;
 
     protected AsyncGenerator() {

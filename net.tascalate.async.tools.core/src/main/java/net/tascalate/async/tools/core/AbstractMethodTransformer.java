@@ -226,7 +226,7 @@ abstract public class AbstractMethodTransformer {
         replacementAsyncMethodNode.visitVarInsn(ASTORE, originalArity + thisArgShift);
 
         replacementAsyncMethodNode.visitVarInsn(ALOAD, originalArity + thisArgShift);
-        replacementAsyncMethodNode.visitMethodInsn(INVOKESTATIC, ASYNC_EXECUTOR_NAME, "execute", "(Ljava/lang/Runnable;)V", false);
+        replacementAsyncMethodNode.visitMethodInsn(INVOKESTATIC, ASYNC_EXECUTOR_NAME, "execute", "(Lnet/tascalate/async/core/AsyncMethodBody;)V", false);
 
         Type returnType = Type.getReturnType(originalAsyncMethod.desc);
         boolean hasResult = !Type.VOID_TYPE.equals(returnType); 

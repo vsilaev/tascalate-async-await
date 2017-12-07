@@ -9,7 +9,7 @@ class Either<R, E extends Throwable> implements Serializable {
     final private R result;
     final private E error;
 
-    protected Either(final R result, final E error) {
+    protected Either(R result, E error) {
         this.result = result;
         this.error = error;
     }
@@ -30,11 +30,11 @@ class Either<R, E extends Throwable> implements Serializable {
         return error;
     }
 
-    static <R, E extends Throwable> Either<R, E> result(final R result) {
+    static <R, E extends Throwable> Either<R, E> result(R result) {
         return new Either<R, E>(result, null);
     }
 
-    static <R, E extends Throwable> Either<R, E> error(final E error) {
+    static <R, E extends Throwable> Either<R, E> error(E error) {
         return new Either<R, E>(null, error);
     }
 

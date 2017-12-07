@@ -6,7 +6,7 @@ import org.apache.commons.javaflow.api.continuable;
 
 import net.tascalate.concurrent.Promise;
 
-abstract public class AsyncTask<V> implements Runnable {
+abstract public class AsyncTask<V> extends AsyncMethodBody {
     public final Promise<V> future;
 
     protected AsyncTask() {
@@ -20,7 +20,7 @@ abstract public class AsyncTask<V> implements Runnable {
             // ensure that promise is resolved
             $$result$$(null, this);
         } catch (Throwable ex) {
-            final ResultPromise<V> future = (ResultPromise<V>)this.future;
+            ResultPromise<V> future = (ResultPromise<V>)this.future;
             future.internalCompleWithException(ex);
         }
     }
@@ -28,7 +28,7 @@ abstract public class AsyncTask<V> implements Runnable {
     abstract protected @continuable void doRun() throws Throwable;
 
     protected static <V> CompletionStage<V> $$result$$(final V value, final AsyncTask<V> self) {
-        final ResultPromise<V> future = (ResultPromise<V>)self.future;
+        ResultPromise<V> future = (ResultPromise<V>)self.future;
         future.internalCompleWithResult(value);
         return future;
     }

@@ -36,6 +36,7 @@ abstract public class AbstractMethodTransformer {
     protected final static String CONTINUABLE_ANNOTATION_DESCRIPTOR = "Lorg/apache/commons/javaflow/api/continuable;";
     protected final static String COMPLETION_STAGE_DESCRIPTOR = "Ljava/util/concurrent/CompletionStage;";
     
+    protected final static Type CONTEXTUAL_EXECUTOR_TYPE = Type.getObjectType("net/tascalate/async/api/ContextualExecutor");
 
     protected final ClassNode classNode;
     protected final List<InnerClassNode> originalInnerClasses;
@@ -157,7 +158,10 @@ abstract public class AbstractMethodTransformer {
 
         String constructorDesc = Type.getMethodDescriptor(
             Type.VOID_TYPE,
-            isStatic ? argTypes : prependArray(argTypes, Type.getObjectType(classNode.name))
+            appendArray(
+                isStatic ? argTypes : prependArray(argTypes, Type.getObjectType(classNode.name)),
+                CONTEXTUAL_EXECUTOR_TYPE
+            )
         );
 
         MethodVisitor mv = asyncRunnableClass.visitMethod(0, "<init>", constructorDesc, null, null);
@@ -182,10 +186,17 @@ abstract public class AbstractMethodTransformer {
 
         // Invoke super()
         mv.visitVarInsn(ALOAD, 0);
-        mv.visitMethodInsn(INVOKESPECIAL, superClassName, "<init>", "()V", false);
+        mv.visitVarInsn(ALOAD, originalArity + (isStatic ? 1 : 2));
+        mv.visitMethodInsn(
+            INVOKESPECIAL, superClassName, 
+            "<init>", Type.getMethodDescriptor(Type.VOID_TYPE, CONTEXTUAL_EXECUTOR_TYPE), false
+        );
 
         mv.visitInsn(RETURN);
-        mv.visitMaxs(1 + (originalArity > 0 || !isStatic ? 1 : 0), originalArity + (isStatic ? 1 : 2));
+        mv.visitMaxs(
+            Math.max(2, 1 + (originalArity > 0 || !isStatic ? 1 : 0)),  // stack 
+            originalArity + (isStatic ? 1 : 2) + 1 // locals
+        );
         mv.visitEnd();
 
         return (MethodNode) mv;        
@@ -217,9 +228,23 @@ abstract public class AbstractMethodTransformer {
             replacementAsyncMethodNode.visitVarInsn(originalArgTypes[i].getOpcode(ILOAD), i + thisArgShift);
         }
 
+        // Resolve by owner if non-static
+        if (isStatic) {
+            replacementAsyncMethodNode.visitInsn(ACONST_NULL);
+        } else {
+            replacementAsyncMethodNode.visitVarInsn(ALOAD, 0);
+        }
+        replacementAsyncMethodNode.visitMethodInsn(
+            INVOKESTATIC, "net/tascalate/async/api/ContextualExecutors", "current", 
+            Type.getMethodDescriptor(CONTEXTUAL_EXECUTOR_TYPE, Type.getType(Object.class)), false
+        );
+        
         String constructorDesc = Type.getMethodDescriptor(
             Type.VOID_TYPE, 
-            isStatic ? originalArgTypes : prependArray(originalArgTypes, Type.getObjectType(classNode.name))
+            appendArray(
+                isStatic ? originalArgTypes : prependArray(originalArgTypes, Type.getObjectType(classNode.name)),
+                CONTEXTUAL_EXECUTOR_TYPE
+            )
         );
         
         replacementAsyncMethodNode.visitMethodInsn(INVOKESPECIAL, asyncTaskClassName, "<init>", constructorDesc, false);
@@ -239,8 +264,8 @@ abstract public class AbstractMethodTransformer {
         }
 
         replacementAsyncMethodNode.visitMaxs(
-            Math.max(1, originalArity + thisArgShift), // for AsyncTask constructor call
-            originalArity + thisArgShift + (hasResult ? 1 : 0) // args count + outer this (for non static) + future var
+            Math.max(1, originalArity + thisArgShift + 1), // for constructor call (incl. executor)
+            originalArity + thisArgShift + (hasResult ? 1 : 0) // args count + outer this (for non static) + future/generator var
         );
         replacementAsyncMethodNode.visitEnd();
         return replacementAsyncMethodNode;

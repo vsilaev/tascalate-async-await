@@ -4,12 +4,14 @@ import java.util.concurrent.CompletionStage;
 
 import org.apache.commons.javaflow.api.continuable;
 
+import net.tascalate.async.api.ContextualExecutor;
 import net.tascalate.concurrent.Promise;
 
 abstract public class AsyncTask<V> extends AsyncMethodBody {
     public final Promise<V> future;
 
-    protected AsyncTask() {
+    protected AsyncTask(ContextualExecutor contextualExecutor) {
+        super(contextualExecutor);
         this.future = new ResultPromise<>();
     }
     

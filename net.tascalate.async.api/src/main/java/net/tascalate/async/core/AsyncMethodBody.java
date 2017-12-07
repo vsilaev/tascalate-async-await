@@ -5,7 +5,12 @@ import org.apache.commons.javaflow.api.continuable;
 import net.tascalate.async.api.ContextualExecutor;
 
 abstract public class AsyncMethodBody implements Runnable {
-    private ContextualExecutor contextualExecutor = ContextualExecutor.SAME_THREAD_EXECUTOR;
+    private final ContextualExecutor contextualExecutor;
+    
+    protected AsyncMethodBody(ContextualExecutor contextualExecutor) {
+        this.contextualExecutor = contextualExecutor != null ? 
+            contextualExecutor : ContextualExecutor.sameThreadContextless();
+    }
     
     abstract public @continuable void run();
     

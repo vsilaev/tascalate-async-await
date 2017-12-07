@@ -27,25 +27,24 @@ import org.objectweb.asm.tree.TryCatchBlockNode;
 import org.objectweb.asm.tree.VarInsnNode;
 
 public class AsyncGeneratorMethodTransformer extends AbstractMethodTransformer {
-    protected final static String ASYNC_GENERATOR_NAME = "net/tascalate/async/core/AsyncGenerator";
-    protected final static String LAZY_GENERATOR_DESCRIPTOR = "Lnet/tascalate/async/core/LazyGenerator;";
+    private final static Type ASYNC_GENERATOR_TYPE = Type.getObjectType("net/tascalate/async/core/AsyncGenerator");
+    private final static Type LAZY_GENERATOR_TYPE = Type.getObjectType("net/tascalate/async/core/LazyGenerator");
     
     public AsyncGeneratorMethodTransformer(ClassNode               classNode,
                                            List<InnerClassNode>    originalInnerClasses,
                                            MethodNode              originalAsyncMethodNode,
-                                           List<ClassNode>         newClasses,
                                            Map<String, MethodNode> accessMethods) {
-        super(classNode, originalInnerClasses, originalAsyncMethodNode, newClasses, accessMethods);
+        super(classNode, originalInnerClasses, originalAsyncMethodNode, accessMethods);
     }
 
     @Override
-    public void transform() {
-        transform(ASYNC_GENERATOR_NAME);
+    public ClassNode transform() {
+        return transform(ASYNC_GENERATOR_TYPE);
     }
     
     @Override
     protected MethodNode createReplacementAsyncMethod(String asyncTaskClassName) {
-        return createReplacementAsyncMethod(asyncTaskClassName, ASYNC_GENERATOR_NAME, "generator", LAZY_GENERATOR_DESCRIPTOR);
+        return createReplacementAsyncMethod(asyncTaskClassName, ASYNC_GENERATOR_TYPE, "generator", LAZY_GENERATOR_TYPE);
     }
    
     @Override
@@ -61,7 +60,7 @@ public class AsyncGeneratorMethodTransformer extends AbstractMethodTransformer {
             ACC_PROTECTED, "doRun", "()V", null, new String[]{"java/lang/Throwable"}
         );
 
-        asyncRunMethod.visitAnnotation(CONTINUABLE_ANNOTATION_DESCRIPTOR, true);
+        asyncRunMethod.visitAnnotation(CONTINUABLE_ANNOTATION_TYPE.getDescriptor(), true);
 
         LabelNode methodStart = new LabelNode();
         LabelNode methodEnd = new LabelNode();
@@ -177,11 +176,11 @@ public class AsyncGeneratorMethodTransformer extends AbstractMethodTransformer {
                             newInstructions.add(new VarInsnNode(ALOAD, 0));
                             newInstructions.add(
                                 new MethodInsnNode(INVOKESTATIC, 
-                                                   ASYNC_GENERATOR_NAME, 
+                                                   ASYNC_GENERATOR_TYPE.getInternalName(), 
                                                    "$$yield$$", 
                                                    Type.getMethodDescriptor(
                                                        Type.getReturnType(min.desc), 
-                                                       appendArray(args, Type.getObjectType(ASYNC_GENERATOR_NAME))
+                                                       appendArray(args, ASYNC_GENERATOR_TYPE)
                                                    ),
                                                    false
                                 )
@@ -191,9 +190,11 @@ public class AsyncGeneratorMethodTransformer extends AbstractMethodTransformer {
                             newInstructions.add(new VarInsnNode(ALOAD, 0));
                             newInstructions.add(
                                 new MethodInsnNode(INVOKESTATIC, 
-                                                   ASYNC_GENERATOR_NAME, 
+                                                   ASYNC_GENERATOR_TYPE.getInternalName(), 
                                                    "$$await$$", 
-                                                   "(" + COMPLETION_STAGE_DESCRIPTOR + "L" + ASYNC_GENERATOR_NAME + ";)Ljava/lang/Object;", 
+                                                   Type.getMethodDescriptor(
+                                                       OBJECT_TYPE, COMPLETION_STAGE_TYPE, ASYNC_GENERATOR_TYPE
+                                                   ), 
                                                    false
                                 )
                             );

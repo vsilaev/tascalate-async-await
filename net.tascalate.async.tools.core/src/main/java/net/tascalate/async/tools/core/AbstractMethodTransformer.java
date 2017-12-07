@@ -31,19 +31,19 @@ abstract public class AbstractMethodTransformer {
     protected final static Log log = LogFactory.getLog(AsyncAwaitClassFileGenerator.class);
     
     protected final static String ASYNC_CALL_NAME = "net/tascalate/async/api/AsyncCall";
-    protected final static String ASYNC_EXECUTOR_NAME = "net/tascalate/async/core/AsyncExecutor";
     
-    protected final static String CONTINUABLE_ANNOTATION_DESCRIPTOR = "Lorg/apache/commons/javaflow/api/continuable;";
-    protected final static String COMPLETION_STAGE_DESCRIPTOR = "Ljava/util/concurrent/CompletionStage;";
-    
-    protected final static Type CONTEXTUAL_EXECUTOR_TYPE = Type.getObjectType("net/tascalate/async/api/ContextualExecutor");
+    protected final static Type CONTINUABLE_ANNOTATION_TYPE = Type.getObjectType("org/apache/commons/javaflow/api/continuable");
+    protected final static Type COMPLETION_STAGE_TYPE       = Type.getObjectType("java/util/concurrent/CompletionStage");
+    protected final static Type OBJECT_TYPE                 = Type.getType(Object.class);
+
+    private final static Type ASYNC_EXECUTOR_TYPE       = Type.getObjectType("net/tascalate/async/core/AsyncExecutor");
+    private final static Type CONTEXTUAL_EXECUTOR_TYPE  = Type.getObjectType("net/tascalate/async/api/ContextualExecutor");
+    private final static Type CONTEXTUAL_EXECUTORS_TYPE = Type.getObjectType("net/tascalate/async/api/ContextualExecutors");
+    private final static Type ASYNC_METHOD_BODY_TYPE    = Type.getObjectType("net/tascalate/async/core/AsyncMethodBody");
 
     protected final ClassNode classNode;
     protected final List<InnerClassNode> originalInnerClasses;
     protected final MethodNode originalAsyncMethod;
-    
-    // New generated classes
-    protected final List<ClassNode> newClasses;
 
     // Original method's "method name + method desc" -> Access method's
     // MethodNode
@@ -52,20 +52,18 @@ abstract public class AbstractMethodTransformer {
     protected AbstractMethodTransformer(ClassNode               classNode, 
                                         List<InnerClassNode>    originalInnerClasses,
                                         MethodNode              originalAsyncMethod,
-                                        List<ClassNode>         newClasses, 
                                         Map<String, MethodNode> accessMethods) {
         
         this.classNode = classNode;
         this.originalInnerClasses = originalInnerClasses;
         this.originalAsyncMethod = originalAsyncMethod;
-        this.newClasses = newClasses;
         this.accessMethods = accessMethods;
     }
 
     
-    abstract public void transform();
+    abstract public ClassNode transform();
     
-    public void transform(String superClassName) {
+    public ClassNode transform(Type superClassType) {
         log.info("Transforming blocking method: " + classNode.name + "." + originalAsyncMethod.name
                 + originalAsyncMethod.desc);
         // Remove @async annotation
@@ -79,8 +77,7 @@ abstract public class AbstractMethodTransformer {
         createAccessMethodsForAsyncMethod();
 
         // Create ClassNode for anonymous class
-        ClassNode asyncTaskClassNode = createAnonymousClass(asyncTaskClassName, superClassName);
-        newClasses.add(asyncTaskClassNode);
+        ClassNode asyncTaskClassNode = createAnonymousClass(asyncTaskClassName, superClassType);
 
         // Replace original method
 
@@ -90,18 +87,19 @@ abstract public class AbstractMethodTransformer {
         methods.set(methods.indexOf(originalAsyncMethod), replacementAsyncMethodNode);        
         
         //System.out.println(BytecodeTraceUtil.toString(classNode));
+        return asyncTaskClassNode;
     }
     
     abstract protected MethodNode createReplacementAsyncMethod(String asyncTaskClassName);
     abstract protected MethodNode addAnonymousClassRunMethod(ClassNode asyncRunnableClass, FieldNode outerClassField);
 
     
-    protected ClassNode createAnonymousClass(String asyncTaskClassName, String superClassName) {
+    protected ClassNode createAnonymousClass(String asyncTaskClassName, Type superClassType) {
         boolean isStatic = (originalAsyncMethod.access & Opcodes.ACC_STATIC) != 0;
 
         ClassNode asyncRunnableClass = new ClassNode();
 
-        asyncRunnableClass.visit(classNode.version, ACC_SUPER, asyncTaskClassName, null, superClassName, null);
+        asyncRunnableClass.visit(classNode.version, ACC_SUPER, asyncTaskClassName, null, superClassType.getInternalName(), null);
         asyncRunnableClass.visitSource(classNode.sourceFile, null);
         asyncRunnableClass.visitOuterClass(classNode.name, originalAsyncMethod.name, originalAsyncMethod.desc);
 
@@ -145,12 +143,12 @@ abstract public class AbstractMethodTransformer {
             }
         }
 
-        addAnonymousClassConstructor(asyncRunnableClass, superClassName, outerClassField);
+        addAnonymousClassConstructor(asyncRunnableClass, superClassType, outerClassField);
         addAnonymousClassRunMethod(asyncRunnableClass, outerClassField);
         return asyncRunnableClass;
     }
     
-    protected MethodNode addAnonymousClassConstructor(ClassNode asyncRunnableClass, String superClassName, FieldNode outerClassField) {
+    protected MethodNode addAnonymousClassConstructor(ClassNode asyncRunnableClass, Type superClassType, FieldNode outerClassField) {
         boolean isStatic = (originalAsyncMethod.access & Opcodes.ACC_STATIC) != 0;
         // Original methods arguments
         Type[] argTypes = Type.getArgumentTypes(originalAsyncMethod.desc);
@@ -188,7 +186,7 @@ abstract public class AbstractMethodTransformer {
         mv.visitVarInsn(ALOAD, 0);
         mv.visitVarInsn(ALOAD, originalArity + (isStatic ? 1 : 2));
         mv.visitMethodInsn(
-            INVOKESPECIAL, superClassName, 
+            INVOKESPECIAL, superClassType.getInternalName(), 
             "<init>", Type.getMethodDescriptor(Type.VOID_TYPE, CONTEXTUAL_EXECUTOR_TYPE), false
         );
 
@@ -202,7 +200,7 @@ abstract public class AbstractMethodTransformer {
         return (MethodNode) mv;        
     }
     
-    protected MethodNode createReplacementAsyncMethod(String asyncTaskClassName, String runnableBaseClass, String runnableFieldName, String runnableFieldDescriptor) {
+    protected MethodNode createReplacementAsyncMethod(String asyncTaskClassName, Type runnableBaseClass, String runnableFieldName, Type runnableFieldType) {
         boolean isStatic = (originalAsyncMethod.access & Opcodes.ACC_STATIC) != 0;
         int thisArgShift = isStatic ? 0 : 1;
         Type[] originalArgTypes = Type.getArgumentTypes(originalAsyncMethod.desc);
@@ -212,7 +210,7 @@ abstract public class AbstractMethodTransformer {
             originalAsyncMethod.access, originalAsyncMethod.name, originalAsyncMethod.desc, null, null
         );
 
-        replacementAsyncMethodNode.visitAnnotation(CONTINUABLE_ANNOTATION_DESCRIPTOR, true);
+        replacementAsyncMethodNode.visitAnnotation(CONTINUABLE_ANNOTATION_TYPE.getDescriptor(), true);
         replacementAsyncMethodNode.visitCode();
 
         replacementAsyncMethodNode.visitTypeInsn(NEW, asyncTaskClassName);
@@ -235,8 +233,8 @@ abstract public class AbstractMethodTransformer {
             replacementAsyncMethodNode.visitVarInsn(ALOAD, 0);
         }
         replacementAsyncMethodNode.visitMethodInsn(
-            INVOKESTATIC, "net/tascalate/async/api/ContextualExecutors", "current", 
-            Type.getMethodDescriptor(CONTEXTUAL_EXECUTOR_TYPE, Type.getType(Object.class)), false
+            INVOKESTATIC, CONTEXTUAL_EXECUTORS_TYPE.getInternalName(), "current", 
+            Type.getMethodDescriptor(CONTEXTUAL_EXECUTOR_TYPE, OBJECT_TYPE), false
         );
         
         String constructorDesc = Type.getMethodDescriptor(
@@ -251,13 +249,18 @@ abstract public class AbstractMethodTransformer {
         replacementAsyncMethodNode.visitVarInsn(ASTORE, originalArity + thisArgShift);
 
         replacementAsyncMethodNode.visitVarInsn(ALOAD, originalArity + thisArgShift);
-        replacementAsyncMethodNode.visitMethodInsn(INVOKESTATIC, ASYNC_EXECUTOR_NAME, "execute", "(Lnet/tascalate/async/core/AsyncMethodBody;)V", false);
+        replacementAsyncMethodNode.visitMethodInsn(
+            INVOKESTATIC, ASYNC_EXECUTOR_TYPE.getInternalName(), "execute", 
+            Type.getMethodDescriptor(Type.VOID_TYPE, ASYNC_METHOD_BODY_TYPE), false
+        );
 
         Type returnType = Type.getReturnType(originalAsyncMethod.desc);
         boolean hasResult = !Type.VOID_TYPE.equals(returnType); 
         if (hasResult) {
             replacementAsyncMethodNode.visitVarInsn(ALOAD, originalArity + thisArgShift);
-            replacementAsyncMethodNode.visitFieldInsn(GETFIELD, runnableBaseClass, runnableFieldName, runnableFieldDescriptor);
+            replacementAsyncMethodNode.visitFieldInsn(
+                GETFIELD, runnableBaseClass.getInternalName(), runnableFieldName, runnableFieldType.getDescriptor()
+            );
             replacementAsyncMethodNode.visitInsn(ARETURN);
         } else {
             replacementAsyncMethodNode.visitInsn(RETURN);

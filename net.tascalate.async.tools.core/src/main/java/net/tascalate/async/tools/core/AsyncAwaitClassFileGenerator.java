@@ -90,15 +90,18 @@ public class AsyncAwaitClassFileGenerator {
                 Type returnType = Type.getReturnType(methodNode.desc);
                 AbstractMethodTransformer transformer = null;
                 if (TYPE_COMPLETION_STAGE.equals(returnType) || TYPE_TASCALATE_PROMISE.equals(returnType) || Type.VOID_TYPE.equals(returnType)) {
-                    transformer = new AsyncResultMethodTransformer(classNode, originalInnerClasses, methodNode, newClasses, accessMethods);
+                    transformer = new AsyncResultMethodTransformer(classNode, originalInnerClasses, methodNode, accessMethods);
                 } else if (TYPE_GENERATOR.equals(returnType)) {
-                    transformer = new AsyncGeneratorMethodTransformer(classNode, originalInnerClasses, methodNode, newClasses, accessMethods);
+                    transformer = new AsyncGeneratorMethodTransformer(classNode, originalInnerClasses, methodNode, accessMethods);
                 } else {
                     // throw ex?
                 }
                 if (null != transformer) {
-                    transformer.transform();
-                    transformed = true;
+                    ClassNode newClass = transformer.transform();
+                    if (null != newClass) {
+                        newClasses.add(newClass);
+                        transformed = true;
+                    }
                 }
             }
         }

@@ -27,25 +27,24 @@ import org.objectweb.asm.tree.TryCatchBlockNode;
 import org.objectweb.asm.tree.VarInsnNode;
 
 public class AsyncResultMethodTransformer extends AbstractMethodTransformer {
-    protected final static String ASYNC_TASK_NAME = "net/tascalate/async/core/AsyncTask";
-    protected final static String TASCALATE_PROMISE_DESCRIPTOR = "Lnet/tascalate/concurrent/Promise;";
+    private final static Type ASYNC_TASK_TYPE = Type.getObjectType("net/tascalate/async/core/AsyncTask"); 
+    private final static Type TASCALATE_PROMISE_TYPE = Type.getObjectType("net/tascalate/concurrent/Promise");
     
     public AsyncResultMethodTransformer(ClassNode               classNode,
                                         List<InnerClassNode>    originalInnerClasses,
                                         MethodNode              originalAsyncMethodNode,
-                                        List<ClassNode>         newClasses,
                                         Map<String, MethodNode> accessMethods) {
-        super(classNode, originalInnerClasses, originalAsyncMethodNode, newClasses, accessMethods);
+        super(classNode, originalInnerClasses, originalAsyncMethodNode, accessMethods);
     }
     
     @Override
-    public void transform() {
-        transform(ASYNC_TASK_NAME);
+    public ClassNode transform() {
+        return transform(ASYNC_TASK_TYPE);
     }
     
     @Override
     protected MethodNode createReplacementAsyncMethod(String asyncTaskClassName) {
-        return createReplacementAsyncMethod(asyncTaskClassName, ASYNC_TASK_NAME, "future", TASCALATE_PROMISE_DESCRIPTOR);
+        return createReplacementAsyncMethod(asyncTaskClassName, ASYNC_TASK_TYPE, "future", TASCALATE_PROMISE_TYPE);
     }
     
     @Override
@@ -61,7 +60,7 @@ public class AsyncResultMethodTransformer extends AbstractMethodTransformer {
             ACC_PROTECTED, "doRun", "()V", null, new String[]{"java/lang/Throwable"}
         );
 
-        asyncRunMethod.visitAnnotation(CONTINUABLE_ANNOTATION_DESCRIPTOR, true);
+        asyncRunMethod.visitAnnotation(CONTINUABLE_ANNOTATION_TYPE.getDescriptor(), true);
 
         // Local variables
         // amn.localVariables = methodNode.localVariables;
@@ -191,9 +190,11 @@ public class AsyncResultMethodTransformer extends AbstractMethodTransformer {
                             newInstructions.add(new VarInsnNode(ALOAD, 0));
                             newInstructions.add(
                                 new MethodInsnNode(INVOKESTATIC, 
-                                                   ASYNC_TASK_NAME, 
-                                                   "$$result$$", 
-                                                   "(Ljava/lang/Object;L" + ASYNC_TASK_NAME + ";)" + Type.getReturnType(min.desc), 
+                                                   ASYNC_TASK_TYPE.getInternalName(), 
+                                                   "$$result$$",
+                                                   Type.getMethodDescriptor(
+                                                       Type.getReturnType(min.desc), OBJECT_TYPE, ASYNC_TASK_TYPE
+                                                   ),
                                                    false
                                 )
                             );
@@ -202,9 +203,11 @@ public class AsyncResultMethodTransformer extends AbstractMethodTransformer {
                             newInstructions.add(new VarInsnNode(ALOAD, 0));
                             newInstructions.add(
                                 new MethodInsnNode(INVOKESTATIC, 
-                                                   ASYNC_TASK_NAME, 
+                                                   ASYNC_TASK_TYPE.getInternalName(), 
                                                    "$$await$$", 
-                                                   "(" + COMPLETION_STAGE_DESCRIPTOR + "L" + ASYNC_TASK_NAME + ";)Ljava/lang/Object;", 
+                                                   Type.getMethodDescriptor(
+                                                       OBJECT_TYPE, COMPLETION_STAGE_TYPE, ASYNC_TASK_TYPE
+                                                   ),
                                                    false
                                 )
                             );

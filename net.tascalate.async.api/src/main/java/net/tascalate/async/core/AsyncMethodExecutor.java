@@ -102,7 +102,7 @@ public class AsyncMethodExecutor implements Serializable {
         ContextualExecutor ctxExecutor = suspendParams.contextualExecutor; 
 
         ContinuationResumer<? super R, Throwable> originalResumer = new ContinuationResumer<>(continuation);
-        Runnable contextualResumer = ctxExecutor.captureContext(originalResumer);
+        Runnable contextualResumer = ctxExecutor.contextualize(originalResumer);
         Thread suspendThread = Thread.currentThread();
         // Setup future and give it a chance to continue the Continuation
         try {

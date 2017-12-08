@@ -28,7 +28,7 @@ import java.util.concurrent.Executor;
 
 public interface ContextualExecutor extends Executor {
     
-    default Runnable captureContext(Runnable resumeContinuation) {
+    default Runnable contextualize(Runnable resumeContinuation) {
         return resumeContinuation;
     }
     

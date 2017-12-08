@@ -28,6 +28,10 @@ import java.util.concurrent.Executor;
 
 public interface ContextualExecutor extends Executor {
     
+    default boolean useAsInvoker() {
+        return false;
+    }
+    
     default Runnable contextualize(Runnable resumeContinuation) {
         return resumeContinuation;
     }

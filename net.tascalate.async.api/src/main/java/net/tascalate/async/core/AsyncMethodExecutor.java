@@ -65,7 +65,14 @@ public class AsyncMethodExecutor implements Serializable {
         log.debug("Starting suspended Continuation");
         Continuation continuation = Continuation.startSuspendedWith(runnable);
         // Start it
-        resume(continuation, null);
+        ContextualExecutor ctxExecutor = runnable.contextualExecutor();
+        if (ctxExecutor.useAsInvoker()) {
+            ctxExecutor.execute(ctxExecutor.contextualize( 
+                () -> resume(continuation, null) 
+            ));
+        } else {
+            resume(continuation, null);
+        }
     }
 
     /**

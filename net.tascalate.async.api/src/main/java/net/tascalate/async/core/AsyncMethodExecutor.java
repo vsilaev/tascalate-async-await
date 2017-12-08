@@ -25,6 +25,7 @@
 package net.tascalate.async.core;
 
 import java.io.Serializable;
+import java.util.concurrent.CompletionException;
 import java.util.concurrent.CompletionStage;
 
 import org.apache.commons.javaflow.api.Continuation;
@@ -177,6 +178,14 @@ public class AsyncMethodExecutor implements Serializable {
         }
     }
     
+    static Throwable unrollCompletionException(Throwable ex) {
+        Throwable nested = ex;
+        while (nested instanceof CompletionException) {
+            nested = nested.getCause();
+        }
+        return null == nested ? ex : nested;
+    }
+    
     static class SuspendParams<R> {
         final CompletionStage<R> future;
         final ContextualExecutor contextualExecutor;
@@ -205,10 +214,11 @@ public class AsyncMethodExecutor implements Serializable {
             if (error == null) {
                 resume(continuation, Either.result(result));
             } else {
-                if (CloseSignal.INSTANCE == error) {
+                Throwable ex = unrollCompletionException(error);
+                if (CloseSignal.INSTANCE == ex) {
                     continuation.terminate();
                 } else {
-                    resume(continuation, Either.error(error));
+                    resume(continuation, Either.error(ex));
                 }
             }            
         }

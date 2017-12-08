@@ -52,6 +52,9 @@ public class AsyncAwaitBusinessServicesExample {
 					System.out.println("Result: " + result);
 				}
 			});
+			if (i == 2) {
+			    //Future.class.cast(messageFuture).cancel(true);
+			}
 			System.out.println("FINISHED ITERATION #" + i);
 			messageFuture.toCompletableFuture().join();
 		}

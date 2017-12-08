@@ -24,23 +24,49 @@
  */
 package net.tascalate.async.core;
 
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionStage;
+import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.function.Function;
 
 import org.apache.commons.javaflow.api.continuable;
 
 import net.tascalate.async.api.ContextualExecutor;
 import net.tascalate.concurrent.Promise;
+import net.tascalate.concurrent.Promises;
 
 abstract public class AsyncTask<V> extends AsyncMethodBody {
     public final Promise<V> future;
 
+    final AtomicBoolean running = new AtomicBoolean(false);
+    volatile CompletionStage<?> originalAwait;
+    
+    private final CompletableFuture<?> terminateMethod = new CompletableFuture<>();
+    
     protected AsyncTask(ContextualExecutor contextualExecutor) {
         super(contextualExecutor);
-        this.future = new ResultPromise<>();
+        this.future = new ResultPromise<V>() {
+            @Override
+            public boolean cancel(boolean mayInterruptIfRunning) {
+                boolean doCancel = mayInterruptIfRunning || !running.get();
+                if (!doCancel) {
+                    return false;
+                }
+                if (super.cancel(mayInterruptIfRunning)) {
+                    cancelAwaitIfNecessary(originalAwait);
+                    return true;
+                } else {
+                    return false;
+                }
+            }
+        };
     }
     
     @Override
     public final @continuable void run() {
+        if (!running.compareAndSet(false, true)) {
+            throw new IllegalStateException("AsyncTask is already running");
+        }
         try {
             doRun();
             // ensure that promise is resolved
@@ -48,6 +74,10 @@ abstract public class AsyncTask<V> extends AsyncMethodBody {
         } catch (Throwable ex) {
             ResultPromise<V> future = (ResultPromise<V>)this.future;
             future.internalCompleWithException(ex);
+        } finally {
+            if (!running.compareAndSet(true, false)) {
+                throw new IllegalStateException("AsyncTask is not running");
+            }
         }
     }
     
@@ -59,7 +89,35 @@ abstract public class AsyncTask<V> extends AsyncMethodBody {
         return future;
     }
     
-    protected @continuable static <T, V> T $$await$$(final CompletionStage<T> future, final AsyncTask<V> self) {
-        return AsyncMethodExecutor.await(future);
+    protected @continuable static <T, V> T $$await$$(final CompletionStage<T> originalAwait, final AsyncTask<V> self) {
+        CompletionStage<T> guardedAwait = self
+            .terminatorOf(originalAwait)
+            .applyToEither(originalAwait, Function.identity());
+        
+        // Save reference for outer promise cancellation
+        self.originalAwait = originalAwait;
+        // Re-check for race with main future cancellation
+        self.cancelAwaitIfNecessary(originalAwait);
+
+        return AsyncMethodExecutor.await(guardedAwait);
     }
+    
+    @SuppressWarnings("unchecked")
+    private <T> CompletableFuture<T> terminatorOf(CompletionStage<T> guarded) {
+        return (CompletableFuture<T>)terminateMethod;
+    }
+    
+    void cancelAwaitIfNecessary(final CompletionStage<?> target) {
+        if (future.isCancelled()) {
+            // First terminate method to avoid exceptions in method
+            terminateMethod.completeExceptionally(CloseSignal.INSTANCE);
+            // No longer need reference
+            this.originalAwait = null;
+            // Then cancel promise we are waiting on
+            if (null != target) {
+                Promises.from(target).cancel(true);
+            }
+        }
+    }
+
 }

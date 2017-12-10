@@ -33,15 +33,17 @@ import net.tascalate.async.api.Generator;
 
 class LazyGenerator<T> implements Generator<T> {
     private CompletableFuture<?> producerLock;
-    private CompletionStage<?> currentAwaitLock;    
+    private CompletableFuture<?> consumerLock;
+    
+    //private CompletionStage<?> currentAwaitLock;    
 
+    CompletionStage<T> latestResult;
 
     private Throwable lastError = null;
     private boolean done = false;
 
     private Generator<T> currentState = Generator.empty();
     private Object producerParam = NOTHING;
-    private T latestResultValue = null;
 
     LazyGenerator() {
         producerLock = new CompletableFuture<>();
@@ -62,8 +64,9 @@ class LazyGenerator<T> implements Generator<T> {
             Either.sneakyThrow(error);
         }
         // Could we advance further current state?
-        CompletionStage<T> latestResult = producerParam == NOTHING ? 
+        latestResult = producerParam == NOTHING ? 
             currentState.next() : currentState.next(producerParam);
+            
         if (null != latestResult) {
             // Should be checked before done to let iterate over 
             // chained generators fully
@@ -78,7 +81,8 @@ class LazyGenerator<T> implements Generator<T> {
         // Let produce some value (resumes producer)
         releaseProducerLock();
         // Wait till value is ready (suspends consumer)
-        latestResultValue = acquireConsumerLock(latestResult);
+        acquireConsumerLock();
+        consumerLock = new CompletableFuture<>();
         // Check everything once again after wait
         return next(producerParam);
     }
@@ -115,6 +119,7 @@ class LazyGenerator<T> implements Generator<T> {
         acquireProducerLock();
         producerLock = new CompletableFuture<>();
         currentState = state;
+        releaseConsumerLock();
         // To have a semi-lazy generator that forwards till next yield
         // return producerParam;
         return acquireProducerLock();
@@ -132,45 +137,63 @@ class LazyGenerator<T> implements Generator<T> {
     	
         done = true;
         currentState = Generator.empty();
+        releaseConsumerLock();
     }
     
     void registerCurrentAwaitLock(CompletionStage<?> awaitLock) {
-    	currentAwaitLock = awaitLock;
+    	//currentAwaitLock = awaitLock;
     }
 
     private @continuable Object acquireProducerLock() {
+    	T latestResultValue = awaitLatestResult();
         if (null == producerLock || producerLock.isDone()) {
-            return producerFeedback();
+            return producerFeedback(latestResultValue);
         }
         // Order matters - set to null only after wait
         AsyncMethodExecutor.await(producerLock);
         producerLock = null;
-        return producerFeedback();
+        return producerFeedback(latestResultValue);
     }
 
     private void releaseProducerLock() {
         if (null != producerLock) {
-    		currentAwaitLock = null;
             final CompletableFuture<?> lock = producerLock;
             producerLock = null;
             lock.complete(null);
         }
     }
     
-    private @continuable T acquireConsumerLock(CompletionStage<T> latestResult) {
-    	if (null != currentAwaitLock) {
-    		AsyncMethodExecutor.await(currentAwaitLock);
+    private @continuable void acquireConsumerLock() {
+        // -- testing shows has no effect, but
+    	// logically it should not be here
+    	//awaitLatestResult(); 
+    	if (null == consumerLock || consumerLock.isDone()) {
+    		return;
     	}
-    	if (null != latestResult) {
-            T result = AsyncMethodExecutor.await(latestResult);
-            return result;
-    	} else {
-    		return null;
-    	}
+        // Order matters - set to null only after wait    	
+		AsyncMethodExecutor.await(consumerLock);
+		consumerLock = null;
+    }
+    
+    private void releaseConsumerLock() {
+        if (null != consumerLock) {
+            final CompletableFuture<?> lock = consumerLock;
+            consumerLock = null;
+            lock.complete(null);
+        }
     }
 
+    private @continuable T awaitLatestResult() {
+    	if (null != latestResult) {
+            T latestResultValue = AsyncMethodExecutor.await(latestResult);
+            latestResult = null;
+            return latestResultValue;
+    	} else {
+    		return null;
+    	}    	
+    }
     
-    private Object producerFeedback() {
+    private Object producerFeedback(T latestResultValue) {
         if (NOTHING == producerParam) {
             return latestResultValue;
         } else {

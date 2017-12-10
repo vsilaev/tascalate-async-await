@@ -36,6 +36,7 @@ import java.util.concurrent.CompletionException;
 import java.util.concurrent.CompletionStage;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
 
 import net.tascalate.async.api.Generator;
 import net.tascalate.async.api.async;
@@ -72,6 +73,7 @@ public class GeneratorExample {
             int i = 0;
             CompletionStage<String> singleResult; 
             while (null != (singleResult = generator.next(param))) {
+            	System.out.println(">>Future is ready: " + Future.class.cast(singleResult).isDone());
             	String v = await(singleResult);
                 System.out.println("Received: " + v);
                 ++i;

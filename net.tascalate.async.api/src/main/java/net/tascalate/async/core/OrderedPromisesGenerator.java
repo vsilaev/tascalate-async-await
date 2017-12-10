@@ -25,28 +25,22 @@
 package net.tascalate.async.core;
 
 import java.util.Iterator;
-import java.util.NoSuchElementException;
-import java.util.stream.Stream;
+import java.util.concurrent.CompletionStage;
 
 import net.tascalate.async.api.Generator;
 
-public class ReadyValuesGenerator<T> implements Generator<T> {
-    
+public class OrderedPromisesGenerator<T> implements Generator<T> {
+	
     public final static Generator<?> EMPTY = new Generator<Object>() {
 
         @Override
-        public boolean next(Object producerParam) {
-            return false;
+        public CompletionStage<Object> next(Object producerParam) {
+            return null;
         }
 
         @Override
-        public boolean next() {
-            return false;
-        }
-
-        @Override
-        public Object current() {
-            throw new NoSuchElementException();
+        public CompletionStage<Object> next() {
+            return null;
         }
 
         @Override
@@ -56,44 +50,41 @@ public class ReadyValuesGenerator<T> implements Generator<T> {
         
     };
     
-    final private Iterator<? extends T> readyValues;
+    private final Iterator<CompletionStage<T>> delegate;
+    private final AutoCloseable closeable;
     
-    private T current = null;
-    private boolean hasValue = false;
-
-    public ReadyValuesGenerator(final Stream<? extends T> readyValues) {
-        this(readyValues.iterator());
+    public OrderedPromisesGenerator(Iterator<CompletionStage<T>> delegate, Object closeable) {
+    	this.delegate  = delegate;
+    	this.closeable = asCloseable(closeable);
     }
     
-    public ReadyValuesGenerator(final Iterable<? extends T> readyValues) {
-        this(readyValues.iterator());
-    }
-    
-    protected ReadyValuesGenerator(final Iterator<? extends T> readyValues) {
-        this.readyValues = readyValues;
+    @Override
+    public CompletionStage<T> next(Object producerParam) {
+        return delegate.hasNext() ? delegate.next() : null;
     }
 
     @Override
-    public boolean next(Object producerParam) {
-        if (readyValues.hasNext()) {
-            current = readyValues.next();
-            return hasValue = true;
-        } else {
-            current = null;
-            return hasValue = false;
-        }
+    public CompletionStage<T> next() {
+        return delegate.hasNext() ? delegate.next() : null;
     }
 
     @Override
-    public T current() {
-        if (hasValue) {
-            return current;
-        } else {
-            throw new NoSuchElementException();
-        }
-    }
-
-    @Override
-    public void close() {}
+    public void close() {
+    	if (closeable == null) {
+    		return;
+    	}
+    	try {
+			closeable.close();
+		} catch (Exception ex) {
+			throw new RuntimeException(ex);
+		}
+    }    
     
-};
+    private AutoCloseable asCloseable(Object source) {
+    	if (source instanceof AutoCloseable) {
+    		return (AutoCloseable)source;
+    	} else {
+    		return null;
+    	}
+    }
+} 

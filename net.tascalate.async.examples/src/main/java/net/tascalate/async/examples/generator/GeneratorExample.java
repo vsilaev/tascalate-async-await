@@ -31,6 +31,7 @@ import static net.tascalate.async.api.AsyncCall.await;
 import java.io.FileNotFoundException;
 import java.util.Date;
 import java.util.StringJoiner;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
 import java.util.concurrent.CompletionStage;
 import java.util.concurrent.ExecutorService;
@@ -47,9 +48,9 @@ public class GeneratorExample {
     public static void main(String[] args) {
         long startTime = System.currentTimeMillis();
         final GeneratorExample example = new GeneratorExample();
-        example.asyncOperation();
+        //example.asyncOperation();
         final CompletionStage<String> result1 = example.mergeStrings();
-        final CompletionStage<String> result2 = example.iterateStringsEx();
+        final CompletionStage<String> result2 = CompletableFuture.completedFuture("000");//example.iterateStringsEx();
         
         result2.thenCombine(result1, (v1, v2) -> "\n" + v1 + "\n" + v2)
         .whenComplete((v, e) -> {
@@ -69,10 +70,13 @@ public class GeneratorExample {
         try (Generator<String> generator = produceStrings()) {
             String param = "GO!";
             int i = 0;
-            while (generator.next(param)) {
-                System.out.println("Received: " + generator.current());
-                param = "VAL #" + ++i;
-                joiner.add(generator.current());
+            CompletionStage<String> singleResult; 
+            while (null != (singleResult = generator.next(param))) {
+            	String v = await(singleResult);
+                System.out.println("Received: " + v);
+                ++i;
+                if (i > 2) param = "VAL #" + i;
+                joiner.add(v);
                 if (i == 17) {
                     break;
                 }
@@ -84,8 +88,10 @@ public class GeneratorExample {
     @async
     CompletionStage<String> iterateStringsEx() {
         try (Generator<String> generator = moreStringsEx()) {
-            while (generator.next()) {
-                System.out.println("Received: " + generator.current());
+        	CompletionStage<String> singleResult; 
+            while (null != (singleResult = generator.next())) {
+            	String v = await(singleResult);
+                System.out.println("Received: " + v);
             }
         } catch (FileNotFoundException | IllegalArgumentException ex) {
             System.out.println("EXCEPTION!!!!");
@@ -108,8 +114,8 @@ public class GeneratorExample {
         o = yield(waitString("ABC"));
         System.out.println("Processed: " + o + ", " + new Date());
 
-        String s = await(waitString("InternalAsync"));
-        System.out.println("INTERNALLY: " + s);
+//        String s = await(waitString("InternalAsync"));
+//        System.out.println("INTERNALLY: " + s);
 
         o = yield(Generator.empty());
         System.out.println("AFTER EMPTY: " + o);
@@ -117,7 +123,7 @@ public class GeneratorExample {
         o = yield(Generator.of("RV-1", "RV-2", "RV-3"));
         System.out.println("AFTER LIST READY: " + o);
         
-        o = yield(Generator.ofUnordered(waitString("PV-1", 100L), waitString("PV-2", 100L), waitString("PV-3", 200L)));
+        o = yield(Generator.ofUnordered(waitString("PV-1", 2000L), waitString("PV-2", 1500L), waitString("PV-3", 1000L)));
         System.out.println("AFTER LIST PENDING: " + o);
 
         
@@ -130,10 +136,12 @@ public class GeneratorExample {
         yield(chainedGenerator());
 
         try (Generator<String> nested = moreStrings()) {
-            while (nested.next()) {
-                System.out.println("Nested: " + nested.current());
-                if (Integer.parseInt(nested.current()) % 2 == 0) {
-                    o = yield(waitString("NESTED-" + nested.current()));
+        	CompletionStage<String> singleResult; 
+            while (null != (singleResult = nested.next())) {
+            	String v = await(singleResult);
+                System.out.println("Nested: " + v);
+                if (Integer.parseInt(v) % 2 == 0) {
+                    o = yield(waitString("NESTED-" + v));
                     System.out.println("Nested Processed: " + o + ", " + new Date());
                 }
             }
@@ -188,7 +196,7 @@ public class GeneratorExample {
     }
     
     static CompletionStage<String> waitString(final String value) {
-        return waitString(value, 150L);
+        return waitString(value, 250L);
     }
     
     static CompletionStage<String> waitString(final String value, final long delay) {

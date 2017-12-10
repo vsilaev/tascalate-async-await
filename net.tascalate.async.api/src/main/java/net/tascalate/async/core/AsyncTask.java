@@ -39,8 +39,8 @@ abstract public class AsyncTask<V> extends AsyncMethodBody {
     public final Promise<V> future;
 
     final AtomicBoolean running = new AtomicBoolean(false);
-    volatile CompletionStage<?> originalAwait;
     
+    private volatile CompletionStage<?> originalAwait;
     private final CompletableFuture<?> terminateMethod = new CompletableFuture<>();
     
     protected AsyncTask(ContextualExecutor contextualExecutor) {
@@ -53,7 +53,7 @@ abstract public class AsyncTask<V> extends AsyncMethodBody {
                     return false;
                 }
                 if (super.cancel(mayInterruptIfRunning)) {
-                    cancelAwaitIfNecessary(originalAwait);
+                    cancelAwaitIfNecessary();
                     return true;
                 } else {
                     return false;
@@ -107,7 +107,11 @@ abstract public class AsyncTask<V> extends AsyncMethodBody {
         return (CompletableFuture<T>)terminateMethod;
     }
     
-    void cancelAwaitIfNecessary(final CompletionStage<?> target) {
+    void cancelAwaitIfNecessary() {
+    	cancelAwaitIfNecessary(originalAwait);
+    }
+    
+    private void cancelAwaitIfNecessary(final CompletionStage<?> target) {
         if (future.isCancelled()) {
             // First terminate method to avoid exceptions in method
             terminateMethod.completeExceptionally(CloseSignal.INSTANCE);

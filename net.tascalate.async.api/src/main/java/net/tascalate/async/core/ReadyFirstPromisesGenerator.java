@@ -32,23 +32,25 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionStage;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.atomic.AtomicInteger;
-import java.util.function.BiConsumer;
 import java.util.stream.Stream;
 
 import net.tascalate.async.api.Generator;
 
-public class PendingValuesGenerator<T> implements Generator<T> {
+public class ReadyFirstPromisesGenerator<T> implements Generator<T> {
     
     final private Object switchConsumerLock = new byte[]{};
-    final private BlockingQueue<Either<T, Throwable>> produced = new LinkedBlockingQueue<>();
+    final private BlockingQueue<CompletionStage<T>> resolvedPromises = new LinkedBlockingQueue<>();
     final private AtomicInteger remaining = new AtomicInteger(0);
     
     private CompletableFuture<Void> consumerLock = new CompletableFuture<>();
     private Generator<T> current = Generator.empty();
     
-    final private BiConsumer<T, Throwable> handler = (result, error) -> {
+    
+    private ReadyFirstPromisesGenerator() {  }
+    
+    private void enlistResolved(CompletionStage<T> resolvedPromise) {
         try {
-            produced.put(null != error ? Either.error(error) : Either.result(result));
+        	resolvedPromises.put(resolvedPromise);
         } catch (InterruptedException e) {
             throw new RuntimeException(e); // Shouldn't happen for queue with unlimited size
         }
@@ -57,29 +59,28 @@ public class PendingValuesGenerator<T> implements Generator<T> {
         synchronized (switchConsumerLock) {
             consumerLock.complete(null);
         }
-    };
-    
-    private PendingValuesGenerator() {  }
+    }
 
     @Override
-    public boolean next(Object producerParam) {
+    public CompletionStage<T> next(Object producerParam) {
         // If we may return more without switching state...
-        if (current.next()) {
-            return true;
+    	CompletionStage<T> resolvedValue = current.next(producerParam); 
+        if (null != resolvedValue) {
+            return resolvedValue;
         }
 
         int unprocessed = remaining.get();
         if (unprocessed < 0) {
             // Forcibly closed
-            return false;
+            return null;
         } else {
-            final Collection<Either<T, Throwable>> readyValues = new ArrayList<>();
-            produced.drainTo(readyValues);
+            final Collection<CompletionStage<T>> readyValues = new ArrayList<>();
+            resolvedPromises.drainTo(readyValues);
 
             if (!readyValues.isEmpty()) {
                 // If we are consuming slower than producing 
                 // then use available results right away
-                current = Generator.of(readyValues.stream().map(Either::doneUnchecked));
+                current = Generator.ofOrdered(readyValues);
                 return next(producerParam);
             } else {
                 // Otherwise await for any result...            
@@ -93,16 +94,11 @@ public class PendingValuesGenerator<T> implements Generator<T> {
                 } else {
                     //...or stop if no more results...
                     current = Generator.empty();
-                    return false;
+                    return null;
                 }
             }
         }
         
-    }
-
-    @Override
-    public T current() {
-        return current.current();
     }
 
     @Override
@@ -121,14 +117,15 @@ public class PendingValuesGenerator<T> implements Generator<T> {
     }
     
     private static <T> Generator<T> create(Iterator<CompletionStage<T>> pendingValues) {
-        PendingValuesGenerator<T> result = new PendingValuesGenerator<>();
+    	ReadyFirstPromisesGenerator<T> result = new ReadyFirstPromisesGenerator<>();
         while(pendingValues.hasNext()) {
             // +1 before setting completion handler -- 
             // while stage may be completed already
             // we should increment step-by-step 
             // instead of setting the value at once
             result.remaining.incrementAndGet(); 
-            pendingValues.next().whenComplete(result.handler);
+            CompletionStage<T> nextPromise = pendingValues.next(); 
+            nextPromise.whenComplete((r, e) -> result.enlistResolved(nextPromise));
         };
         
         return result;

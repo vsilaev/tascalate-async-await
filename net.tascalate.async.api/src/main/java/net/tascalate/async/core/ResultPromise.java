@@ -28,7 +28,6 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionStage;
 
 import net.tascalate.concurrent.CompletablePromise;
-import net.tascalate.concurrent.Promise;
 
 class ResultPromise<T> extends CompletablePromise<T> {
     ResultPromise() {}
@@ -38,7 +37,7 @@ class ResultPromise<T> extends CompletablePromise<T> {
     }
 
     @Override
-    protected <U> Promise<U> wrap(CompletionStage<U> original) {
+    protected <U> ResultPromise<U> wrap(CompletionStage<U> original) {
         return new ResultPromise<>((CompletableFuture<U>)original);
     }
     

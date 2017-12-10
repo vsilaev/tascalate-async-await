@@ -24,37 +24,36 @@
  */
 package net.tascalate.async.core;
 
-import java.util.NoSuchElementException;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionStage;
 
 import org.apache.commons.javaflow.api.continuable;
 
 import net.tascalate.async.api.Generator;
-import net.tascalate.concurrent.Promises;
 
 class LazyGenerator<T> implements Generator<T> {
-
-    private CompletableFuture<?> consumerLock;
     private CompletableFuture<?> producerLock;
+    private CompletionStage<?> currentAwaitLock;    
+
+
     private Throwable lastError = null;
     private boolean done = false;
 
-    private State<T> currentState = emptyState();
+    private Generator<T> currentState = Generator.empty();
     private Object producerParam = NOTHING;
-    private T latestResult = null;
+    private T latestResultValue = null;
 
     LazyGenerator() {
         producerLock = new CompletableFuture<>();
     }
 
     @Override
-    public boolean next() {
+    public CompletionStage<T> next() {
         return next(NOTHING);
     }
 
     @Override
-    public boolean next(Object producerParam) {
+    public CompletionStage<T> next(Object producerParam) {
         // If we have synchronous error in generator method
         // (as opposed to asynchronous that is managed by consumerLock
         if (null != lastError) {
@@ -63,31 +62,27 @@ class LazyGenerator<T> implements Generator<T> {
             Either.sneakyThrow(error);
         }
         // Could we advance further current state?
-        if (currentState.advance()) {
+        CompletionStage<T> latestResult = producerParam == NOTHING ? 
+            currentState.next() : currentState.next(producerParam);
+        if (null != latestResult) {
             // Should be checked before done to let iterate over 
             // chained generators fully
-            latestResult = currentState.currentValue();
-            return true;
+            return latestResult;
         }
         
         if (done) {
-            return false;
+            return null;
         }
 
-        this.producerParam = producerParam;        
+        this.producerParam = producerParam;
         // Let produce some value (resumes producer)
         releaseProducerLock();
         // Wait till value is ready (suspends consumer)
-        acquireConsumerLock();
-        consumerLock = new CompletableFuture<>();
+        latestResultValue = acquireConsumerLock(latestResult);
         // Check everything once again after wait
         return next(producerParam);
     }
 
-    @Override
-    public T current() {
-        return currentState.currentValue();
-    }
 
     @Override
     public void close() {
@@ -102,26 +97,26 @@ class LazyGenerator<T> implements Generator<T> {
 
     @continuable
     Object produce(T readyValue) {
-        return produce(new ReadyValueState<>(readyValue));
+        return produce(CompletableFuture.completedFuture(readyValue));
     }
 
     @continuable
     Object produce(CompletionStage<T> pendingValue) {
-        return produce(new PendingValueState<>(pendingValue));
+        return produce(Generator.of(pendingValue));
     }
 
     @continuable
     Object produce(Generator<T> values) {
-        return produce(new ChainedGeneratorState<T>(values));
+        return doProduce(values);
     }
 
-    private @continuable Object produce(State<T> state) {
+    private @continuable Object doProduce(Generator<T> state) {
         // Get and re-set producerLock
         acquireProducerLock();
         producerLock = new CompletableFuture<>();
         currentState = state;
-        releaseConsumerLock();
-        // return producerParam; // To have a semi-lazy generator that forwards till next yield
+        // To have a semi-lazy generator that forwards till next yield
+        // return producerParam;
         return acquireProducerLock();
     }
 
@@ -131,16 +126,19 @@ class LazyGenerator<T> implements Generator<T> {
     }
 
     void end(Throwable ex) {
-        done = true;
-        currentState = emptyState();
         // Set synchronous error in generator method
         // (as opposed to asynchronous that is managed by consumerLock        
         lastError = ex;
-        releaseConsumerLock();
+    	
+        done = true;
+        currentState = Generator.empty();
+    }
+    
+    void registerCurrentAwaitLock(CompletionStage<?> awaitLock) {
+    	currentAwaitLock = awaitLock;
     }
 
-    @continuable
-    Object acquireProducerLock() {
+    private @continuable Object acquireProducerLock() {
         if (null == producerLock || producerLock.isDone()) {
             return producerFeedback();
         }
@@ -152,149 +150,33 @@ class LazyGenerator<T> implements Generator<T> {
 
     private void releaseProducerLock() {
         if (null != producerLock) {
+    		currentAwaitLock = null;
             final CompletableFuture<?> lock = producerLock;
             producerLock = null;
             lock.complete(null);
         }
     }
-
-    private @continuable void acquireConsumerLock() {
-        if (null == consumerLock || consumerLock.isDone()) {
-            return;
-        }
-        // Order matters - set to null only after wait        
-        AsyncMethodExecutor.await(consumerLock);
-        consumerLock = null;
+    
+    private @continuable T acquireConsumerLock(CompletionStage<T> latestResult) {
+    	if (null != currentAwaitLock) {
+    		AsyncMethodExecutor.await(currentAwaitLock);
+    	}
+    	if (null != latestResult) {
+            T result = AsyncMethodExecutor.await(latestResult);
+            return result;
+    	} else {
+    		return null;
+    	}
     }
 
-    private void releaseConsumerLock() {
-        if (null != consumerLock) {
-            final CompletableFuture<?> lock = consumerLock;
-            consumerLock = null;
-            lock.complete(null);
-        }
-    }
-
+    
     private Object producerFeedback() {
         if (NOTHING == producerParam) {
-            return latestResult;
+            return latestResultValue;
         } else {
             return producerParam;
         }        
     }
-    
-    abstract static class State<T> {
-        abstract @continuable boolean advance();
-        abstract T currentValue();
-        abstract void close();
-    }
-
-    static class ReadyValueState<T> extends State<T> {
-        final private T readyValue;
-        private boolean iterated = false;
-
-        public ReadyValueState(T readyValue) {
-            this.readyValue = readyValue;
-        }
-        
-        @Override boolean advance() {
-            if (iterated) {
-                return false;
-            }
-            iterated = true;
-            return true;
-        }
-
-        @Override T currentValue() {
-            if (!iterated) {
-                throw new IllegalStateException();
-            }
-            return readyValue;
-        }
-        
-        @Override void close() {
-            iterated = true;
-        }
-    }
-
-    static class PendingValueState<T> extends State<T> {
-        private CompletionStage<T> pendingValue;
-        private T readyValue;
-        
-        public PendingValueState(CompletionStage<T> pendingValue) {
-            this.pendingValue = pendingValue;
-        }
-
-        @Override boolean advance() {
-            if (null == pendingValue) {
-                return false;
-            }
-            readyValue = AsyncMethodExecutor.await(pendingValue);
-            pendingValue = null;
-            return true;
-        }
-        
-        @Override T currentValue() {
-            if (null != pendingValue) {
-                throw new IllegalStateException();
-            }
-            return readyValue;
-        }
-        
-        @Override void close() {
-            if (null != pendingValue) {
-                // Need to double-check: probably this state is illegal
-                // Only consumer may initiate close and only consumer awaits 
-                // on the pending value.
-                // So this may be an error when we are closing non-awaited value
-                Promises.from(pendingValue).cancel(true);
-                pendingValue = null;
-            }
-        }
-    }
-    
-    static class ChainedGeneratorState<T> extends State<T> {
-        final private Generator<T> source;
-
-        public ChainedGeneratorState(Generator<T> source) {
-            this.source = source;
-        }
-
-        @Override boolean advance() {
-            return source.next();
-        }
-        
-        @Override T currentValue() {
-            return source.current();
-        }
-        
-        @Override void close() {
-            source.close();
-        }
-    }
-    
-    @SuppressWarnings("unchecked")
-    private static <T> State<T> emptyState() {
-        return (State<T>) EMPTY_STATE;
-    }
-    
-    private final static State<?> EMPTY_STATE = new State<Object>() {
-        
-        @Override
-        Object currentValue() {
-            throw new NoSuchElementException();
-        }
-        
-        @Override
-        void close() {
-        }
-        
-        @Override
-        boolean advance() {
-            return false;
-        }
-    };
-
 
     private static final Object NOTHING = new byte[0];
 }

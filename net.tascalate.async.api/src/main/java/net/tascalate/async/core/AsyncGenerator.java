@@ -58,6 +58,7 @@ abstract public class AsyncGenerator<T> extends AsyncMethodBody {
     abstract protected @continuable void doRun() throws Throwable;
 
     protected @continuable static <T, V> T $$await$$(CompletionStage<T> future, AsyncGenerator<V> self) {
+    	self.generator.registerCurrentAwaitLock(future);
     	return AsyncMethodExecutor.await(future);
     }
     

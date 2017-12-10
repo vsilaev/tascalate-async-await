@@ -25,13 +25,15 @@
 package net.tascalate.async.core;
 
 import java.io.Serializable;
+import java.util.concurrent.CancellationException;
 import java.util.concurrent.CompletionException;
 import java.util.concurrent.CompletionStage;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.Future;
 
 import org.apache.commons.javaflow.api.Continuation;
 import org.apache.commons.javaflow.api.continuable;
 import org.apache.commons.javaflow.core.StackRecorder;
-
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 
@@ -139,6 +141,11 @@ public class AsyncMethodExecutor implements Serializable {
     protected @continuable <R, E extends Throwable> R awaitTask(CompletionStage<R> future) throws E {
         // Blocking is available - resume() method is being called
 
+    	Either<R, E> earlyResult = getResolvedOutcome(future);
+    	if (earlyResult != null) {
+    		return earlyResult.done();
+    	}
+    	
         // Let's sleep!
         log.debug("Suspending continuation");
         Object outcome = Continuation.suspend(
@@ -160,6 +167,29 @@ public class AsyncMethodExecutor implements Serializable {
         }
     }
     
+	private static <R, E extends Throwable> Either<R, E> getResolvedOutcome(CompletionStage<R> stage) {
+    	if (stage instanceof Future) {
+    		@SuppressWarnings("unchecked")
+			Future<R> future = (Future<R>)stage;
+    		if (future.isDone()) {
+    			try {
+    				return Either.result(future.get());
+    			} catch (CancellationException ex) {
+    				@SuppressWarnings("unchecked")
+    				E error = (E)ex;
+    				return Either.error(error);
+    			} catch (ExecutionException ex) {
+    				@SuppressWarnings("unchecked")
+    				E error = (E)unrollExecutionException(ex);
+    				return Either.error(error);
+    			} catch (InterruptedException ex) {
+					throw new IllegalStateException("Completed future throws interrupted exception");
+				}
+    		}
+    	}
+		return null;
+    }
+    
     private static AsyncMethodBody currentExecution() {
         StackRecorder stackRecorder = StackRecorder.get();
         if (null == stackRecorder) {
@@ -176,6 +206,14 @@ public class AsyncMethodExecutor implements Serializable {
                 "Current runnable is not " + AsyncMethodBody.class.getName() + " - are your classes instrumented for javaflow?"
             );
         }
+    }
+    
+    static Throwable unrollExecutionException(Throwable ex) {
+        Throwable nested = ex;
+        while (nested instanceof ExecutionException) {
+            nested = nested.getCause();
+        }
+        return null == nested ? ex : nested;
     }
     
     static Throwable unrollCompletionException(Throwable ex) {

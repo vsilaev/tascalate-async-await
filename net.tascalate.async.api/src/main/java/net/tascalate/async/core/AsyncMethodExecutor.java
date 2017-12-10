@@ -140,7 +140,15 @@ public class AsyncMethodExecutor implements Serializable {
      */
     protected @continuable <R, E extends Throwable> R awaitTask(CompletionStage<R> future) throws E {
         // Blocking is available - resume() method is being called
+    	
+    	AsyncMethodBody currentMethod = currentExecution();
 
+    	// Register (and wrap) promise we are blocking on
+    	// to support cancellation from outside
+    	future = currentMethod.registerAwaitTarget(future);
+    	
+    	// If promise is already resolved don't suspend
+    	// at all but rather return directly
     	Either<R, E> earlyResult = getResolvedOutcome(future);
     	if (earlyResult != null) {
     		return earlyResult.done();
@@ -150,7 +158,7 @@ public class AsyncMethodExecutor implements Serializable {
         log.debug("Suspending continuation");
         Object outcome = Continuation.suspend(
             // Save contextualExecutor of the suspending continuation 
-            new SuspendParams<>(future, currentExecution().contextualExecutor())
+            new SuspendParams<>(future, currentMethod.contextualExecutor())
         );
         log.debug("Continuation continued");
 

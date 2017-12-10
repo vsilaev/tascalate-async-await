@@ -24,21 +24,75 @@
  */
 package net.tascalate.async.core;
 
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CompletionStage;
+import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.function.Function;
+
 import org.apache.commons.javaflow.api.continuable;
 
 import net.tascalate.async.api.ContextualExecutor;
+import net.tascalate.concurrent.Promises;
 
 abstract public class AsyncMethodBody implements Runnable {
     private final ContextualExecutor contextualExecutor;
+    private final AtomicBoolean running = new AtomicBoolean(false);
+    
+    private volatile CompletionStage<?> originalAwait;
+    private volatile CompletableFuture<?> terminateMethod;
     
     protected AsyncMethodBody(ContextualExecutor contextualExecutor) {
         this.contextualExecutor = contextualExecutor != null ? 
             contextualExecutor : ContextualExecutor.sameThreadContextless();
     }
+
+    boolean isRunning() {
+    	return running.get();
+    }
     
-    abstract public @continuable void run();
+    public final @continuable void run() {
+        if (!running.compareAndSet(false, true)) {
+            throw new IllegalStateException(getClass().getName() + " is already running");
+        }
+        try {
+        	internalRun();
+        } finally {
+            if (!running.compareAndSet(true, false)) {
+                throw new IllegalStateException(getClass().getName() + " is not running");
+            }           	
+        }
+    }
+    
+    abstract protected @continuable void internalRun();
     
     ContextualExecutor contextualExecutor() {
         return contextualExecutor;
+    }
+    
+    <T> CompletionStage<T> registerAwaitTarget(CompletionStage<T> originalAwait) {
+    	CompletableFuture<T> terminateMethod = new CompletableFuture<>();
+        CompletionStage<T> guardedAwait = terminateMethod.applyToEither(originalAwait, Function.identity());
+        // Save references for outer promise cancellation
+        this.terminateMethod = terminateMethod;
+        this.originalAwait   = originalAwait;
+        // Re-check for race with main future cancellation
+        cancelAwaitIfNecessary(terminateMethod, originalAwait);
+        return guardedAwait;
+    }
+    
+    protected void cancelAwaitIfNecessary() {
+    	cancelAwaitIfNecessary(terminateMethod, originalAwait);
+    }
+    
+    protected void cancelAwaitIfNecessary(CompletableFuture<?> terminateMethod, CompletionStage<?> originalAwait) {
+    	this.terminateMethod = null;
+        // First terminate method to avoid exceptions in method
+        terminateMethod.completeExceptionally(CloseSignal.INSTANCE);
+        // No longer need reference
+        this.originalAwait = null;
+        // Then cancel promise we are waiting on
+        if (null != originalAwait) {
+            Promises.from(originalAwait).cancel(true);
+        }
     }
 }

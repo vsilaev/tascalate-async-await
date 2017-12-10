@@ -30,22 +30,42 @@ import java.util.concurrent.CompletionStage;
 import net.tascalate.concurrent.CompletablePromise;
 
 class ResultPromise<T> extends CompletablePromise<T> {
-    ResultPromise() {}
-    
-    ResultPromise(CompletableFuture<T> delegate) {
+	private final AsyncMethodBody asyncMethod;
+	
+	ResultPromise(AsyncMethodBody asyncMethod) {
+		this(new CompletableFuture<T>(), asyncMethod);
+	}
+	
+
+    ResultPromise(CompletableFuture<T> delegate, AsyncMethodBody asyncMethod) {
         super(delegate);
+        this.asyncMethod = asyncMethod;
+    }
+    
+    @Override
+    public boolean cancel(boolean mayInterruptIfRunning) {
+        boolean doCancel = mayInterruptIfRunning || !asyncMethod.isRunning();
+        if (!doCancel) {
+            return false;
+        }
+        if (super.cancel(mayInterruptIfRunning)) {
+            asyncMethod.cancelAwaitIfNecessary();
+            return true;
+        } else {
+            return false;
+        }
     }
 
     @Override
     protected <U> ResultPromise<U> wrap(CompletionStage<U> original) {
-        return new ResultPromise<>((CompletableFuture<U>)original);
+        return new ResultPromise<>((CompletableFuture<U>)original, asyncMethod);
     }
     
     void internalCompleWithResult(T result) {
         onSuccess(result);
     }
     
-    void internalCompleWithException(Throwable exception) {
+    void internalCompleWithFailure(Throwable exception) {
         onFailure(exception);
     }
 

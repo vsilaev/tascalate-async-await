@@ -32,10 +32,10 @@ import org.apache.commons.javaflow.api.continuable;
 import net.tascalate.async.api.Generator;
 
 class LazyGenerator<T> implements Generator<T> {
+	private final ResultPromise<?> result;
+	
     private CompletableFuture<?> producerLock;
     private CompletableFuture<?> consumerLock;
-    
-    //private CompletionStage<?> currentAwaitLock;    
 
     CompletionStage<T> latestResult;
 
@@ -44,9 +44,10 @@ class LazyGenerator<T> implements Generator<T> {
 
     private Generator<T> currentState = Generator.empty();
     private Object producerParam = NOTHING;
-
-    LazyGenerator() {
-        producerLock = new CompletableFuture<>();
+    
+    LazyGenerator(ResultPromise<?> result) {
+    	this.result = result;
+        this.producerLock = new CompletableFuture<>();
     }
 
     @Override
@@ -91,17 +92,13 @@ class LazyGenerator<T> implements Generator<T> {
     @Override
     public void close() {
         currentState.close();
-        if (null != producerLock) {
-            final CompletableFuture<?> lock = producerLock;
-            producerLock = null;
-            lock.completeExceptionally(CloseSignal.INSTANCE);
-        }
+        result.cancel(true);
         end(null);
     }
 
     @continuable
     Object produce(T readyValue) {
-        return produce(CompletableFuture.completedFuture(readyValue));
+        return produce(Generator.of(readyValue));
     }
 
     @continuable
@@ -138,10 +135,12 @@ class LazyGenerator<T> implements Generator<T> {
         done = true;
         currentState = Generator.empty();
         releaseConsumerLock();
-    }
-    
-    void registerCurrentAwaitLock(CompletionStage<?> awaitLock) {
-    	//currentAwaitLock = awaitLock;
+        
+        if (null == ex) {
+        	result.internalCompleWithResult(null);
+        } else {
+        	result.internalCompleWithFailure(ex);
+        }
     }
 
     private @continuable Object acquireProducerLock() {
@@ -164,7 +163,6 @@ class LazyGenerator<T> implements Generator<T> {
     }
     
     private @continuable void acquireConsumerLock() {
-        // -- testing shows has no effect, but
     	// logically it should not be here
     	//awaitLatestResult(); 
     	if (null == consumerLock || consumerLock.isDone()) {

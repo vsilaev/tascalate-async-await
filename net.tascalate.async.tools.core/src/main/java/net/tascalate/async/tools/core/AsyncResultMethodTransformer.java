@@ -68,7 +68,7 @@ public class AsyncResultMethodTransformer extends AbstractMethodTransformer {
     
     @Override
     protected MethodNode createReplacementAsyncMethod(String asyncTaskClassName) {
-        return createReplacementAsyncMethod(asyncTaskClassName, ASYNC_TASK_TYPE, "future", TASCALATE_PROMISE_TYPE);
+        return createReplacementAsyncMethod(asyncTaskClassName, ASYNC_TASK_TYPE, "promise", TASCALATE_PROMISE_TYPE);
     }
     
     @Override

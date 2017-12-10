@@ -24,23 +24,28 @@
  */
 package net.tascalate.async.core;
 
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionStage;
 
 import org.apache.commons.javaflow.api.continuable;
 
 import net.tascalate.async.api.ContextualExecutor;
 import net.tascalate.async.api.Generator;
+import net.tascalate.concurrent.Promise;
 
 abstract public class AsyncGenerator<T> extends AsyncMethodBody {
     public final LazyGenerator<T> generator;
-
+    public final Promise<T> promise;
+    
     protected AsyncGenerator(ContextualExecutor contextualExecutor) {
         super(contextualExecutor);
-        generator = new LazyGenerator<>();
+        this.promise   = new ResultPromise<>(this);
+        this.generator = new LazyGenerator<>((ResultPromise<T>)promise);
+        
     }
     
     @Override
-    public final @continuable void run() {
+    protected final @continuable void internalRun() {
     	generator.begin();
     	boolean success = false;
     	try {
@@ -58,7 +63,6 @@ abstract public class AsyncGenerator<T> extends AsyncMethodBody {
     abstract protected @continuable void doRun() throws Throwable;
 
     protected @continuable static <T, V> T $$await$$(CompletionStage<T> future, AsyncGenerator<V> self) {
-    	self.generator.registerCurrentAwaitLock(future);
     	return AsyncMethodExecutor.await(future);
     }
     
@@ -77,4 +81,12 @@ abstract public class AsyncGenerator<T> extends AsyncMethodBody {
     protected @continuable static <T> Object $$yield$$(Generator<T> values, AsyncGenerator<T> self) {
         return self.generator.produce(values);
     }
+    
+    @Override
+    protected void cancelAwaitIfNecessary(CompletableFuture<?> terminateMethod, CompletionStage<?> originalAwait) {
+        if (promise.isCancelled()) {
+            super.cancelAwaitIfNecessary(terminateMethod, originalAwait);
+        }
+    }
+
 }

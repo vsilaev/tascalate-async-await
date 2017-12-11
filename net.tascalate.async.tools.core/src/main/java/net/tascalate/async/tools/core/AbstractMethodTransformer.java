@@ -30,13 +30,21 @@ import static net.tascalate.async.tools.core.BytecodeIntrospection.createOuterCl
 import static net.tascalate.async.tools.core.BytecodeIntrospection.getField;
 import static net.tascalate.async.tools.core.BytecodeIntrospection.getMethod;
 import static net.tascalate.async.tools.core.BytecodeIntrospection.innerClassesOf;
+import static net.tascalate.async.tools.core.BytecodeIntrospection.invisibleAnnotationsOf;
+import static net.tascalate.async.tools.core.BytecodeIntrospection.invisibleParameterAnnotationsOf;
+import static net.tascalate.async.tools.core.BytecodeIntrospection.invisibleTypeAnnotationsOf;
 import static net.tascalate.async.tools.core.BytecodeIntrospection.methodsOf;
 import static net.tascalate.async.tools.core.BytecodeIntrospection.removeAsyncAnnotation;
+import static net.tascalate.async.tools.core.BytecodeIntrospection.visibleAnnotationsOf;
+import static net.tascalate.async.tools.core.BytecodeIntrospection.visibleParameterAnnotationsOf;
+import static net.tascalate.async.tools.core.BytecodeIntrospection.visibleTypeAnnotationsOf;
 import static org.objectweb.asm.Opcodes.*;
 
+import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
+import java.util.stream.Collectors;
 
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
@@ -44,12 +52,14 @@ import org.objectweb.asm.MethodVisitor;
 import org.objectweb.asm.Opcodes;
 import org.objectweb.asm.Type;
 import org.objectweb.asm.tree.AbstractInsnNode;
+import org.objectweb.asm.tree.AnnotationNode;
 import org.objectweb.asm.tree.ClassNode;
 import org.objectweb.asm.tree.FieldInsnNode;
 import org.objectweb.asm.tree.FieldNode;
 import org.objectweb.asm.tree.InnerClassNode;
 import org.objectweb.asm.tree.MethodInsnNode;
 import org.objectweb.asm.tree.MethodNode;
+import org.objectweb.asm.tree.TypeAnnotationNode;
 
 abstract public class AbstractMethodTransformer {
     protected final static Log log = LogFactory.getLog(AsyncAwaitClassFileGenerator.class);
@@ -87,8 +97,7 @@ abstract public class AbstractMethodTransformer {
     public ClassNode transform(Type superClassType) {
         log.info("Transforming blocking method: " + classNode.name + "." + originalAsyncMethod.name
                 + originalAsyncMethod.desc);
-        // Remove @async annotation
-        removeAsyncAnnotation(originalAsyncMethod);
+        //removeAsyncAnnotation(originalAsyncMethod);
 
         // Create InnerClassNode for anoymous class
         String asyncTaskClassName = createInnerClassName(classNode);
@@ -225,7 +234,17 @@ abstract public class AbstractMethodTransformer {
             originalAsyncMethod.access, originalAsyncMethod.name, originalAsyncMethod.desc, null, null
         );
 
-        replacementAsyncMethodNode.visitAnnotation(CONTINUABLE_ANNOTATION_TYPE.getDescriptor(), true);
+        replacementAsyncMethodNode.invisibleAnnotations = copyAnnotations(invisibleAnnotationsOf(originalAsyncMethod));
+        replacementAsyncMethodNode.visibleAnnotations = copyAnnotations(visibleAnnotationsOf(originalAsyncMethod));
+        // Remove @async annotation
+        removeAsyncAnnotation(replacementAsyncMethodNode);
+        
+        replacementAsyncMethodNode.invisibleParameterAnnotations = copyParameterAnnotations(invisibleParameterAnnotationsOf(originalAsyncMethod));
+        replacementAsyncMethodNode.visibleParameterAnnotations = copyParameterAnnotations(visibleParameterAnnotationsOf(originalAsyncMethod));
+        replacementAsyncMethodNode.invisibleTypeAnnotations = copyTypeAnnotations(invisibleTypeAnnotationsOf(originalAsyncMethod));
+        replacementAsyncMethodNode.visibleTypeAnnotations = copyTypeAnnotations(visibleTypeAnnotationsOf(originalAsyncMethod));
+        
+        replacementAsyncMethodNode.visitAnnotation(CONTINUABLE_ANNOTATION_TYPE.getDescriptor(), true).visitEnd();
         replacementAsyncMethodNode.visitCode();
 
         replacementAsyncMethodNode.visitTypeInsn(NEW, asyncTaskClassName);
@@ -288,6 +307,36 @@ abstract public class AbstractMethodTransformer {
         replacementAsyncMethodNode.visitEnd();
         return replacementAsyncMethodNode;
     }
+    
+    protected static List<AnnotationNode> copyAnnotations(List<AnnotationNode> originalAnnotations) {
+        if (null == originalAnnotations || originalAnnotations.isEmpty()) {
+            return null;
+        }
+        return new ArrayList<>(originalAnnotations);
+    }
+    
+    protected static List<AnnotationNode>[] copyParameterAnnotations(List<AnnotationNode>[] originalAnnotations) {
+        if (null == originalAnnotations || originalAnnotations.length == 0) {
+            return null;
+        }
+        @SuppressWarnings("unchecked")
+        List<AnnotationNode>[] result = new List[originalAnnotations.length];
+        for (int i = originalAnnotations.length - 1; i >= 0; i++) {
+            result[i] = copyAnnotations(originalAnnotations[i]);
+        }
+        return result;
+    }
+    
+    protected static List<TypeAnnotationNode> copyTypeAnnotations(List<TypeAnnotationNode> originalAnnotations) {
+        if (null == originalAnnotations || originalAnnotations.isEmpty()) {
+            return null;
+        }
+        return originalAnnotations
+            .stream()
+            .map(t -> new TypeAnnotationNode(t.typeRef, t.typePath, t.desc))
+            .collect(Collectors.toCollection(ArrayList::new));
+    }
+
     
     protected void createAccessMethodsForAsyncMethod() {
         List<MethodNode> methods = methodsOf(classNode);

@@ -39,6 +39,8 @@ import org.objectweb.asm.tree.ClassNode;
 import org.objectweb.asm.tree.FieldNode;
 import org.objectweb.asm.tree.InnerClassNode;
 import org.objectweb.asm.tree.MethodNode;
+import org.objectweb.asm.tree.TryCatchBlockNode;
+import org.objectweb.asm.tree.TypeAnnotationNode;
 
 class BytecodeIntrospection {
     private final static String ASYNC_ANNOTATION_DESCRIPTOR = "Lnet/tascalate/async/api/async;";
@@ -186,16 +188,42 @@ class BytecodeIntrospection {
         return null == classNode.fields ? Collections.<FieldNode> emptyList() : (List<FieldNode>) classNode.fields;
     }
 
-    private static List<AnnotationNode> visibleAnnotationsOf(MethodNode methodNode) {
+    static List<AnnotationNode> visibleAnnotationsOf(MethodNode methodNode) {
         return safeAnnotationsList(methodNode.visibleAnnotations);
     }
+    
+    @SuppressWarnings("unchecked")
+    static List<AnnotationNode>[] visibleParameterAnnotationsOf(MethodNode methodNode) {
+        return methodNode.visibleParameterAnnotations;
+    }
 
-    private static List<AnnotationNode> invisibleAnnotationsOf(MethodNode methodNode) {
+    static List<TypeAnnotationNode> visibleTypeAnnotationsOf(MethodNode methodNode) {
+        return safeAnnotationsList(methodNode.visibleTypeAnnotations);
+    }
+    
+    static List<TypeAnnotationNode> visibleTypeAnnotationsOf(TryCatchBlockNode tryCatchBlockNode) {
+        return safeAnnotationsList(tryCatchBlockNode.visibleTypeAnnotations);
+    }
+
+    static List<AnnotationNode> invisibleAnnotationsOf(MethodNode methodNode) {
         return safeAnnotationsList(methodNode.invisibleAnnotations);
+    }
+    
+    @SuppressWarnings("unchecked")
+    static List<AnnotationNode>[] invisibleParameterAnnotationsOf(MethodNode methodNode) {
+        return methodNode.invisibleParameterAnnotations;
+    }
+
+    static List<TypeAnnotationNode> invisibleTypeAnnotationsOf(MethodNode methodNode) {
+        return safeAnnotationsList(methodNode.invisibleTypeAnnotations);
+    }
+
+    static List<TypeAnnotationNode> invisibleTypeAnnotationsOf(TryCatchBlockNode tryCatchBlockNode) {
+        return safeAnnotationsList(tryCatchBlockNode.invisibleTypeAnnotations);
     }
 
     @SuppressWarnings("unchecked")
-    private static List<AnnotationNode> safeAnnotationsList(List<?> annotations) {
-        return null == annotations ? Collections.<AnnotationNode> emptyList() : (List<AnnotationNode>) annotations;
+    private static <T> List<T> safeAnnotationsList(List<?> annotations) {
+        return null == annotations ? Collections.<T> emptyList() : (List<T>) annotations;
     }
 }

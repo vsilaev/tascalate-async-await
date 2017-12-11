@@ -26,6 +26,8 @@ package net.tascalate.async.tools.core;
 
 import static net.tascalate.async.tools.core.BytecodeIntrospection.createOuterClassMethodArgFieldName;
 import static net.tascalate.async.tools.core.BytecodeIntrospection.isLoadOpcode;
+import static net.tascalate.async.tools.core.BytecodeIntrospection.visibleTypeAnnotationsOf;
+import static net.tascalate.async.tools.core.BytecodeIntrospection.invisibleTypeAnnotationsOf;
 import static org.objectweb.asm.Opcodes.*;
 
 import java.util.ArrayList;
@@ -103,8 +105,12 @@ public class AsyncResultMethodTransformer extends AbstractMethodTransformer {
         // Try-catch blocks
         for (Iterator<?> it = originalAsyncMethod.tryCatchBlocks.iterator(); it.hasNext();) {
             TryCatchBlockNode tn = (TryCatchBlockNode) it.next();
-            tryCatchBlocks.add(new TryCatchBlockNode(labelsMap.get(tn.start), labelsMap.get(tn.end),
-                    labelsMap.get(tn.handler), tn.type));
+            TryCatchBlockNode newTn = new TryCatchBlockNode(
+                labelsMap.get(tn.start), labelsMap.get(tn.end),
+                labelsMap.get(tn.handler), tn.type);
+            newTn.invisibleTypeAnnotations = copyTypeAnnotations(invisibleTypeAnnotationsOf(tn));
+            newTn.visibleTypeAnnotations = copyTypeAnnotations(visibleTypeAnnotationsOf(tn));
+            tryCatchBlocks.add(newTn);
         }
         // Should be the latest -- surrounding try-catch-all
         /*

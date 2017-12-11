@@ -53,8 +53,8 @@ public class SimplePromisesGenerator<T> implements Generator<T> {
     private final AutoCloseable closeable;
     
     public SimplePromisesGenerator(Iterator<CompletionStage<T>> delegate, Object closeable) {
-    	this.delegate  = delegate;
-    	this.closeable = asCloseable(closeable);
+        this.delegate  = delegate;
+        this.closeable = asCloseable(closeable);
     }
     
     @Override
@@ -64,21 +64,21 @@ public class SimplePromisesGenerator<T> implements Generator<T> {
 
     @Override
     public void close() {
-    	if (closeable == null) {
-    		return;
-    	}
-    	try {
-			closeable.close();
-		} catch (Exception ex) {
-			throw new RuntimeException(ex);
-		}
+        if (closeable == null) {
+            return;
+        }
+        try {
+            closeable.close();
+        } catch (Exception ex) {
+            throw new RuntimeException(ex);
+        }
     }    
     
     private AutoCloseable asCloseable(Object source) {
-    	if (source instanceof AutoCloseable) {
-    		return (AutoCloseable)source;
-    	} else {
-    		return null;
-    	}
+        if (source instanceof AutoCloseable) {
+    	    return (AutoCloseable)source;
+        } else {
+            return null;
+        }
     }
 } 

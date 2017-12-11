@@ -30,11 +30,11 @@ import java.util.concurrent.CompletionStage;
 import net.tascalate.concurrent.CompletablePromise;
 
 class ResultPromise<T> extends CompletablePromise<T> {
-	private final AsyncMethodBody asyncMethod;
+    private final AsyncMethodBody asyncMethod;
 	
-	ResultPromise(AsyncMethodBody asyncMethod) {
-		this(new CompletableFuture<T>(), asyncMethod);
-	}
+    ResultPromise(AsyncMethodBody asyncMethod) {
+        this(new CompletableFuture<T>(), asyncMethod);
+    }
 	
 
     ResultPromise(CompletableFuture<T> delegate, AsyncMethodBody asyncMethod) {

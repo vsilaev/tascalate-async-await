@@ -50,7 +50,7 @@ public class ReadyFirstPromisesGenerator<T> implements Generator<T> {
     
     private void enlistResolved(CompletionStage<T> resolvedPromise) {
         try {
-        	resolvedPromises.put(resolvedPromise);
+            resolvedPromises.put(resolvedPromise);
         } catch (InterruptedException e) {
             throw new RuntimeException(e); // Shouldn't happen for queue with unlimited size
         }
@@ -117,7 +117,7 @@ public class ReadyFirstPromisesGenerator<T> implements Generator<T> {
     }
     
     private static <T> Generator<T> create(Iterator<CompletionStage<T>> pendingPromises) {
-    	ReadyFirstPromisesGenerator<T> result = new ReadyFirstPromisesGenerator<>();
+        ReadyFirstPromisesGenerator<T> result = new ReadyFirstPromisesGenerator<>();
         while(pendingPromises.hasNext()) {
             // +1 before setting completion handler -- 
             // while stage may be completed already

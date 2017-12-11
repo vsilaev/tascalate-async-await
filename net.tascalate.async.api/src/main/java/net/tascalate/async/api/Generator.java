@@ -33,17 +33,28 @@ import org.apache.commons.javaflow.api.continuable;
 
 import net.tascalate.async.core.OrderedPromisesGenerator;
 import net.tascalate.async.core.ReadyFirstPromisesGenerator;
+import net.tascalate.async.core.ReadyValuesGenerator;
 
-public interface Generator<T> extends AutoCloseable {
+public interface Generator<T> extends GeneratorDecorator<T, Generator<T>>, AutoCloseable {
     
-    public @continuable CompletionStage<T> next(Object producerParam);
+    @continuable CompletionStage<T> next(Object producerParam);
     
-    default 
-    public @continuable CompletionStage<T> next() {
+    default
+    @continuable CompletionStage<T> next() {
         return next(null);
     }
     
-    public void close();
+    void close();
+    
+    default
+    Generator<T> raw() {
+        return this;
+    }
+    
+    default
+    ValuesGenerator<T> readyValues() {
+        return as(ReadyValuesGenerator<T>::new);
+    }
     
     @SuppressWarnings("unchecked")
     public static <T> Generator<T> empty() {

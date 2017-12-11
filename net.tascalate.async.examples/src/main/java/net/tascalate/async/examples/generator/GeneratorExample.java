@@ -39,6 +39,7 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 
 import net.tascalate.async.api.Generator;
+import net.tascalate.async.api.ValuesGenerator;
 import net.tascalate.async.api.async;
 import net.tascalate.concurrent.CompletableTask;
 
@@ -51,7 +52,7 @@ public class GeneratorExample {
         final GeneratorExample example = new GeneratorExample();
         //example.asyncOperation();
         final CompletionStage<String> result1 = example.mergeStrings();
-        final CompletionStage<String> result2 = CompletableFuture.completedFuture("000");//example.iterateStringsEx();
+        final CompletionStage<String> result2 = example.iterateStringsEx();
         
         result2.thenCombine(result1, (v1, v2) -> "\n" + v1 + "\n" + v2)
         .whenComplete((v, e) -> {
@@ -89,10 +90,9 @@ public class GeneratorExample {
     
     @async
     CompletionStage<String> iterateStringsEx() {
-        try (Generator<String> generator = moreStringsEx()) {
-        	CompletionStage<String> singleResult; 
-            while (null != (singleResult = generator.next())) {
-            	String v = await(singleResult);
+        try (ValuesGenerator<String> generator = moreStringsEx().readyValues()) {
+            while (generator.hasNext()) {
+            	String v = generator.next();
                 System.out.println("Received: " + v);
             }
         } catch (FileNotFoundException | IllegalArgumentException ex) {

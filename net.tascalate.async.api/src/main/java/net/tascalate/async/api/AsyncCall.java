@@ -26,6 +26,8 @@ package net.tascalate.async.api;
 
 import java.util.concurrent.CompletionStage;
 
+import net.tascalate.concurrent.Promise;
+
 /**
  * @author Valery Silaev
  * 
@@ -42,7 +44,7 @@ public class AsyncCall {
         throw new IllegalStateException("Method call must be replaced by bytecode enhancer");
     }
 
-    public static <T> CompletionStage<T> asyncResult(final T value) {
+    public static <T> Promise<T> asyncResult(final T value) {
         throw new IllegalStateException("Method call must be replaced by bytecode enhancer");
     }
 

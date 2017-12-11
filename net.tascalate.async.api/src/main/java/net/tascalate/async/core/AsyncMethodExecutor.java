@@ -141,18 +141,18 @@ public class AsyncMethodExecutor implements Serializable {
     protected @continuable <R, E extends Throwable> R awaitTask(CompletionStage<R> future) throws E {
         // Blocking is available - resume() method is being called
     	
-    	AsyncMethodBody currentMethod = currentExecution();
+        AsyncMethodBody currentMethod = currentExecution();
 
-    	// Register (and wrap) promise we are blocking on
-    	// to support cancellation from outside
-    	future = currentMethod.registerAwaitTarget(future);
+        // Register (and wrap) promise we are blocking on
+        // to support cancellation from outside
+        future = currentMethod.registerAwaitTarget(future);
     	
-    	// If promise is already resolved don't suspend
-    	// at all but rather return directly
-    	Either<R, E> earlyResult = getResolvedOutcome(future);
-    	if (earlyResult != null) {
-    		return earlyResult.done();
-    	}
+        // If promise is already resolved don't suspend
+        // at all but rather return directly
+        Either<R, E> earlyResult = getResolvedOutcome(future);
+        if (earlyResult != null) {
+            return earlyResult.done();
+        }
     	
         // Let's sleep!
         log.debug("Suspending continuation");
@@ -175,27 +175,27 @@ public class AsyncMethodExecutor implements Serializable {
         }
     }
     
-	private static <R, E extends Throwable> Either<R, E> getResolvedOutcome(CompletionStage<R> stage) {
-    	if (stage instanceof Future) {
-    		@SuppressWarnings("unchecked")
-			Future<R> future = (Future<R>)stage;
-    		if (future.isDone()) {
-    			try {
-    				return Either.result(future.get());
-    			} catch (CancellationException ex) {
-    				@SuppressWarnings("unchecked")
-    				E error = (E)ex;
-    				return Either.error(error);
-    			} catch (ExecutionException ex) {
-    				@SuppressWarnings("unchecked")
-    				E error = (E)unrollExecutionException(ex);
-    				return Either.error(error);
-    			} catch (InterruptedException ex) {
-					throw new IllegalStateException("Completed future throws interrupted exception");
-				}
-    		}
-    	}
-		return null;
+    private static <R, E extends Throwable> Either<R, E> getResolvedOutcome(CompletionStage<R> stage) {
+        if (stage instanceof Future) {
+            @SuppressWarnings("unchecked")
+            Future<R> future = (Future<R>)stage;
+            if (future.isDone()) {
+                try {
+                    return Either.result(future.get());
+                } catch (CancellationException ex) {
+                    @SuppressWarnings("unchecked")
+                    E error = (E)ex;
+                    return Either.error(error);
+                } catch (ExecutionException ex) {
+                    @SuppressWarnings("unchecked")
+                    E error = (E)unrollExecutionException(ex);
+                    return Either.error(error);
+                } catch (InterruptedException ex) {
+                    throw new IllegalStateException("Completed future throws interrupted exception");
+                }
+            }
+        }
+        return null;
     }
     
     private static AsyncMethodBody currentExecution() {
@@ -208,7 +208,6 @@ public class AsyncMethodExecutor implements Serializable {
         Runnable result = stackRecorder.getRunnable();
         if (result instanceof AsyncMethodBody) {
             return (AsyncMethodBody)result;
-            
         } else {
             throw new NoActiveAsyncCallException(
                 "Current runnable is not " + AsyncMethodBody.class.getName() + " - are your classes instrumented for javaflow?"

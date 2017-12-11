@@ -54,7 +54,7 @@ abstract public class AsyncTask<V> extends AsyncMethodBody {
     
     abstract protected @continuable void doRun() throws Throwable;
 
-    protected static <V> CompletionStage<V> $$result$$(final V value, final AsyncTask<V> self) {
+    protected static <V> Promise<V> $$result$$(final V value, final AsyncTask<V> self) {
         ResultPromise<V> promise = (ResultPromise<V>)self.promise;
         promise.internalCompleWithResult(value);
         return promise;
@@ -64,12 +64,10 @@ abstract public class AsyncTask<V> extends AsyncMethodBody {
         return AsyncMethodExecutor.await(originalAwait);
     }
 
-
     @Override
     protected void cancelAwaitIfNecessary(CompletableFuture<?> terminateMethod, CompletionStage<?> originalAwait) {
         if (promise.isCancelled()) {
             super.cancelAwaitIfNecessary(terminateMethod, originalAwait);
         }
     }
-
 }

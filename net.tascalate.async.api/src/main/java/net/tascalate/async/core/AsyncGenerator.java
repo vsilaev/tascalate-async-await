@@ -41,7 +41,6 @@ abstract public class AsyncGenerator<T> extends AsyncMethodBody {
         super(contextualExecutor);
         this.promise   = new ResultPromise<>(this);
         this.generator = new LazyGenerator<>((ResultPromise<T>)promise);
-        
     }
     
     @Override
@@ -49,8 +48,8 @@ abstract public class AsyncGenerator<T> extends AsyncMethodBody {
     	generator.begin();
     	boolean success = false;
     	try {
-    		doRun();
-    		success = true;
+    	    doRun();
+    	    success = true;
     	} catch (Throwable ex) {
     	    generator.end(ex);
     	} finally {

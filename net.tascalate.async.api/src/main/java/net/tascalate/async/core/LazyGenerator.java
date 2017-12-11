@@ -43,16 +43,11 @@ class LazyGenerator<T> implements Generator<T> {
     private boolean done = false;
 
     private Generator<T> currentState = Generator.empty();
-    private Object producerParam = NOTHING;
+    private Object producerParam = Generator.NO_PARAM;
     
     LazyGenerator(ResultPromise<?> result) {
     	this.result = result;
         this.producerLock = new CompletableFuture<>();
-    }
-
-    @Override
-    public CompletionStage<T> next() {
-        return next(NOTHING);
     }
 
     @Override
@@ -65,7 +60,7 @@ class LazyGenerator<T> implements Generator<T> {
             Either.sneakyThrow(error);
         }
         // Could we advance further current state?
-        latestResult = producerParam == NOTHING ? 
+        latestResult = producerParam == Generator.NO_PARAM ? 
             currentState.next() : currentState.next(producerParam);
             
         if (null != latestResult) {
@@ -192,12 +187,11 @@ class LazyGenerator<T> implements Generator<T> {
     }
     
     private Object producerFeedback(T latestResultValue) {
-        if (NOTHING == producerParam) {
+        if (Generator.NO_PARAM == producerParam) {
             return latestResultValue;
         } else {
             return producerParam;
         }        
     }
 
-    private static final Object NOTHING = new byte[0];
 }

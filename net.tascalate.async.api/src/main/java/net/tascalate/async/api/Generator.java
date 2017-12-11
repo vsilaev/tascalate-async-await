@@ -31,9 +31,9 @@ import java.util.stream.StreamSupport;
 
 import org.apache.commons.javaflow.api.continuable;
 
-import net.tascalate.async.core.OrderedPromisesGenerator;
+import net.tascalate.async.core.SimplePromisesGenerator;
 import net.tascalate.async.core.ReadyFirstPromisesGenerator;
-import net.tascalate.async.core.ReadyValuesGenerator;
+import net.tascalate.async.core.SimpleValuesGenerator;
 
 public interface Generator<T> extends GeneratorDecorator<T, Generator<T>>, AutoCloseable {
     
@@ -41,7 +41,7 @@ public interface Generator<T> extends GeneratorDecorator<T, Generator<T>>, AutoC
     
     default
     @continuable CompletionStage<T> next() {
-        return next(null);
+        return next(NO_PARAM);
     }
     
     void close();
@@ -52,13 +52,13 @@ public interface Generator<T> extends GeneratorDecorator<T, Generator<T>>, AutoC
     }
     
     default
-    ValuesGenerator<T> readyValues() {
-        return as(ReadyValuesGenerator<T>::new);
+    ValuesGenerator<T> values() {
+        return as(SimpleValuesGenerator<T>::new);
     }
     
     @SuppressWarnings("unchecked")
     public static <T> Generator<T> empty() {
-        return (Generator<T>)OrderedPromisesGenerator.EMPTY;
+        return (Generator<T>)SimplePromisesGenerator.EMPTY;
     }
 
     public static <T> Generator<T> of(T readyValue) {
@@ -89,13 +89,12 @@ public interface Generator<T> extends GeneratorDecorator<T, Generator<T>>, AutoC
     }
 
     public static <T> Generator<T> ofOrdered(Iterable<CompletionStage<T>> pendingValues) {
-        return new OrderedPromisesGenerator<T>(pendingValues.iterator(), pendingValues);
+        return new SimplePromisesGenerator<T>(pendingValues.iterator(), pendingValues);
     }
     
     public static <T> Generator<T> ofOrdered(Stream<CompletionStage<T>> pendingValues) {
-        return new OrderedPromisesGenerator<T>(pendingValues.iterator(), pendingValues);
+        return new SimplePromisesGenerator<T>(pendingValues.iterator(), pendingValues);
     }
-    
 
     @SafeVarargs
     public static <T> Generator<T> ofUnordered(CompletionStage<T>... pendingValues) {
@@ -109,4 +108,11 @@ public interface Generator<T> extends GeneratorDecorator<T, Generator<T>>, AutoC
     public static <T> Generator<T> ofUnordered(Stream<CompletionStage<T>> pendingValues) {
         return ReadyFirstPromisesGenerator.create(pendingValues);
     }
+    
+    public static final Object NO_PARAM = new Object() {
+        @Override
+        public String toString() {
+            return "<<NO PARAM>>";
+        }
+    };
 }

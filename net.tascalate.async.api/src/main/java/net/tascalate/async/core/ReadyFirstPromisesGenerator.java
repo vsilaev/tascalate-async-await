@@ -108,23 +108,23 @@ public class ReadyFirstPromisesGenerator<T> implements Generator<T> {
         current = Generator.empty();
     }
 
-    public static <T> Generator<T> create(Stream<CompletionStage<T>> pendingValues) {
-        return create(pendingValues.iterator());
+    public static <T> Generator<T> create(Stream<CompletionStage<T>> pendingPromises) {
+        return create(pendingPromises.iterator());
     }
 
-    public static <T> Generator<T> create(Iterable<CompletionStage<T>> pendingValues) {
-        return create(pendingValues.iterator());
+    public static <T> Generator<T> create(Iterable<CompletionStage<T>> pendingPromises) {
+        return create(pendingPromises.iterator());
     }
     
-    private static <T> Generator<T> create(Iterator<CompletionStage<T>> pendingValues) {
+    private static <T> Generator<T> create(Iterator<CompletionStage<T>> pendingPromises) {
     	ReadyFirstPromisesGenerator<T> result = new ReadyFirstPromisesGenerator<>();
-        while(pendingValues.hasNext()) {
+        while(pendingPromises.hasNext()) {
             // +1 before setting completion handler -- 
             // while stage may be completed already
             // we should increment step-by-step 
             // instead of setting the value at once
             result.remaining.incrementAndGet(); 
-            CompletionStage<T> nextPromise = pendingValues.next(); 
+            CompletionStage<T> nextPromise = pendingPromises.next(); 
             nextPromise.whenComplete((r, e) -> result.enlistResolved(nextPromise));
         };
         

@@ -29,8 +29,7 @@ import java.util.concurrent.CompletionStage;
 
 import net.tascalate.async.api.Generator;
 
-public class OrderedPromisesGenerator<T> implements Generator<T> {
-	
+public class SimplePromisesGenerator<T> implements Generator<T> {
     public final static Generator<?> EMPTY = new Generator<Object>() {
 
         @Override
@@ -53,18 +52,13 @@ public class OrderedPromisesGenerator<T> implements Generator<T> {
     private final Iterator<CompletionStage<T>> delegate;
     private final AutoCloseable closeable;
     
-    public OrderedPromisesGenerator(Iterator<CompletionStage<T>> delegate, Object closeable) {
+    public SimplePromisesGenerator(Iterator<CompletionStage<T>> delegate, Object closeable) {
     	this.delegate  = delegate;
     	this.closeable = asCloseable(closeable);
     }
     
     @Override
     public CompletionStage<T> next(Object producerParam) {
-        return delegate.hasNext() ? delegate.next() : null;
-    }
-
-    @Override
-    public CompletionStage<T> next() {
         return delegate.hasNext() ? delegate.next() : null;
     }
 

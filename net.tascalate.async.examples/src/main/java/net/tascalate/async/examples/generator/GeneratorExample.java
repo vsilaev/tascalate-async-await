@@ -31,7 +31,6 @@ import static net.tascalate.async.api.AsyncCall.await;
 import java.io.FileNotFoundException;
 import java.util.Date;
 import java.util.StringJoiner;
-import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
 import java.util.concurrent.CompletionStage;
 import java.util.concurrent.ExecutorService;
@@ -90,10 +89,10 @@ public class GeneratorExample {
     
     @async
     CompletionStage<String> iterateStringsEx() {
-        try (ValuesGenerator<String> generator = moreStringsEx().readyValues()) {
+        try (ValuesGenerator<String> generator = moreStringsEx().values()) {
             while (generator.hasNext()) {
             	String v = generator.next();
-                System.out.println("Received: " + v);
+                System.out.println("+++Received: " + v);
             }
         } catch (FileNotFoundException | IllegalArgumentException ex) {
             System.out.println("EXCEPTION!!!!");

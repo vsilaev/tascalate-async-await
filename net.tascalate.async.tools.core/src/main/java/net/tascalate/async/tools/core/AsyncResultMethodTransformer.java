@@ -40,7 +40,6 @@ import org.objectweb.asm.tree.AbstractInsnNode;
 import org.objectweb.asm.tree.ClassNode;
 import org.objectweb.asm.tree.FieldInsnNode;
 import org.objectweb.asm.tree.FieldNode;
-import org.objectweb.asm.tree.InnerClassNode;
 import org.objectweb.asm.tree.InsnList;
 import org.objectweb.asm.tree.InsnNode;
 import org.objectweb.asm.tree.JumpInsnNode;
@@ -55,10 +54,9 @@ public class AsyncResultMethodTransformer extends AbstractMethodTransformer {
     private final static Type TASCALATE_PROMISE_TYPE = Type.getObjectType("net/tascalate/concurrent/Promise");
     
     public AsyncResultMethodTransformer(ClassNode               classNode,
-                                        List<InnerClassNode>    originalInnerClasses,
                                         MethodNode              originalAsyncMethodNode,
                                         Map<String, MethodNode> accessMethods) {
-        super(classNode, originalInnerClasses, originalAsyncMethodNode, accessMethods);
+        super(classNode, originalAsyncMethodNode, accessMethods);
     }
     
     @Override

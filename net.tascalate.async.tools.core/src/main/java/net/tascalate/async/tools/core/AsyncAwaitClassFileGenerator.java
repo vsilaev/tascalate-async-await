@@ -24,7 +24,6 @@
  */
 package net.tascalate.async.tools.core;
 
-import static net.tascalate.async.tools.core.BytecodeIntrospection.innerClassesOf;
 import static net.tascalate.async.tools.core.BytecodeIntrospection.isAsyncMethod;
 import static net.tascalate.async.tools.core.BytecodeIntrospection.methodsOf;
 
@@ -41,7 +40,6 @@ import org.objectweb.asm.ClassReader;
 import org.objectweb.asm.ClassWriter;
 import org.objectweb.asm.Type;
 import org.objectweb.asm.tree.ClassNode;
-import org.objectweb.asm.tree.InnerClassNode;
 import org.objectweb.asm.tree.MethodNode;
 
 public class AsyncAwaitClassFileGenerator {
@@ -106,16 +104,15 @@ public class AsyncAwaitClassFileGenerator {
 
     protected boolean transform(ClassNode classNode) {
         boolean transformed = false;
-        List<InnerClassNode> originalInnerClasses = new ArrayList<InnerClassNode>(innerClassesOf(classNode));
         
         for (MethodNode methodNode : new ArrayList<MethodNode>(methodsOf(classNode))) {
             if (isAsyncMethod(methodNode)) {
                 Type returnType = Type.getReturnType(methodNode.desc);
                 AbstractMethodTransformer transformer = null;
                 if (TYPE_COMPLETION_STAGE.equals(returnType) || TYPE_TASCALATE_PROMISE.equals(returnType) || Type.VOID_TYPE.equals(returnType)) {
-                    transformer = new AsyncResultMethodTransformer(classNode, originalInnerClasses, methodNode, accessMethods);
+                    transformer = new AsyncResultMethodTransformer(classNode, methodNode, accessMethods);
                 } else if (TYPE_GENERATOR.equals(returnType)) {
-                    transformer = new AsyncGeneratorMethodTransformer(classNode, originalInnerClasses, methodNode, accessMethods);
+                    transformer = new AsyncGeneratorMethodTransformer(classNode, methodNode, accessMethods);
                 } else {
                     // throw ex?
                 }

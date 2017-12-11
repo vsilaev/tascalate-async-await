@@ -66,7 +66,6 @@ abstract public class AbstractMethodTransformer {
     private final static Type ASYNC_METHOD_BODY_TYPE     = Type.getObjectType("net/tascalate/async/core/AsyncMethodBody");
 
     protected final ClassNode classNode;
-    protected final List<InnerClassNode> originalInnerClasses;
     protected final MethodNode originalAsyncMethod;
 
     // Original method's "method name + method desc" -> Access method's
@@ -74,12 +73,10 @@ abstract public class AbstractMethodTransformer {
     protected final Map<String, MethodNode> accessMethods;
     
     protected AbstractMethodTransformer(ClassNode               classNode, 
-                                        List<InnerClassNode>    originalInnerClasses,
                                         MethodNode              originalAsyncMethod,
                                         Map<String, MethodNode> accessMethods) {
         
         this.classNode = classNode;
-        this.originalInnerClasses = originalInnerClasses;
         this.originalAsyncMethod = originalAsyncMethod;
         this.accessMethods = accessMethods;
     }
@@ -126,12 +123,6 @@ abstract public class AbstractMethodTransformer {
         asyncRunnableClass.visit(classNode.version, ACC_SUPER, asyncTaskClassName, null, superClassType.getInternalName(), null);
         asyncRunnableClass.visitSource(classNode.sourceFile, null);
         asyncRunnableClass.visitOuterClass(classNode.name, originalAsyncMethod.name, originalAsyncMethod.desc);
-
-        // Copy outer class inner classes
-        List<InnerClassNode> asyncClassInnerClasses = innerClassesOf(asyncRunnableClass);
-        for (InnerClassNode innerClassNode : originalInnerClasses) {
-            asyncClassInnerClasses.add(innerClassNode);
-        }
 
         // SerialVersionUID
         asyncRunnableClass.visitField(

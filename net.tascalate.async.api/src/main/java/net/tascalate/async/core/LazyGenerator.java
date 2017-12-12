@@ -37,7 +37,7 @@ class LazyGenerator<T> implements Generator<T> {
     private CompletableFuture<?> producerLock;
     private CompletableFuture<?> consumerLock;
 
-    CompletionStage<T> latestResult;
+    private CompletionStage<T> latestResult;
 
     private Throwable lastError = null;
     private boolean done = false;
@@ -139,48 +139,57 @@ class LazyGenerator<T> implements Generator<T> {
     }
 
     private @continuable Object acquireProducerLock() {
-    	T latestResultValue = awaitLatestResult();
-        if (null == producerLock || producerLock.isDone()) {
-            return producerFeedback(latestResultValue);
+    	CompletableFuture<?> currentLock = producerLock;
+        if (null != currentLock && !currentLock.isDone()) {
+            AsyncMethodExecutor.await(currentLock);
+            // Order matters - set to null only after wait
+            if (currentLock == producerLock) {
+                producerLock = null;
+            }
         }
-        // Order matters - set to null only after wait
-        AsyncMethodExecutor.await(producerLock);
-        producerLock = null;
+        T latestResultValue = awaitLatestResult();
         return producerFeedback(latestResultValue);
     }
 
     private void releaseProducerLock() {
-        if (null != producerLock) {
-            final CompletableFuture<?> lock = producerLock;
+        final CompletableFuture<?> currentLock = producerLock;
+        if (null != currentLock) {
             producerLock = null;
-            lock.complete(null);
+            currentLock.complete(null);
         }
     }
     
     private @continuable void acquireConsumerLock() {
     	// logically it should not be here
     	//awaitLatestResult(); 
-    	if (null == consumerLock || consumerLock.isDone()) {
-    	    return;
+        CompletableFuture<?> currentLock = consumerLock;
+    	if (null != currentLock && !currentLock.isDone()) {
+            // Order matters - set to null only after wait      
+            AsyncMethodExecutor.await(currentLock);
+            if (currentLock == consumerLock) {
+                consumerLock = null;
+            }
     	}
-        // Order matters - set to null only after wait    	
-        AsyncMethodExecutor.await(consumerLock);
-        consumerLock = null;
     }
     
     private void releaseConsumerLock() {
-        if (null != consumerLock) {
-            final CompletableFuture<?> lock = consumerLock;
+        final CompletableFuture<?> currentLock = consumerLock;
+        if (null != currentLock) {
             consumerLock = null;
-            lock.complete(null);
+            currentLock.complete(null);
         }
     }
 
     private @continuable T awaitLatestResult() {
-    	if (null != latestResult) {
-            T latestResultValue = AsyncMethodExecutor.await(latestResult);
-            latestResult = null;
-            return latestResultValue;
+        CompletionStage<T> currentLock = latestResult;
+    	if (null != currentLock) {
+    	    try {
+    	        return AsyncMethodExecutor.await(currentLock);
+    	    } finally {
+    	        if (currentLock == latestResult) {
+    	            latestResult = null;
+    	        }
+    	    }
     	} else {
             return null;
     	}    	

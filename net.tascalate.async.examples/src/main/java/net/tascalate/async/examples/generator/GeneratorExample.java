@@ -69,6 +69,7 @@ public class GeneratorExample {
     CompletionStage<String> mergeStrings() {
         StringJoiner joiner = new StringJoiner(", ");
         try (Generator<String> generator = produceStrings()) {
+        	System.out.println("%%MergeStrings - before iterations");
             String param = "GO!";
             int i = 0;
             CompletionStage<String> singleResult; 
@@ -111,6 +112,7 @@ public class GeneratorExample {
     
     @async
     Generator<String> produceStrings() {
+    	System.out.println("%%ProduceStrings - starting");
         Object o;
         o = yield(waitString("ABC"));
         System.out.println("Processed: " + o + ", " + new Date());

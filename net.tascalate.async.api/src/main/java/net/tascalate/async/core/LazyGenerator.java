@@ -34,8 +34,8 @@ import net.tascalate.async.api.Generator;
 class LazyGenerator<T> implements Generator<T> {
     private final ResultPromise<?> result;
 	
-    private CompletableFuture<?> producerLock;
-    private CompletableFuture<?> consumerLock;
+    private CompletableFuture<?> producerLock = new CompletableFuture<>();
+    private CompletableFuture<?> consumerLock = new CompletableFuture<>();
 
     private CompletionStage<T> latestResult;
 
@@ -75,8 +75,10 @@ class LazyGenerator<T> implements Generator<T> {
 
         this.producerParam = producerParam;
         // Let produce some value (resumes producer)
+        assert producerLock != null;
         releaseProducerLock();
         // Wait till value is ready (suspends consumer)
+        assert consumerLock != null;
         acquireConsumerLock();
         consumerLock = new CompletableFuture<>();
         // Check everything once again after wait
@@ -86,7 +88,6 @@ class LazyGenerator<T> implements Generator<T> {
 
     @Override
     public void close() {
-        currentState.close();
         result.cancel(true);
         end(null);
     }
@@ -107,13 +108,13 @@ class LazyGenerator<T> implements Generator<T> {
     }
 
     private @continuable Object doProduce(Generator<T> state) {
-        // Get and re-set producerLock
-        acquireProducerLock();
-        producerLock = new CompletableFuture<>();
+    	assert producerLock == null;
         currentState = state;
+        // Re-set producerLock
+        producerLock = new CompletableFuture<>();
+        // Allow to consume new promise(s) yielded
+        assert consumerLock != null;
         releaseConsumerLock();
-        // To have a semi-lazy generator that forwards till next yield
-        // return producerParam;
         return acquireProducerLock();
     }
 
@@ -143,9 +144,7 @@ class LazyGenerator<T> implements Generator<T> {
         if (null != currentLock && !currentLock.isDone()) {
             AsyncMethodExecutor.await(currentLock);
             // Order matters - set to null only after wait
-            if (currentLock == producerLock) {
-                producerLock = null;
-            }
+            producerLock = null;
         }
         T latestResultValue = awaitLatestResult();
         return producerFeedback(latestResultValue);
@@ -160,15 +159,11 @@ class LazyGenerator<T> implements Generator<T> {
     }
     
     private @continuable void acquireConsumerLock() {
-    	// logically it should not be here
-    	//awaitLatestResult(); 
         CompletableFuture<?> currentLock = consumerLock;
     	if (null != currentLock && !currentLock.isDone()) {
             // Order matters - set to null only after wait      
             AsyncMethodExecutor.await(currentLock);
-            if (currentLock == consumerLock) {
-                consumerLock = null;
-            }
+            consumerLock = null;
     	}
     }
     
@@ -186,9 +181,7 @@ class LazyGenerator<T> implements Generator<T> {
     	    try {
     	        return AsyncMethodExecutor.await(currentLock);
     	    } finally {
-    	        if (currentLock == latestResult) {
-    	            latestResult = null;
-    	        }
+  	            latestResult = null;
     	    }
     	} else {
             return null;

@@ -32,7 +32,7 @@ import org.apache.commons.javaflow.api.continuable;
 import net.tascalate.async.api.ContextualExecutor;
 import net.tascalate.concurrent.Promise;
 
-abstract public class AsyncTask<V> extends AsyncMethodBody {
+abstract public class AsyncTask<V> extends AsyncMethod {
     public final Promise<V> promise;
     
     protected AsyncTask(ContextualExecutor contextualExecutor) {

@@ -27,6 +27,7 @@ package net.tascalate.async.core;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionStage;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicLong;
 import java.util.function.Function;
 
 import org.apache.commons.javaflow.api.continuable;
@@ -34,14 +35,15 @@ import org.apache.commons.javaflow.api.continuable;
 import net.tascalate.async.api.ContextualExecutor;
 import net.tascalate.concurrent.Promises;
 
-abstract public class AsyncMethodBody implements Runnable {
+abstract public class AsyncMethod implements Runnable {
     private final ContextualExecutor contextualExecutor;
     private final AtomicBoolean running = new AtomicBoolean(false);
+    private final AtomicLong blockerVersion = new AtomicLong(0);
     
     private volatile CompletionStage<?> originalAwait;
     private volatile CompletableFuture<?> terminateMethod;
     
-    protected AsyncMethodBody(ContextualExecutor contextualExecutor) {
+    protected AsyncMethod(ContextualExecutor contextualExecutor) {
         this.contextualExecutor = contextualExecutor != null ? 
         contextualExecutor : ContextualExecutor.sameThreadContextless();
     }
@@ -69,7 +71,21 @@ abstract public class AsyncMethodBody implements Runnable {
         return contextualExecutor;
     }
     
+    long currentBlockerVersion() {
+        return blockerVersion.get();
+    }
+    
+    <T> boolean registerResumeTarget(CompletionStage<T> originalAwait, long expectedBlockerVersion) {
+        if (blockerVersion.compareAndSet(expectedBlockerVersion, expectedBlockerVersion + 1)) {
+            registerAwaitTarget(originalAwait);
+            return true;
+        } else {
+            return false;
+        }
+    }
+    
     <T> CompletionStage<T> registerAwaitTarget(CompletionStage<T> originalAwait) {
+        blockerVersion.incrementAndGet();
     	CompletableFuture<T> terminateMethod = new CompletableFuture<>();
         CompletionStage<T> guardedAwait = terminateMethod.applyToEither(originalAwait, Function.identity());
         // Save references for outer promise cancellation

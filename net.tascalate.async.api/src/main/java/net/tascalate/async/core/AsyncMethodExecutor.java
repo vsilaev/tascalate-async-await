@@ -39,6 +39,7 @@ import org.apache.commons.logging.LogFactory;
 
 import net.tascalate.async.api.ContextualExecutor;
 import net.tascalate.async.api.NoActiveAsyncCallException;
+import net.tascalate.concurrent.CompletableTask;
 
 /**
  * 
@@ -53,26 +54,33 @@ public class AsyncMethodExecutor implements Serializable {
     private static final AsyncMethodExecutor INSTANCE = new AsyncMethodExecutor();
 
     /**
-     * Execute the {@link AsyncMethodBody}.
+     * Execute the {@link AsyncMethod}.
      */
-    public static void execute(AsyncMethodBody runnable) {
-        INSTANCE.executeTask(runnable);
+    public static void execute(AsyncMethod asyncMethod) {
+        INSTANCE.executeTask(asyncMethod);
     }
 
     /**
      * Execute the {@link Continuation} and start {@link Continuator} when the
      * {@link Continuation} suspends.
      */
-    protected void executeTask(AsyncMethodBody runnable) {
+    protected void executeTask(AsyncMethod asyncMethod) {
         // Create the initial Continuation
         log.debug("Starting suspended Continuation");
-        Continuation continuation = Continuation.startSuspendedWith(runnable);
+        Continuation continuation = Continuation.startSuspendedWith(asyncMethod);
         // Start it
-        ContextualExecutor ctxExecutor = runnable.contextualExecutor();
-        if (ctxExecutor.useAsInvoker()) {
-            ctxExecutor.execute(ctxExecutor.contextualize( 
-                () -> resume(continuation, null) 
-            ));
+        ContextualExecutor ctxExecutor = asyncMethod.contextualExecutor();
+        if (ctxExecutor.interruptible()) {
+            // If executor is interruptible than start on executor
+            // so we can cancel blocking calls even before first await
+            long blockerVersion = asyncMethod.currentBlockerVersion();
+            CompletionStage<?> resumeFuture = CompletableTask.runAsync(
+                ctxExecutor.contextualize( 
+                    () -> resume(continuation, null) 
+                ), 
+                ctxExecutor
+            );
+            asyncMethod.registerResumeTarget(resumeFuture, blockerVersion);
         } else {
             resume(continuation, null);
         }
@@ -108,21 +116,28 @@ public class AsyncMethodExecutor implements Serializable {
     protected <R, E extends Throwable> void setupContinuation(Continuation continuation) {
         @SuppressWarnings("unchecked")
         SuspendParams<R> suspendParams = (SuspendParams<R>)continuation.value();
+        
         CompletionStage<R> future      = suspendParams.future;
-        ContextualExecutor ctxExecutor = suspendParams.contextualExecutor; 
+        AsyncMethod suspendedMethod    = suspendParams.suspendedMethod;
+        
+        ContextualExecutor ctxExecutor = suspendedMethod.contextualExecutor(); 
+        long blockerVersion            = suspendedMethod.currentBlockerVersion();
 
         ContinuationResumer<? super R, Throwable> originalResumer = new ContinuationResumer<>(continuation);
         Runnable contextualResumer = ctxExecutor.contextualize(originalResumer);
-        Thread suspendThread = Thread.currentThread();
+        Thread suspendThread = ctxExecutor.interruptible() ? Thread.currentThread() : null;
         // Setup future and give it a chance to continue the Continuation
         try {
             future.whenComplete((r, e) -> {
                 originalResumer.setup(r, e);
-                if (Thread.currentThread() == suspendThread) {
+                // suspendThread is null, i.e. always non-equal to current, when
+                // ctxExecutor.interruptible() == false, see above
+                if (null != suspendThread && Thread.currentThread() == suspendThread) {
                     // Is it possible to use originalResumer here, i.e. one without context???
                     contextualResumer.run();
                 } else {
-                    ctxExecutor.execute(contextualResumer);
+                    CompletionStage<?> resumeFuture = CompletableTask.runAsync(contextualResumer, ctxExecutor);
+                    suspendedMethod.registerResumeTarget(resumeFuture, blockerVersion);
                 }
             });
         } catch (Throwable error) {
@@ -141,7 +156,7 @@ public class AsyncMethodExecutor implements Serializable {
     protected @continuable <R, E extends Throwable> R awaitTask(CompletionStage<R> future) throws E {
         // Blocking is available - resume() method is being called
     	
-        AsyncMethodBody currentMethod = currentExecution();
+        AsyncMethod currentMethod = currentExecution();
 
         // Register (and wrap) promise we are blocking on
         // to support cancellation from outside
@@ -158,7 +173,7 @@ public class AsyncMethodExecutor implements Serializable {
         log.debug("Suspending continuation");
         Object outcome = Continuation.suspend(
             // Save contextualExecutor of the suspending continuation 
-            new SuspendParams<>(future, currentMethod.contextualExecutor())
+            new SuspendParams<>(currentMethod, future)
         );
         log.debug("Continuation continued");
 
@@ -198,7 +213,7 @@ public class AsyncMethodExecutor implements Serializable {
         return null;
     }
     
-    private static AsyncMethodBody currentExecution() {
+    private static AsyncMethod currentExecution() {
         StackRecorder stackRecorder = StackRecorder.get();
         if (null == stackRecorder) {
             throw new NoActiveAsyncCallException(
@@ -206,11 +221,11 @@ public class AsyncMethodExecutor implements Serializable {
             );
         }
         Runnable result = stackRecorder.getRunnable();
-        if (result instanceof AsyncMethodBody) {
-            return (AsyncMethodBody)result;
+        if (result instanceof AsyncMethod) {
+            return (AsyncMethod)result;
         } else {
             throw new NoActiveAsyncCallException(
-                "Current runnable is not " + AsyncMethodBody.class.getName() + " - are your classes instrumented for javaflow?"
+                "Current runnable is not " + AsyncMethod.class.getName() + " - are your classes instrumented for javaflow?"
             );
         }
     }
@@ -232,12 +247,12 @@ public class AsyncMethodExecutor implements Serializable {
     }
     
     static class SuspendParams<R> {
+        final AsyncMethod suspendedMethod;
         final CompletionStage<R> future;
-        final ContextualExecutor contextualExecutor;
         
-        SuspendParams(CompletionStage<R> future, ContextualExecutor contextualExecutor) {
+        SuspendParams(AsyncMethod suspendedMethod, CompletionStage<R> future) {
+            this.suspendedMethod = suspendedMethod;
             this.future = future;
-            this.contextualExecutor = contextualExecutor;
         }
     }
     

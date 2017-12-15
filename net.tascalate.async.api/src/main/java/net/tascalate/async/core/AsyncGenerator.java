@@ -33,7 +33,7 @@ import net.tascalate.async.api.ContextualExecutor;
 import net.tascalate.async.api.Generator;
 import net.tascalate.concurrent.Promise;
 
-abstract public class AsyncGenerator<T> extends AsyncMethodBody {
+abstract public class AsyncGenerator<T> extends AsyncMethod {
     public final LazyGenerator<T> generator;
     public final Promise<T> promise;
     

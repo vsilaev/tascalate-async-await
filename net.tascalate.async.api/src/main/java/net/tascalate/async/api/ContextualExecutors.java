@@ -29,18 +29,31 @@ import java.util.Objects;
 import java.util.Optional;
 import java.util.ServiceLoader;
 import java.util.WeakHashMap;
+import java.util.concurrent.Callable;
 import java.util.stream.StreamSupport;
 
 public final class ContextualExecutors {
+    
+    public static interface Invocation<V, E extends Exception> extends Callable<V> {
+        V call() throws E;
+    }
+    
     private ContextualExecutors() {
         
     }
     
-    public static void scopedRun(ContextualExecutor ctxExecutor, Runnable code) {
+    public static void runWith(ContextualExecutor ctxExecutor, Runnable code) {
+        callWith(ctxExecutor, () -> {
+           code.run();
+           return null;
+        });
+    }
+    
+    public static <V, E extends Exception> V callWith(ContextualExecutor ctxExecutor, Invocation<V, E> code) throws E {
         ContextualExecutor previous = CURRENT_EXECUTOR.get();
         CURRENT_EXECUTOR.set(ctxExecutor);
         try {
-            code.run();
+            return code.call();
         } finally {
             if (null == previous) {
                 CURRENT_EXECUTOR.remove();
@@ -49,7 +62,7 @@ public final class ContextualExecutors {
             }
         }
     }
-    
+
     public static ContextualExecutor current(Object owner) {
         ClassLoader contextClassLoader = null;
         ClassLoader serviceClassLoader = null;

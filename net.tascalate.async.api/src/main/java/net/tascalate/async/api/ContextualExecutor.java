@@ -28,16 +28,12 @@ import java.util.concurrent.Executor;
 
 public interface ContextualExecutor extends Executor {
     
-    default boolean useAsInvoker() {
+    default boolean interruptible() {
         return false;
     }
     
     default Runnable contextualize(Runnable resumeContinuation) {
         return resumeContinuation;
-    }
-    
-    default void scopedRun(Runnable code) {
-        ContextualExecutors.scopedRun(this, code);
     }
     
     public static ContextualExecutor from(Executor executor) {

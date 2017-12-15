@@ -33,23 +33,22 @@ import java.util.concurrent.Callable;
 import java.util.stream.StreamSupport;
 
 public final class ContextualExecutors {
-    
-    public static interface Invocation<V, E extends Exception> extends Callable<V> {
-        V call() throws E;
-    }
-    
     private ContextualExecutors() {
         
     }
     
     public static void runWith(ContextualExecutor ctxExecutor, Runnable code) {
-        callWith(ctxExecutor, () -> {
-           code.run();
-           return null;
-        });
+        try {
+            callWith(ctxExecutor, () -> {
+                code.run();
+                return null;
+            });
+        } catch (Exception ex) {
+            throw new RuntimeException(ex);
+        }
     }
     
-    public static <V, E extends Exception> V callWith(ContextualExecutor ctxExecutor, Invocation<V, E> code) throws E {
+    public static <V> V callWith(ContextualExecutor ctxExecutor, Callable<V> code) throws Exception {
         ContextualExecutor previous = CURRENT_EXECUTOR.get();
         CURRENT_EXECUTOR.set(ctxExecutor);
         try {

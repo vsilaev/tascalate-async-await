@@ -30,14 +30,27 @@ import java.util.concurrent.CompletionStage;
 import org.apache.commons.javaflow.api.continuable;
 
 import net.tascalate.async.api.ContextualExecutor;
+import net.tascalate.concurrent.CompletablePromise;
+import net.tascalate.concurrent.CompletableTask;
 import net.tascalate.concurrent.Promise;
+import net.tascalate.concurrent.PromiseOrigin;
 
-abstract public class AsyncTask<V> extends AsyncMethod {
-    public final Promise<V> promise;
+abstract public class AsyncTask<T> extends AsyncMethod {
+    public final Promise<T> promise;
     
     protected AsyncTask(ContextualExecutor contextualExecutor) {
         super(contextualExecutor);
-        this.promise = new ResultPromise<V>(this);
+        @SuppressWarnings("unchecked")
+        CompletableFuture<T> future = (CompletableFuture<T>)this.future; 
+        this.promise = contextualExecutor.interruptible() ?
+            // For interruptible executor use AbstractCompletableTask
+            CompletableTask
+                .asyncOn(contextualExecutor)
+                .dependent()
+                .thenCombine(future, (a, b) -> b, PromiseOrigin.PARAM_ONLY)
+            :
+            // For non-interruptible use regular wrapper    
+            new CompletablePromise<>(future);
     }
     
     @Override
@@ -47,27 +60,20 @@ abstract public class AsyncTask<V> extends AsyncMethod {
             // ensure that promise is resolved
             $$result$$(null, this);
         } catch (Throwable ex) {
-            ResultPromise<V> promise = (ResultPromise<V>)this.promise;
-            promise.internalCompleWithFailure(ex);
+            future.completeExceptionally(ex);
         }
     }
     
     abstract protected @continuable void doRun() throws Throwable;
 
-    protected static <V> Promise<V> $$result$$(final V value, final AsyncTask<V> self) {
-        ResultPromise<V> promise = (ResultPromise<V>)self.promise;
-        promise.internalCompleWithResult(value);
-        return promise;
+    protected static <T> Promise<T> $$result$$(final T value, final AsyncTask<T> self) {
+        @SuppressWarnings("unchecked")
+        CompletableFuture<T> future = (CompletableFuture<T>)self.future; 
+        future.complete(value);
+        return self.promise;
     }
     
-    protected @continuable static <T, V> T $$await$$(final CompletionStage<T> originalAwait, final AsyncTask<V> self) {
+    protected @continuable static <V, T> V $$await$$(final CompletionStage<V> originalAwait, final AsyncTask<T> self) {
         return AsyncMethodExecutor.await(originalAwait);
-    }
-
-    @Override
-    protected void cancelAwaitIfNecessary(CompletableFuture<?> terminateMethod, CompletionStage<?> originalAwait) {
-        if (promise.isCancelled()) {
-            super.cancelAwaitIfNecessary(terminateMethod, originalAwait);
-        }
     }
 }

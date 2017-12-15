@@ -33,9 +33,12 @@ import java.util.function.Function;
 import org.apache.commons.javaflow.api.continuable;
 
 import net.tascalate.async.api.ContextualExecutor;
+import net.tascalate.concurrent.CompletableTask;
 import net.tascalate.concurrent.Promises;
 
 abstract public class AsyncMethod implements Runnable {
+    protected final CompletableFuture<?> future;
+    
     private final ContextualExecutor contextualExecutor;
     private final AtomicBoolean running = new AtomicBoolean(false);
     private final AtomicLong blockerVersion = new AtomicLong(0);
@@ -44,14 +47,11 @@ abstract public class AsyncMethod implements Runnable {
     private volatile CompletableFuture<?> terminateMethod;
     
     protected AsyncMethod(ContextualExecutor contextualExecutor) {
+        this.future = new ResultPromise<>();
         this.contextualExecutor = contextualExecutor != null ? 
         contextualExecutor : ContextualExecutor.sameThreadContextless();
     }
 
-    boolean isRunning() {
-    	return running.get();
-    }
-    
     public final @continuable void run() {
         if (!running.compareAndSet(false, true)) {
             throw new IllegalStateException(getClass().getName() + " is already running");
@@ -66,16 +66,40 @@ abstract public class AsyncMethod implements Runnable {
     }
     
     abstract protected @continuable void internalRun();
-    
-    ContextualExecutor contextualExecutor() {
-        return contextualExecutor;
+
+    boolean isRunning() {
+        return running.get();
+    }
+
+    void cancelAwaitIfNecessary() {
+        cancelAwaitIfNecessary(terminateMethod, originalAwait);
     }
     
-    long currentBlockerVersion() {
-        return blockerVersion.get();
+    Runnable createResumeHandler(Runnable originalResumer) {
+        long currentBlockerVersion = blockerVersion.get();
+        Runnable contextualResumer = contextualExecutor.contextualize(originalResumer);
+        // Setup future and give it a chance to continue the Continuation
+        if (contextualExecutor.interruptible()) {
+            return () -> {
+                CompletionStage<?> resumeFuture = CompletableTask.runAsync(
+                    contextualResumer, contextualExecutor
+                );
+                registerResumeTarget(resumeFuture, currentBlockerVersion);
+            };
+        } else {
+            Thread suspendThread = Thread.currentThread();
+            return () -> {
+                if (Thread.currentThread() == suspendThread) {
+                    // Is it possible to use originalResumer here, i.e. one without context???
+                    contextualResumer.run();
+                } else {
+                    contextualExecutor.execute(contextualResumer);
+                }
+            };
+        }        
     }
     
-    <T> boolean registerResumeTarget(CompletionStage<T> originalAwait, long expectedBlockerVersion) {
+    private boolean registerResumeTarget(CompletionStage<?> originalAwait, long expectedBlockerVersion) {
         if (blockerVersion.compareAndSet(expectedBlockerVersion, expectedBlockerVersion + 1)) {
             registerAwaitTarget(originalAwait);
             return true;
@@ -84,10 +108,10 @@ abstract public class AsyncMethod implements Runnable {
         }
     }
     
-    <T> CompletionStage<T> registerAwaitTarget(CompletionStage<T> originalAwait) {
+    <V> CompletionStage<V> registerAwaitTarget(CompletionStage<V> originalAwait) {
         blockerVersion.incrementAndGet();
-    	CompletableFuture<T> terminateMethod = new CompletableFuture<>();
-        CompletionStage<T> guardedAwait = terminateMethod.applyToEither(originalAwait, Function.identity());
+    	CompletableFuture<V> terminateMethod = new CompletableFuture<>();
+        CompletionStage<V> guardedAwait = terminateMethod.applyToEither(originalAwait, Function.identity());
         // Save references for outer promise cancellation
         this.terminateMethod = terminateMethod;
         this.originalAwait   = originalAwait;
@@ -95,20 +119,34 @@ abstract public class AsyncMethod implements Runnable {
         cancelAwaitIfNecessary(terminateMethod, originalAwait);
         return guardedAwait;
     }
-    
-    protected void cancelAwaitIfNecessary() {
-        cancelAwaitIfNecessary(terminateMethod, originalAwait);
+
+    private void cancelAwaitIfNecessary(CompletableFuture<?> terminateMethod, CompletionStage<?> originalAwait) {
+        if (future.isCancelled()) {
+        	this.terminateMethod = null;
+            // First terminate method to avoid exceptions in method
+            terminateMethod.completeExceptionally(CloseSignal.INSTANCE);
+            // No longer need reference
+            this.originalAwait = null;
+            // Then cancel promise we are waiting on
+            if (null != originalAwait) {
+                Promises.from(originalAwait).cancel(true);
+            }
+        }
     }
     
-    protected void cancelAwaitIfNecessary(CompletableFuture<?> terminateMethod, CompletionStage<?> originalAwait) {
-    	this.terminateMethod = null;
-        // First terminate method to avoid exceptions in method
-        terminateMethod.completeExceptionally(CloseSignal.INSTANCE);
-        // No longer need reference
-        this.originalAwait = null;
-        // Then cancel promise we are waiting on
-        if (null != originalAwait) {
-            Promises.from(originalAwait).cancel(true);
+    class ResultPromise<T> extends CompletableFuture<T> {
+        @Override
+        public boolean cancel(boolean mayInterruptIfRunning) {
+            boolean doCancel = mayInterruptIfRunning || !isRunning();
+            if (!doCancel) {
+                return false;
+            }
+            if (super.cancel(mayInterruptIfRunning)) {
+                cancelAwaitIfNecessary();
+                return true;
+            } else {
+                return false;
+            }
         }
     }
 }

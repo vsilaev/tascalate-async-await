@@ -32,7 +32,7 @@ import org.apache.commons.javaflow.api.continuable;
 import net.tascalate.async.api.Generator;
 
 class LazyGenerator<T> implements Generator<T> {
-    private final ResultPromise<?> result;
+    private final CompletableFuture<?> result;
 	
     private CompletableFuture<?> producerLock = new CompletableFuture<>();
     private CompletableFuture<?> consumerLock = new CompletableFuture<>();
@@ -45,7 +45,7 @@ class LazyGenerator<T> implements Generator<T> {
     private Generator<T> currentState = Generator.empty();
     private Object producerParam = Generator.NO_PARAM;
     
-    LazyGenerator(ResultPromise<?> result) {
+    LazyGenerator(CompletableFuture<?> result) {
     	this.result = result;
     }
 
@@ -132,9 +132,9 @@ class LazyGenerator<T> implements Generator<T> {
         releaseConsumerLock();
         
         if (null == ex) {
-            result.internalCompleWithResult(null);
+            result.complete(null);
         } else {
-            result.internalCompleWithFailure(ex);
+            result.completeExceptionally(ex);
         }
     }
 

@@ -47,7 +47,6 @@ class LazyGenerator<T> implements Generator<T> {
     
     LazyGenerator(ResultPromise<?> result) {
     	this.result = result;
-        this.producerLock = new CompletableFuture<>();
     }
 
     @Override
@@ -141,8 +140,10 @@ class LazyGenerator<T> implements Generator<T> {
 
     private @continuable Object acquireProducerLock() {
     	CompletableFuture<?> currentLock = producerLock;
-        if (null != currentLock && !currentLock.isDone()) {
-            AsyncMethodExecutor.await(currentLock);
+        if (null != currentLock) {
+            if (!currentLock.isDone()) {
+                AsyncMethodExecutor.await(currentLock);
+            }
             // Order matters - set to null only after wait
             producerLock = null;
         }
@@ -160,9 +161,11 @@ class LazyGenerator<T> implements Generator<T> {
     
     private @continuable void acquireConsumerLock() {
         CompletableFuture<?> currentLock = consumerLock;
-    	if (null != currentLock && !currentLock.isDone()) {
+    	if (null != currentLock) {
+    	    if (!currentLock.isDone()) {
+                AsyncMethodExecutor.await(currentLock);
+    	    }
             // Order matters - set to null only after wait      
-            AsyncMethodExecutor.await(currentLock);
             consumerLock = null;
     	}
     }

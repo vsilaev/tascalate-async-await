@@ -25,6 +25,7 @@
 package net.tascalate.async.api;
 
 import java.util.concurrent.Executor;
+import java.util.function.Function;
 
 public interface ContextualExecutor extends Executor {
     
@@ -39,6 +40,34 @@ public interface ContextualExecutor extends Executor {
     public static ContextualExecutor from(Executor executor) {
         return executor::execute;
     }
+    
+    public static ContextualExecutor from(Executor executor, boolean interruptible) {
+    	return from(executor, interruptible, Function.identity());
+    }
+    
+    public static ContextualExecutor from(Executor executor, Function<? super Runnable, ? extends Runnable> contextualizer) {
+    	return from(executor, true, contextualizer);
+    }
+    
+    public static ContextualExecutor from(Executor executor, boolean interruptible, Function<? super Runnable, ? extends Runnable> contextualizer) {
+        return new ContextualExecutor() {
+        	
+        	@Override
+        	public boolean interruptible() {
+                return interruptible;
+            }
+			
+        	@Override
+        	public Runnable contextualize(Runnable resumeContinuation) {
+        		return contextualizer == null ? resumeContinuation : contextualizer.apply(resumeContinuation);
+        	}
+        	
+			@Override
+			public void execute(Runnable command) {
+				executor.execute(command);
+			}
+		};
+    }    
     
     public static ContextualExecutor sameThreadContextless() {
         return ContextualExecutors.SAME_THREAD_EXECUTOR;

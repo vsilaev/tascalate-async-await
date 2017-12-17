@@ -78,7 +78,6 @@ abstract public class AsyncMethod implements Runnable {
     Runnable createResumeHandler(Runnable originalResumer) {
         long currentBlockerVersion = blockerVersion.get();
         Runnable contextualResumer = contextualExecutor.contextualize(originalResumer);
-        // Setup future and give it a chance to continue the Continuation
         if (contextualExecutor.interruptible()) {
             return () -> {
                 CompletionStage<?> resumeFuture = CompletableTask.runAsync(
@@ -99,9 +98,14 @@ abstract public class AsyncMethod implements Runnable {
         }        
     }
     
-    private boolean registerResumeTarget(CompletionStage<?> originalAwait, long expectedBlockerVersion) {
+    private boolean registerResumeTarget(CompletionStage<?> resumePromise, long expectedBlockerVersion) {
         if (blockerVersion.compareAndSet(expectedBlockerVersion, expectedBlockerVersion + 1)) {
-            registerAwaitTarget(originalAwait);
+            // Save references for outer promise cancellation
+            this.terminateMethod = null;
+            this.originalAwait   = resumePromise;
+            // Re-check for race with main future cancellation
+            cancelAwaitIfNecessary(null, resumePromise);
+
             return true;
         } else {
             return false;

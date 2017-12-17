@@ -24,12 +24,15 @@
  */
 package net.tascalate.async.api;
 
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Map;
 import java.util.Objects;
-import java.util.Optional;
 import java.util.ServiceLoader;
 import java.util.WeakHashMap;
 import java.util.concurrent.Callable;
+import java.util.function.Supplier;
+import java.util.stream.Stream;
 import java.util.stream.StreamSupport;
 
 public final class ContextualExecutors {
@@ -38,15 +41,22 @@ public final class ContextualExecutors {
     }
     
     public static void runWith(ContextualExecutor ctxExecutor, Runnable code) {
-        try {
-            callWith(ctxExecutor, () -> {
-                code.run();
-                return null;
-            });
+        supplyWith(ctxExecutor, () -> {
+            code.run();
+            return null;
+        });
+    }
+    
+    public static <V> V supplyWith(ContextualExecutor ctxExecutor, Supplier<V> code) {
+    	try {
+            return callWith(ctxExecutor, code::get);
+    	} catch (RuntimeException ex) {
+            throw ex;
         } catch (Exception ex) {
-            throw new RuntimeException(ex);
+            throw new RuntimeException("Unexpceted checked exception thrown", ex);
         }
     }
+    
     
     public static <V> V callWith(ContextualExecutor ctxExecutor, Callable<V> code) throws Exception {
         ContextualExecutor previous = CURRENT_EXECUTOR.get();
@@ -62,51 +72,56 @@ public final class ContextualExecutors {
         }
     }
 
-    public static ContextualExecutor current(Object owner) {
-        ClassLoader contextClassLoader = null;
-        ClassLoader serviceClassLoader = null;
-        ServiceLoader<ContextualExecutorResolver> serviceLoader = null;
+    public static ContextualExecutor current(Object owner, Class<?> ownerClass) {
+    	// Small optimization
+    	if (null == owner) {
+    	    ContextualExecutor threadLocal = CURRENT_EXECUTOR.get();
+    	    if (null != threadLocal) {
+    	        return threadLocal;
+    	    }
+    	}
+    	
+        ClassLoader serviceClassLoader = getServiceClassLoader(owner != null ? owner.getClass() : ownerClass);
+        ServiceLoader<ContextualExecutorResolver> serviceLoader = getServiceLoader(serviceClassLoader);
+        
+        List<Supplier<? extends Stream<ContextualExecutor>>> resolvers =
+            new ArrayList<>(3);
         
         // First try to resolve by instance
         if (null != owner) {
-            ClassLoader ownerClassLoader = classLoaderOfClass(owner.getClass());
-            contextClassLoader = classLoaderOfContext();
-            serviceClassLoader = isParent(ownerClassLoader, contextClassLoader) ? 
-                contextClassLoader : ownerClassLoader;
-            serviceLoader = getServiceLoader(serviceClassLoader);
-            Optional<ContextualExecutor> resolved = StreamSupport
+            resolvers.add(() -> 
+                StreamSupport
+                    .stream(serviceLoader.spliterator(), false)
+                    .map(r -> r.resolveByOwner(owner))
+            ); 
+        }
+
+        // Then by thread local        
+        resolvers.add(CURRENT_EXECUTOR_SUPPLIER);
+        
+        resolvers.add(() -> 
+            StreamSupport
                 .stream(serviceLoader.spliterator(), false)
-                .map(r -> r.resolveByOwner(owner))
-                .filter(Objects::nonNull)
-                .findAny();
-            if (resolved.isPresent()) {
-                return resolved.get();
-            }
-        }
+                .map(ContextualExecutorResolver::resolveByContext)
+        );             
+
         
-        // Then by thread local
-        ContextualExecutor current = CURRENT_EXECUTOR.get();
-        if (null != current) {
-            return current;
-        }
-        
-        // Finally by context
-        if (serviceClassLoader != contextClassLoader || serviceLoader == null) {
-            // Need to either get or renew serviceLoader
-            if (null == contextClassLoader) {
-                serviceClassLoader = classLoaderOfContext();
-            } else {
-                serviceClassLoader = contextClassLoader;
-            }
-            serviceLoader = getServiceLoader(serviceClassLoader);
-        }
-        
-        return StreamSupport
-            .stream(serviceLoader.spliterator(), false)
-            .map(r -> r.resolveByContext())
+        return resolvers
+            .stream()
+            .flatMap(s -> s.get())
             .filter(Objects::nonNull)
             .findAny()
-            .orElse(SAME_THREAD_EXECUTOR);
+            .orElse(ContextualExecutor.sameThreadContextless());
+    }
+    
+    private static ClassLoader getServiceClassLoader(Class<?> ownerClassLoaderSource) {
+        if (null == ownerClassLoaderSource) {
+            ownerClassLoaderSource = ContextualExecutors.class;    	
+        }
+        ClassLoader ownerClassLoader   = classLoaderOfClass(ownerClassLoaderSource);
+        ClassLoader contextClassLoader = classLoaderOfContext();
+        return isParent(ownerClassLoader, contextClassLoader) ? 
+            contextClassLoader : ownerClassLoader;
     }
     
     private static ServiceLoader<ContextualExecutorResolver> getServiceLoader(ClassLoader classLoader) {
@@ -139,10 +154,19 @@ public final class ContextualExecutors {
         }
         return result;
     }
+    
     private
     static final Map<ClassLoader, ServiceLoader<ContextualExecutorResolver>> SERVICE_LOADER_BY_CLASS_LOADER = new WeakHashMap<>();
+    
     private 
     static final ThreadLocal<ContextualExecutor> CURRENT_EXECUTOR = new ThreadLocal<>();
+    
+    private 
+    static final Supplier<? extends Stream<ContextualExecutor>> CURRENT_EXECUTOR_SUPPLIER = () -> {
+    	ContextualExecutor current = CURRENT_EXECUTOR.get();
+    	return null == current ? Stream.empty() : Stream.of(current);
+    };
+    
     static final ContextualExecutor SAME_THREAD_EXECUTOR = ContextualExecutor.from(Runnable::run);
     
 }

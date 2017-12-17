@@ -69,6 +69,7 @@ abstract public class AbstractMethodTransformer {
     protected final static Type CONTINUABLE_ANNOTATION_TYPE = Type.getObjectType("org/apache/commons/javaflow/api/continuable");
     protected final static Type COMPLETION_STAGE_TYPE       = Type.getObjectType("java/util/concurrent/CompletionStage");
     protected final static Type OBJECT_TYPE                 = Type.getType(Object.class);
+    protected final static Type CLASS_TYPE                  = Type.getType(Class.class);    
 
     private final static Type ASYNC_METHOD_EXECUTOR_TYPE = Type.getObjectType("net/tascalate/async/core/AsyncMethodExecutor");
     private final static Type CONTEXTUAL_EXECUTOR_TYPE   = Type.getObjectType("net/tascalate/async/api/ContextualExecutor");
@@ -266,9 +267,10 @@ abstract public class AbstractMethodTransformer {
         } else {
             replacementAsyncMethodNode.visitVarInsn(ALOAD, 0);
         }
+        replacementAsyncMethodNode.visitLdcInsn(Type.getObjectType(classNode.name));
         replacementAsyncMethodNode.visitMethodInsn(
             INVOKESTATIC, CONTEXTUAL_EXECUTORS_TYPE.getInternalName(), "current", 
-            Type.getMethodDescriptor(CONTEXTUAL_EXECUTOR_TYPE, OBJECT_TYPE), false
+            Type.getMethodDescriptor(CONTEXTUAL_EXECUTOR_TYPE, OBJECT_TYPE, CLASS_TYPE), false
         );
         
         String constructorDesc = Type.getMethodDescriptor(

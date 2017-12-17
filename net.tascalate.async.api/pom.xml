@@ -12,8 +12,8 @@
 	<artifactId>net.tascalate.async.api</artifactId>
 	<packaging>jar</packaging>
 
-	<name>Tascalate Async/Await/Generators / API + Internal Runtime Core</name>
-	<url>http://maven.apache.org</url>
+	<name>Tascalate Async/Await - API + Internal Runtime Core</name>
+	<url>https://github.com/vsilaev/tascalate-async-await</url> 
 
 	<properties>
 		<project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
@@ -44,14 +44,6 @@
 	</dependencies>
 	<build>
 		<plugins>
-			<plugin>
-				<groupId>org.apache.maven.plugins</groupId>
-				<artifactId>maven-compiler-plugin</artifactId>
-				<configuration>
-					<source>1.8</source>
-					<target>1.8</target>
-				</configuration>
-			</plugin>
 			<plugin>
 				<groupId>net.tascalate.javaflow</groupId>
 				<artifactId>net.tascalate.javaflow.tools.maven</artifactId>

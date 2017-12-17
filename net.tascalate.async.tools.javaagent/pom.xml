@@ -12,8 +12,8 @@
 	<artifactId>net.tascalate.async.tools.javaagent</artifactId>
 	<packaging>jar</packaging>
 
-	<name>Tascalate Async/Await/Generators / Tools / JavaAgent</name>
-	<url>http://maven.apache.org</url>
+	<name>Tascalate Async/Await - Bytecode Enhancer Java Agent</name>
+	<url>https://github.com/vsilaev/tascalate-async-await</url> 
 
 	<properties>
 		<project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
@@ -48,7 +48,7 @@
 				<groupId>org.apache.maven.plugins</groupId>
 				<artifactId>maven-assembly-plugin</artifactId>
 				<configuration>
-					<finalName>AsyncAwaitInstrumentationAgent</finalName>
+					<finalName>tascalate.instrument-async</finalName>
 					<archive>
 						<index>true</index>
 						<compress>true</compress>

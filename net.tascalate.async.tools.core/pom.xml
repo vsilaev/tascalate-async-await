@@ -12,8 +12,8 @@
 	<artifactId>net.tascalate.async.tools.core</artifactId>
 	<packaging>jar</packaging>
 
-	<name>Tascalate Async/Await/Generators / Tools / Core</name>
-	<url>http://maven.apache.org</url>
+	<name>Tascalate Async/Await - Bytecode Enhancer Tool Core</name>
+	<url>https://github.com/vsilaev/tascalate-async-await</url> 
 
 	<properties>
 		<project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>

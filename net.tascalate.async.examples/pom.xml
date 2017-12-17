@@ -12,8 +12,8 @@
 	<artifactId>net.tascalate.async.examples</artifactId>
 	<packaging>jar</packaging>
 
-	<name>Tascalate Async/Await/Generators / Examples</name>
-	<url>http://maven.apache.org</url>
+	<name>Tascalate Async/Await - Simple Examples</name>
+	<url>https://github.com/vsilaev/tascalate-async-await</url> 
 
 	<properties>
 		<project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>

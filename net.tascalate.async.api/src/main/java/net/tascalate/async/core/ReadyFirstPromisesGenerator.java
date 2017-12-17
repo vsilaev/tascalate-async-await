@@ -38,13 +38,11 @@ import net.tascalate.async.api.Generator;
 
 public class ReadyFirstPromisesGenerator<T> implements Generator<T> {
     
-    final private Object switchConsumerLock = new byte[]{};
     final private BlockingQueue<CompletionStage<T>> resolvedPromises = new LinkedBlockingQueue<>();
     final private AtomicInteger remaining = new AtomicInteger(0);
     
-    private CompletableFuture<Void> consumerLock = new CompletableFuture<>();
+    private volatile CompletableFuture<Void> consumerLock = new CompletableFuture<>();
     private Generator<T> current = Generator.empty();
-    
     
     private ReadyFirstPromisesGenerator() {  }
     
@@ -56,9 +54,7 @@ public class ReadyFirstPromisesGenerator<T> implements Generator<T> {
         }
 
         remaining.decrementAndGet();
-        synchronized (switchConsumerLock) {
-            consumerLock.complete(null);
-        }
+        consumerLock.complete(null);
     }
 
     @Override
@@ -85,10 +81,8 @@ public class ReadyFirstPromisesGenerator<T> implements Generator<T> {
             } else {
                 // Otherwise await for any result...            
                 if (unprocessed > 0) {
-                    synchronized (switchConsumerLock) {
-                        AsyncMethodExecutor.await(consumerLock);
-                        consumerLock = new CompletableFuture<>();
-                    }
+                    AsyncMethodExecutor.await(consumerLock);
+                    consumerLock = new CompletableFuture<>();
                     // ... and try again
                     return next(producerParam);
                 } else {

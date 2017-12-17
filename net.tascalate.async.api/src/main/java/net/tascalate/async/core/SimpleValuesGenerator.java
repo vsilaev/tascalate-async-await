@@ -30,10 +30,9 @@ import java.util.concurrent.CompletionStage;
 import org.apache.commons.javaflow.api.continuable;
 
 import net.tascalate.async.api.Generator;
-import net.tascalate.async.api.GeneratorDecorator;
 import net.tascalate.async.api.ValuesGenerator;
 
-public class SimpleValuesGenerator<T> implements GeneratorDecorator<T, SimpleValuesGenerator<T>>, ValuesGenerator<T> {
+public class SimpleValuesGenerator<T> implements ValuesGenerator<T> {
     private final Generator<T> delegate;
     private boolean advance;
     private CompletionStage<T> current;

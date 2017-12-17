@@ -35,7 +35,7 @@ import net.tascalate.async.core.SimplePromisesGenerator;
 import net.tascalate.async.core.ReadyFirstPromisesGenerator;
 import net.tascalate.async.core.SimpleValuesGenerator;
 
-public interface Generator<T> extends GeneratorDecorator<T, Generator<T>>, AutoCloseable {
+public interface Generator<T> extends SequencerDecorator<T, Generator<T>>, AutoCloseable {
     
     @continuable CompletionStage<T> next(Object producerParam);
     

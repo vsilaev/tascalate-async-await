@@ -73,8 +73,7 @@ abstract public class AbstractMethodTransformer {
 
     private final static Type ASYNC_METHOD_EXECUTOR_TYPE = Type.getObjectType("net/tascalate/async/core/AsyncMethodExecutor");
     private final static Type CONTEXTUAL_EXECUTOR_TYPE   = Type.getObjectType("net/tascalate/async/api/ContextualExecutor");
-    private final static Type CONTEXTUAL_EXECUTORS_TYPE  = Type.getObjectType("net/tascalate/async/api/ContextualExecutors");
-    private final static Type ASYNC_METHOD_TYPE     = Type.getObjectType("net/tascalate/async/core/AsyncMethod");
+    private final static Type ASYNC_METHOD_TYPE          = Type.getObjectType("net/tascalate/async/core/AsyncMethod");
 
     protected final ClassNode classNode;
     protected final MethodNode originalAsyncMethod;
@@ -269,7 +268,7 @@ abstract public class AbstractMethodTransformer {
         }
         replacementAsyncMethodNode.visitLdcInsn(Type.getObjectType(classNode.name));
         replacementAsyncMethodNode.visitMethodInsn(
-            INVOKESTATIC, CONTEXTUAL_EXECUTORS_TYPE.getInternalName(), "current", 
+            INVOKESTATIC, ASYNC_METHOD_EXECUTOR_TYPE.getInternalName(), "currentContextualExecutor", 
             Type.getMethodDescriptor(CONTEXTUAL_EXECUTOR_TYPE, OBJECT_TYPE, CLASS_TYPE), false
         );
         

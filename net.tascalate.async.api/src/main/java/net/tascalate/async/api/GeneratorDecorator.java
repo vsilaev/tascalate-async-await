@@ -24,10 +24,17 @@
  */
 package net.tascalate.async.api;
 
-public interface ContextualExecutorResolver {
-    default ContextualExecutor resolveByOwner(Object owner) {
-        return null;
-    }
+import java.util.function.Function;
+
+public interface GeneratorDecorator<T, S extends GeneratorDecorator<T, S>> extends AutoCloseable {
     
-    abstract ContextualExecutor resolveByContext();
+    @SuppressWarnings("unchecked")
+    default <D extends GeneratorDecorator<T, D>> D as(Function<S, D> decoratorFactory) {
+        return decoratorFactory.apply((S)this);
+    }
+
+    Generator<T> raw();
+    
+    @Override
+    void close();
 }

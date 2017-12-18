@@ -116,18 +116,18 @@ public class GeneratorExample {
         Object o;
         o = yield(waitString("ABC"));
         System.out.println("Processed: " + o + ", " + new Date());
+        
+        o = yield(Generator.readyFirst(waitString("PV-1", 2000L), waitString("PV-2", 1500L), waitString("PV-3", 1000L)));
+        System.out.println("AFTER LIST PENDING: " + o);
 
-//        String s = await(waitString("InternalAsync"));
-//        System.out.println("INTERNALLY: " + s);
+        String s = await(waitString("InternalAsync"));
+        System.out.println("INTERNALLY: " + s);
 
         o = yield(Generator.empty());
         System.out.println("AFTER EMPTY: " + o);
         
         o = yield(Generator.of("RV-1", "RV-2", "RV-3"));
         System.out.println("AFTER LIST READY: " + o);
-        
-        o = yield(Generator.ofUnordered(waitString("PV-1", 2000L), waitString("PV-2", 1500L), waitString("PV-3", 1000L)));
-        System.out.println("AFTER LIST PENDING: " + o);
 
         
         o = yield(waitString("DEF"));

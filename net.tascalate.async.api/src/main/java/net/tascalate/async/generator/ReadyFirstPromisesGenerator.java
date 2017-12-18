@@ -22,7 +22,7 @@
  * OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
-package net.tascalate.async.core;
+package net.tascalate.async.generator;
 
 import java.util.ArrayList;
 import java.util.Collection;
@@ -35,6 +35,7 @@ import java.util.concurrent.atomic.AtomicInteger;
 import java.util.stream.Stream;
 
 import net.tascalate.async.api.Generator;
+import net.tascalate.async.core.AsyncMethodExecutor;
 
 public class ReadyFirstPromisesGenerator<T> implements Generator<T> {
     
@@ -76,7 +77,7 @@ public class ReadyFirstPromisesGenerator<T> implements Generator<T> {
             if (!readyValues.isEmpty()) {
                 // If we are consuming slower than producing 
                 // then use available results right away
-                current = Generator.ofOrdered(readyValues);
+                current = Generator.of(readyValues);
                 return next(producerParam);
             } else {
                 // Otherwise await for any result...            

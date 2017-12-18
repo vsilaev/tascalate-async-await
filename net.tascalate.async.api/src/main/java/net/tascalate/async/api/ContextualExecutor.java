@@ -70,6 +70,6 @@ public interface ContextualExecutor extends Executor {
     }    
     
     public static ContextualExecutor sameThreadContextless() {
-        return ContextualExecutors.SAME_THREAD_EXECUTOR;
+        return PackagePrivate.SAME_THREAD_EXECUTOR;
     }
 }

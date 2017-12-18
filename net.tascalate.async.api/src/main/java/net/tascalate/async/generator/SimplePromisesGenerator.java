@@ -22,7 +22,7 @@
  * OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
-package net.tascalate.async.core;
+package net.tascalate.async.generator;
 
 import java.util.Iterator;
 import java.util.concurrent.CompletionStage;
@@ -30,25 +30,7 @@ import java.util.concurrent.CompletionStage;
 import net.tascalate.async.api.Generator;
 
 public class SimplePromisesGenerator<T> implements Generator<T> {
-    public final static Generator<?> EMPTY = new Generator<Object>() {
 
-        @Override
-        public CompletionStage<Object> next(Object producerParam) {
-            return null;
-        }
-
-        @Override
-        public CompletionStage<Object> next() {
-            return null;
-        }
-
-        @Override
-        public void close() {
-
-        }
-        
-    };
-    
     private final Iterator<CompletionStage<T>> delegate;
     private final AutoCloseable closeable;
     

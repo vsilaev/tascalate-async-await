@@ -31,11 +31,11 @@ import java.util.stream.StreamSupport;
 
 import org.apache.commons.javaflow.api.continuable;
 
-import net.tascalate.async.core.SimplePromisesGenerator;
-import net.tascalate.async.core.ReadyFirstPromisesGenerator;
-import net.tascalate.async.core.SimpleValuesGenerator;
+import net.tascalate.async.generator.ReadyFirstPromisesGenerator;
+import net.tascalate.async.generator.ReadyValuesGenerator;
+import net.tascalate.async.generator.SimplePromisesGenerator;
 
-public interface Generator<T> extends SequencerDecorator<T, Generator<T>>, AutoCloseable {
+public interface Generator<T> extends GeneratorDecorator<T, Generator<T>>, AutoCloseable {
     
     @continuable CompletionStage<T> next(Object producerParam);
     
@@ -53,59 +53,58 @@ public interface Generator<T> extends SequencerDecorator<T, Generator<T>>, AutoC
     
     default
     ValuesGenerator<T> values() {
-        return as(SimpleValuesGenerator<T>::new);
+        return as(ReadyValuesGenerator<T>::new);
     }
     
     @SuppressWarnings("unchecked")
     public static <T> Generator<T> empty() {
-        return (Generator<T>)SimplePromisesGenerator.EMPTY;
+        return (Generator<T>)PackagePrivate.EMPTY_GENERATOR;
     }
 
     public static <T> Generator<T> of(T readyValue) {
-    	return of(Stream.of(readyValue));
+    	return ordered(Stream.of(readyValue));
     }
     
     @SafeVarargs
     public static <T> Generator<T> of(T... readyValues) {
-        return of(Stream.of(readyValues));
-    }
-    
-    
-    public static <T> Generator<T> of(Iterable<T> readyValues) {
-        return ofOrdered(StreamSupport.stream(readyValues.spliterator(), false).map(CompletableFuture::completedFuture));
-    }
-    
-    public static <T> Generator<T> of(Stream<T> readyValues) {
-        return ofOrdered(readyValues.map(CompletableFuture::completedFuture));
+        return ordered(Stream.of(readyValues));
     }
     
     public static <T> Generator<T> of(CompletionStage<T> pendingValue) {
-    	return ofOrdered(Stream.of(pendingValue));
+    	return of(Stream.of(pendingValue));
     }
     
     @SafeVarargs
-    public static <T> Generator<T> ofOrdered(CompletionStage<T>... pendingValues) {
-        return ofOrdered(Stream.of(pendingValues));
+    public static <T> Generator<T> of(CompletionStage<T>... pendingValues) {
+        return of(Stream.of(pendingValues));
     }
 
-    public static <T> Generator<T> ofOrdered(Iterable<CompletionStage<T>> pendingValues) {
+    public static <T> Generator<T> of(Iterable<CompletionStage<T>> pendingValues) {
         return new SimplePromisesGenerator<T>(pendingValues.iterator(), pendingValues);
     }
     
-    public static <T> Generator<T> ofOrdered(Stream<CompletionStage<T>> pendingValues) {
+    public static <T> Generator<T> of(Stream<CompletionStage<T>> pendingValues) {
         return new SimplePromisesGenerator<T>(pendingValues.iterator(), pendingValues);
+    }
+    
+    public static <T> Generator<T> ordered(Iterable<T> readyValues) {
+        return of(StreamSupport.stream(readyValues.spliterator(), false).map(CompletableFuture::completedFuture));
+    }
+    
+    public static <T> Generator<T> ordered(Stream<T> readyValues) {
+        return of(readyValues.map(CompletableFuture::completedFuture));
     }
 
     @SafeVarargs
-    public static <T> Generator<T> ofUnordered(CompletionStage<T>... pendingValues) {
-        return ofUnordered(Stream.of(pendingValues));
+    public static <T> Generator<T> readyFirst(CompletionStage<T>... pendingValues) {
+        return readyFirst(Stream.of(pendingValues));
     }
 
-    public static <T> Generator<T> ofUnordered(Iterable<CompletionStage<T>> pendingValues) {
+    public static <T> Generator<T> readyFirst(Iterable<CompletionStage<T>> pendingValues) {
         return ReadyFirstPromisesGenerator.create(pendingValues);
     }
     
-    public static <T> Generator<T> ofUnordered(Stream<CompletionStage<T>> pendingValues) {
+    public static <T> Generator<T> readyFirst(Stream<CompletionStage<T>> pendingValues) {
         return ReadyFirstPromisesGenerator.create(pendingValues);
     }
     

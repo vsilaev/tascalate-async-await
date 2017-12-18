@@ -36,6 +36,8 @@
 
 	<modules>
 		<module>net.tascalate.async.api</module>
+		<module>net.tascalate.async.resolver.inherited</module>
+		<module>net.tascalate.async.resolver.scoped</module>
 		<module>net.tascalate.async.tools.core</module>
 		<module>net.tascalate.async.tools.javaagent</module>
 		<module>net.tascalate.async.examples</module>
@@ -63,7 +65,11 @@
 				<artifactId>net.tascalate.javaflow.tools.javaagent</artifactId>
 				<version>2.1</version>
 			</dependency>
-
+			<dependency>
+				<groupId>org.kohsuke.metainf-services</groupId>
+				<artifactId>metainf-services</artifactId>
+				<version>1.1</version>
+			</dependency>
 			<dependency>
 				<groupId>commons-logging</groupId>
 				<artifactId>commons-logging</artifactId>

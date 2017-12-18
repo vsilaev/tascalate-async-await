@@ -33,10 +33,10 @@ import java.util.concurrent.Future;
 
 import org.apache.commons.javaflow.api.Continuation;
 import org.apache.commons.javaflow.api.continuable;
-import org.apache.commons.javaflow.core.StackRecorder;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 
+import net.tascalate.async.api.ContextualExecutor;
 import net.tascalate.async.api.NoActiveAsyncCallException;
 
 /**
@@ -130,7 +130,7 @@ public class AsyncMethodExecutor implements Serializable {
     protected @continuable <R, E extends Throwable> R awaitTask(CompletionStage<R> future) throws E {
         // Blocking is available - resume() method is being called
     	
-        AsyncMethod currentMethod = currentExecution();
+        AsyncMethod currentMethod = AsyncMethodAccessor.currentAsyncMethod();
 
         // Register (and wrap) promise we are blocking on
         // to support cancellation from outside
@@ -164,6 +164,10 @@ public class AsyncMethodExecutor implements Serializable {
         }
     }
     
+    public static ContextualExecutor currentContextualExecutor(Object owner, Class<?> ownerDeclaringClass) {
+        return ContextualExecutorResolvers.currentContextualExecutor(owner, ownerDeclaringClass);
+    }
+    
     private static <R, E extends Throwable> Either<R, E> getResolvedOutcome(CompletionStage<R> stage) {
         if (stage instanceof Future) {
             @SuppressWarnings("unchecked")
@@ -186,23 +190,7 @@ public class AsyncMethodExecutor implements Serializable {
         }
         return null;
     }
-    
-    private static AsyncMethod currentExecution() {
-        StackRecorder stackRecorder = StackRecorder.get();
-        if (null == stackRecorder) {
-            throw new NoActiveAsyncCallException(
-                "Continuation was continued incorrectly - are your classes instrumented for javaflow?"
-            );
-        }
-        Runnable result = stackRecorder.getRunnable();
-        if (result instanceof AsyncMethod) {
-            return (AsyncMethod)result;
-        } else {
-            throw new NoActiveAsyncCallException(
-                "Current runnable is not " + AsyncMethod.class.getName() + " - are your classes instrumented for javaflow?"
-            );
-        }
-    }
+
     
     private static Throwable unrollExecutionException(Throwable ex) {
         Throwable nested = ex;

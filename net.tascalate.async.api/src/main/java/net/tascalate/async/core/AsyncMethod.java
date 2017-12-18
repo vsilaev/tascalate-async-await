@@ -75,6 +75,10 @@ abstract public class AsyncMethod implements Runnable {
         cancelAwaitIfNecessary(terminateMethod, originalAwait);
     }
     
+    ContextualExecutor contextualExecutor() {
+        return contextualExecutor;
+    }
+    
     Runnable createResumeHandler(Runnable originalResumer) {
         long currentBlockerVersion = blockerVersion.get();
         Runnable contextualResumer = contextualExecutor.contextualize(originalResumer);

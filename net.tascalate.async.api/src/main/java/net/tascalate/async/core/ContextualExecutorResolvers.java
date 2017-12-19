@@ -1,9 +1,7 @@
 package net.tascalate.async.core;
 
-import java.util.Map;
 import java.util.Objects;
 import java.util.ServiceLoader;
-import java.util.WeakHashMap;
 import java.util.stream.StreamSupport;
 
 import net.tascalate.async.api.ContextualExecutor;
@@ -36,12 +34,10 @@ class ContextualExecutorResolvers {
     }
     
     private static ServiceLoader<ContextualExecutorResolver> getServiceLoader(ClassLoader classLoader) {
-        synchronized (SERVICE_LOADER_BY_CLASS_LOADER) {
-            return SERVICE_LOADER_BY_CLASS_LOADER.computeIfAbsent(
-                classLoader, 
-                cl -> ServiceLoader.load(ContextualExecutorResolver.class, cl)
-            );
-        }
+        return SERVICE_LOADER_BY_CLASS_LOADER.get(
+            classLoader, 
+            cl -> ServiceLoader.load(ContextualExecutorResolver.class, cl)
+        );
     }
     
     private static boolean isParent(ClassLoader parent, ClassLoader child) {
@@ -67,6 +63,6 @@ class ContextualExecutorResolvers {
     }
     
     private
-    static final Map<ClassLoader, ServiceLoader<ContextualExecutorResolver>> SERVICE_LOADER_BY_CLASS_LOADER = new WeakHashMap<>();
+    static final Cache<ClassLoader, ServiceLoader<ContextualExecutorResolver>> SERVICE_LOADER_BY_CLASS_LOADER = new Cache<>();
 
 }

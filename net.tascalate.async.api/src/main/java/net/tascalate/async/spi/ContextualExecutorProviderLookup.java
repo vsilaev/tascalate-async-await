@@ -7,20 +7,21 @@ import java.lang.reflect.Member;
 import java.lang.reflect.Method;
 import java.lang.reflect.Modifier;
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
-import java.util.Map;
 import java.util.Objects;
-import java.util.WeakHashMap;
+import java.util.Set;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
 import net.tascalate.async.api.ContextualExecutor;
 import net.tascalate.async.api.ContextualExecutorProvider;
+import net.tascalate.async.core.Cache;
 
 public class ContextualExecutorProviderLookup {
     
-    abstract static class Accessor {
-        abstract protected ContextualExecutor doRead(Object target) throws ReflectiveOperationException;
+    abstract public static class Accessor {
+        abstract protected Object doRead(Object target) throws ReflectiveOperationException;
         abstract protected boolean isVisibleTo(Class<?> subClass);
         
         final protected boolean isVisibleTo(Class<?> subClass, Member member) {
@@ -43,14 +44,14 @@ public class ContextualExecutorProviderLookup {
         
         final public ContextualExecutor read(Object target) {
             try {
-                return doRead(target);
+                return (ContextualExecutor)doRead(target);
             } catch (ReflectiveOperationException ex) {
                 throw new RuntimeException(ex);
             }
         }
     }
     
-    static class ReadClassField extends Accessor {
+    static final class ReadClassField extends Accessor {
         final private Field field;
         
         ReadClassField(Field field) {
@@ -58,17 +59,22 @@ public class ContextualExecutorProviderLookup {
         }
         
         @Override
-        protected boolean isVisibleTo(Class<?> subClass) {
+        protected final boolean isVisibleTo(Class<?> subClass) {
             return isVisibleTo(subClass, field);
         }
         
         @Override
-        protected ContextualExecutor doRead(Object target) throws ReflectiveOperationException {
-            return (ContextualExecutor)field.get(null);
+        protected final Object doRead(Object target) throws ReflectiveOperationException {
+            return field.get(null);
+        }
+        
+        @Override
+        public String toString() {
+            return "FIELD: {" + field.toString() + "}";
         }
     }
     
-    static class ReadInstanceField extends Accessor {
+    static final class ReadInstanceField extends Accessor {
         final private Field field;
         
         ReadInstanceField(Field field) {
@@ -76,36 +82,22 @@ public class ContextualExecutorProviderLookup {
         }
         
         @Override
-        protected boolean isVisibleTo(Class<?> subClass) {
+        protected final boolean isVisibleTo(Class<?> subClass) {
             return isVisibleTo(subClass, field);
         }
         
         @Override
-        protected ContextualExecutor doRead(Object target) throws ReflectiveOperationException {
-            return (ContextualExecutor)field.get(target);
-        }
-    }
-
-    
-    static class InvokeInstanceGetter extends Accessor {
-        final private Method method;
-        
-        InvokeInstanceGetter(Method method) {
-            this.method = method;
+        protected final Object doRead(Object target) throws ReflectiveOperationException {
+            return field.get(target);
         }
         
         @Override
-        protected boolean isVisibleTo(Class<?> subClass) {
-            return isVisibleTo(subClass, method);
-        }
-        
-        @Override
-        protected ContextualExecutor doRead(Object target) throws ReflectiveOperationException {
-            return (ContextualExecutor)method.invoke(target);
+        public String toString() {
+            return "FIELD: {" + field.toString() + "}";
         }
     }
     
-    static class InvokeClassGetter extends Accessor {
+    static final class InvokeClassGetter extends Accessor {
         final private Method method;
         
         InvokeClassGetter(Method method) {
@@ -113,17 +105,54 @@ public class ContextualExecutorProviderLookup {
         }
         
         @Override
-        protected boolean isVisibleTo(Class<?> subClass) {
+        protected final boolean isVisibleTo(Class<?> subClass) {
             return isVisibleTo(subClass, method);
         }
         
         @Override
-        protected ContextualExecutor doRead(Object target) throws ReflectiveOperationException {
-            return (ContextualExecutor)method.invoke(null);
+        protected final Object doRead(Object target) throws ReflectiveOperationException {
+            return method.invoke(null);
+        }
+        
+        @Override
+        public String toString() {
+            return "METHOD: {" + method.toString() + "}";
         }
     }
     
-    private final Map<Class<?>, Accessor> perClassCache = new WeakHashMap<>();
+    static final class InvokeInstanceGetter extends Accessor {
+        final private Method method;
+        
+        InvokeInstanceGetter(Method method) {
+            this.method = method;
+        }
+        
+        @Override
+        protected final boolean isVisibleTo(Class<?> subClass) {
+            return isVisibleTo(subClass, method);
+        }
+        
+        @Override
+        protected final Object doRead(Object target) throws ReflectiveOperationException {
+            return method.invoke(target);
+        }
+        
+        @Override
+        public String toString() {
+            return "METHOD: {" + method.toString() + "}";
+        }        
+    }
+    
+    static final Accessor NO_ACCESSOR = new Accessor() {
+        protected Object doRead(Object target) { 
+            return null; 
+        } 
+        protected boolean isVisibleTo(Class<?> subClass) {
+            return false;
+        }
+    };
+    
+    private final Cache<Class<?>, Accessor> perClassCache = new Cache<>();
     
     private final boolean inspectSuperclasses;
     private final boolean inspectInterfaces;
@@ -137,8 +166,23 @@ public class ContextualExecutorProviderLookup {
         this.superClassPriority  = superClassPriority;
     }
     
-    Accessor getAccessor(Class<?> targetClass) {
-        Accessor accessor = getDeclaredAccessor(targetClass);
+    public Accessor getAccessor(Class<?> targetClass) {
+        return getAccessor(targetClass, new HashSet<>());
+    }
+    
+    protected Accessor getAccessor(Class<?> targetClass, Set<Class<?>> visitedInterfaces) {
+        Accessor result = perClassCache.get(
+            targetClass,
+            c -> {
+                Accessor a = findAccessor(c, visitedInterfaces);
+                return a != null ? a : NO_ACCESSOR;
+            }
+        );
+        return result == NO_ACCESSOR ? null : result;
+    }
+    
+    protected Accessor findAccessor(Class<?> targetClass, Set<Class<?>> visitedInterfaces) {
+        Accessor accessor = findDeclaredAccessor(targetClass);
         if (null != accessor) {
             return accessor;
         }
@@ -146,29 +190,27 @@ public class ContextualExecutorProviderLookup {
         if (inspectSuperclasses) {
             Class<?> superClass = targetClass.getSuperclass();
             if (null != superClass && Object.class != superClass) {
-                accessor = getAccessor(superClass);
+                accessor = getAccessor(superClass, visitedInterfaces);
                 if (null != accessor && checkVisibility && !accessor.isVisibleTo(targetClass)) {
                     accessor = null;
                 }
             }
         }
 
-        List<Accessor> superAccessors;
+        List<Accessor> superAccessors = new ArrayList<>();
         if (accessor != null) {
             if (superClassPriority) {
                 return accessor;
             } else {
-                superAccessors = new ArrayList<>();
                 superAccessors.add(accessor);
             }
-        }
+        } 
         
         if (inspectInterfaces) {
-            Map<Class<?>, Object> visitedInterfaces = new WeakHashMap<>();
             Stream<Accessor> accessorsByInterfaces = Stream.of(targetClass.getInterfaces())
-                .filter(i -> !visitedInterfaces.containsKey(i))
-                .peek(i -> visitedInterfaces.put(i, Object.class))
-                .map(i -> getAccessor(targetClass))
+                .filter(i -> !visitedInterfaces.contains(i))
+                .peek(i -> visitedInterfaces.add(i))
+                .map(i -> getAccessor(i, visitedInterfaces))
                 .filter(Objects::nonNull);
             
             if (checkVisibility) {
@@ -178,21 +220,23 @@ public class ContextualExecutorProviderLookup {
             List<Accessor> accessors = accessorsByInterfaces
                 //.limit(2)
                 .collect(Collectors.toList());
-            
-            switch (accessors.size()) {
-                case 0: return null;
-                case 1: return accessors.get(0);
-                default:
-                    throw new IllegalStateException(
-                        "Ambiguity: class " + targetClass.getName() + " has more than one " +
-                        ContextualExecutorProvider.class.getSimpleName() + " defined by inheritance"
-                    );                    
-            }
+            superAccessors.addAll(accessors);
         }
-        return accessor;
+        
+        
+        switch (superAccessors.size()) {
+            case 0: return null;
+            case 1: return superAccessors.get(0);
+            default:
+                throw new IllegalStateException(
+                    "Ambiguity: class " + targetClass.getName() + " has more than one " +
+                    ContextualExecutorProvider.class.getSimpleName() + " defined by inherited accessors:\n" +
+                    superAccessors.toString()
+                );                    
+        }
     }
     
-    Accessor getDeclaredAccessor(Class<?> targetClass) {
+    Accessor findDeclaredAccessor(Class<?> targetClass) {
         List<Field> ownProviderFields = Stream.of(targetClass.getDeclaredFields())
             .filter(ContextualExecutorProviderLookup::isContextualExecutorSubtype)
             .filter(ContextualExecutorProviderLookup::isAnnotatedAsProvider)
@@ -263,7 +307,7 @@ public class ContextualExecutorProviderLookup {
     }
     
     private static <M extends Member> M ensureAccessible(M target) {
-        if ((target.getModifiers() & Modifier.PUBLIC) == 0) {
+        if ((target.getModifiers() & Modifier.PUBLIC) == 0 || (target.getDeclaringClass().getModifiers() & Modifier.PUBLIC) == 0) {
             AccessibleObject ao = (AccessibleObject)target;
             ao.setAccessible(true);
         }

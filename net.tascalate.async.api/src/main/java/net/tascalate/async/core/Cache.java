@@ -7,7 +7,7 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
 import java.util.function.Function;
 
-public class Cache<K, V>  {
+public class Cache<K, V> {
     private final ConcurrentMap<Reference<K>, Object> producerMutexes = new ConcurrentHashMap<>();
     private final ConcurrentMap<Reference<K>, V> valueMap = new ConcurrentHashMap<>();
     private final ReferenceQueue<K> queue = new ReferenceQueue<K>();
@@ -43,7 +43,7 @@ public class Cache<K, V>  {
 
         return value;
     }
-    
+
     public V remove(K key) {
         Reference<K> lookupKeyRef = new KeyReference<K>(key);
         Object mutex = getOrCreateMutex(lookupKeyRef);
@@ -54,26 +54,28 @@ public class Cache<K, V>  {
             } finally {
                 producerMutexes.remove(lookupKeyRef, mutex);
             }
-        }       
+        }
     }
 
     protected Object getOrCreateMutex(final Reference<K> keyRef) {
-        return producerMutexes.computeIfAbsent(keyRef, k -> new Object()); 
+        return producerMutexes.computeIfAbsent(keyRef, k -> new Object());
     }
-    
+
     private void expungeStaleEntries() {
         for (Reference<? extends K> ref; (ref = queue.poll()) != null;) {
             @SuppressWarnings("unchecked")
             Reference<K> keyRef = (Reference<K>) ref;
-            // keyRef now is equal only to itself while referent is cleared already
-            // so it's safe to remove it without ceremony (like getOrCreateMutex(keyRef) usage)
+            // keyRef now is equal only to itself while referent is cleared
+            // already
+            // so it's safe to remove it without ceremony (like
+            // getOrCreateMutex(keyRef) usage)
             valueMap.remove(keyRef);
         }
     }
 
     static class KeyReference<K> extends WeakReference<K> {
         private final int referentHashCode;
-        
+
         KeyReference(K key) {
             this(key, null);
         }

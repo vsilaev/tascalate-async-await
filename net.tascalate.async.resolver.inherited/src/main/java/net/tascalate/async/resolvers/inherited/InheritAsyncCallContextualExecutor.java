@@ -11,7 +11,7 @@ public class InheritAsyncCallContextualExecutor implements ContextualExecutorRes
 
     @Override
     public int priority() {
-        return 10;
+        return 100;
     }
 
     @Override

@@ -5,16 +5,19 @@ import java.util.function.Supplier;
 
 import net.tascalate.async.api.ContextualExecutor;
 
-public class ContextualExecutorScope {
+public enum ContextualExecutorScope {
+    GLOBAL, DEFAULTS, EXCLUSIVE;
     
-    public static void runWith(ContextualExecutor ctxExecutor, Runnable code) {
+    final ThreadLocal<ContextualExecutor> currentExecutor = new ThreadLocal<>();
+    
+    public void runWith(ContextualExecutor ctxExecutor, Runnable code) {
         supplyWith(ctxExecutor, () -> {
             code.run();
             return null;
         });
     }
     
-    public static <V> V supplyWith(ContextualExecutor ctxExecutor, Supplier<V> code) {
+    public <V> V supplyWith(ContextualExecutor ctxExecutor, Supplier<V> code) {
         try {
             return callWith(ctxExecutor, code::get);
         } catch (RuntimeException ex) {
@@ -25,20 +28,17 @@ public class ContextualExecutorScope {
     }
     
     
-    public static <V> V callWith(ContextualExecutor ctxExecutor, Callable<V> code) throws Exception {
-        ContextualExecutor previous = CURRENT_EXECUTOR.get();
-        CURRENT_EXECUTOR.set(ctxExecutor);
+    public <V> V callWith(ContextualExecutor ctxExecutor, Callable<V> code) throws Exception {
+        ContextualExecutor previous = currentExecutor.get();
+        currentExecutor.set(ctxExecutor);
         try {
             return code.call();
         } finally {
             if (null == previous) {
-                CURRENT_EXECUTOR.remove();
+                currentExecutor.remove();
             } else {
-                CURRENT_EXECUTOR.set(previous);
+                currentExecutor.set(previous);
             }
         }
     }
-    
-    
-    static final ThreadLocal<ContextualExecutor> CURRENT_EXECUTOR = new ThreadLocal<>();
 }

@@ -152,7 +152,7 @@ public class ContextualExecutorProviderLookup {
         }
     };
     
-    private final Cache<Class<?>, Accessor> perClassCache = new Cache<>();
+    private final Cache<Class<?>, Accessor> accessorsCache = new Cache<>();
     
     private final boolean inspectSuperclasses;
     private final boolean inspectInterfaces;
@@ -171,7 +171,7 @@ public class ContextualExecutorProviderLookup {
     }
     
     protected Accessor getAccessor(Class<?> targetClass, Set<Class<?>> visitedInterfaces) {
-        Accessor result = perClassCache.get(
+        Accessor result = accessorsCache.get(
             targetClass,
             c -> {
                 Accessor a = findAccessor(c, visitedInterfaces);

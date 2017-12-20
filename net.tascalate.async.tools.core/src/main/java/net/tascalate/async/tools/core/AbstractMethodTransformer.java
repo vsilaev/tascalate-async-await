@@ -73,6 +73,7 @@ abstract public class AbstractMethodTransformer {
 
     private final static Type ASYNC_METHOD_EXECUTOR_TYPE = Type.getObjectType("net/tascalate/async/core/AsyncMethodExecutor");
     private final static Type SCHEDULER_TYPE             = Type.getObjectType("net/tascalate/async/api/Scheduler");
+    private final static Type SCHEDULER_PROVIDER_TYPE    = Type.getObjectType("net/tascalate/async/api/SchedulerProvider");
     private final static Type ASYNC_METHOD_TYPE          = Type.getObjectType("net/tascalate/async/core/AsyncMethod");
 
     protected final ClassNode classNode;
@@ -215,10 +216,7 @@ abstract public class AbstractMethodTransformer {
         );
 
         mv.visitInsn(RETURN);
-        mv.visitMaxs(
-            Math.max(2, 1 + (originalArity > 0 || !isStatic ? 1 : 0)),  // stack 
-            originalArity + (isStatic ? 1 : 2) + 1 // locals
-        );
+        mv.visitMaxs(2 /* stack */, originalArity + (isStatic ? 1 : 2) + 1 /* locals */);
         mv.visitEnd();
 
         return (MethodNode) mv;        
@@ -247,6 +245,33 @@ abstract public class AbstractMethodTransformer {
         replacementAsyncMethodNode.visitAnnotation(CONTINUABLE_ANNOTATION_TYPE.getDescriptor(), true).visitEnd();
         replacementAsyncMethodNode.visitCode();
 
+        int schedulerParamIdx = schedulerProviderParamIdx(originalAsyncMethod);
+        if (schedulerParamIdx >= 0) {
+            replacementAsyncMethodNode.visitVarInsn(ALOAD, schedulerParamIdx + thisArgShift);
+        } else {
+            replacementAsyncMethodNode.visitInsn(ACONST_NULL);
+        }
+        // Resolve by owner if non-static
+        if (isStatic) {
+            replacementAsyncMethodNode.visitInsn(ACONST_NULL);
+        } else {
+            replacementAsyncMethodNode.visitVarInsn(ALOAD, 0);
+        }
+        replacementAsyncMethodNode.visitLdcInsn(Type.getObjectType(classNode.name));
+        replacementAsyncMethodNode.visitMethodInsn(
+            INVOKESTATIC, ASYNC_METHOD_EXECUTOR_TYPE.getInternalName(), "currentScheduler", 
+            Type.getMethodDescriptor(SCHEDULER_TYPE, SCHEDULER_TYPE, OBJECT_TYPE, CLASS_TYPE), false
+        );
+        
+        String constructorDesc = Type.getMethodDescriptor(
+            Type.VOID_TYPE, 
+            appendArray(
+                isStatic ? originalArgTypes : prependArray(originalArgTypes, Type.getObjectType(classNode.name)),
+                SCHEDULER_TYPE
+            )
+        );
+        replacementAsyncMethodNode.visitVarInsn(ASTORE, originalArity + thisArgShift);
+        
         replacementAsyncMethodNode.visitTypeInsn(NEW, asyncTaskClassName);
         replacementAsyncMethodNode.visitInsn(DUP);
         if (!isStatic) {
@@ -259,27 +284,10 @@ abstract public class AbstractMethodTransformer {
             // Shifted for this if necessary
             replacementAsyncMethodNode.visitVarInsn(originalArgTypes[i].getOpcode(ILOAD), i + thisArgShift);
         }
+        
+        // load resolved scheduler
+        replacementAsyncMethodNode.visitVarInsn(ALOAD, originalArity + thisArgShift);
 
-        // Resolve by owner if non-static
-        if (isStatic) {
-            replacementAsyncMethodNode.visitInsn(ACONST_NULL);
-        } else {
-            replacementAsyncMethodNode.visitVarInsn(ALOAD, 0);
-        }
-        replacementAsyncMethodNode.visitLdcInsn(Type.getObjectType(classNode.name));
-        replacementAsyncMethodNode.visitMethodInsn(
-            INVOKESTATIC, ASYNC_METHOD_EXECUTOR_TYPE.getInternalName(), "currentScheduler", 
-            Type.getMethodDescriptor(SCHEDULER_TYPE, OBJECT_TYPE, CLASS_TYPE), false
-        );
-        
-        String constructorDesc = Type.getMethodDescriptor(
-            Type.VOID_TYPE, 
-            appendArray(
-                isStatic ? originalArgTypes : prependArray(originalArgTypes, Type.getObjectType(classNode.name)),
-                SCHEDULER_TYPE
-            )
-        );
-        
         replacementAsyncMethodNode.visitMethodInsn(INVOKESPECIAL, asyncTaskClassName, "<init>", constructorDesc, false);
         replacementAsyncMethodNode.visitVarInsn(ASTORE, originalArity + thisArgShift);
 
@@ -302,11 +310,34 @@ abstract public class AbstractMethodTransformer {
         }
 
         replacementAsyncMethodNode.visitMaxs(
-            Math.max(1, originalArity + thisArgShift + 1), // for constructor call (incl. executor)
-            originalArity + thisArgShift + (hasResult ? 1 : 0) // args count + outer this (for non static) + future/generator var
+            Math.max(3 /*to resolve scheduler*/, originalArity + thisArgShift + 1), // for constructor call (incl. scheduler)
+            originalArity + thisArgShift + 1 // params count + outer this (for non static) + resolved scheduler
         );
         replacementAsyncMethodNode.visitEnd();
         return replacementAsyncMethodNode;
+    }
+    
+    protected int schedulerProviderParamIdx(MethodNode methodNode) {
+        int result = -1;
+        List<AnnotationNode>[] annotationBatches = visibleParameterAnnotationsOf(methodNode); 
+        if (null == annotationBatches) {
+            return -1;
+        }
+        int idx = 0;
+        for (List<AnnotationNode> annotations : annotationBatches) {
+            if (null != annotations) {
+                boolean found = annotations.stream().anyMatch(a -> SCHEDULER_PROVIDER_TYPE.getDescriptor().equals(a.desc));
+                if (found) {
+                    if (result < 0) {
+                        result = idx; 
+                    } else {
+                        throw new IllegalStateException("More than one parameter of " + methodNode.desc + " is annotated as @SchedulerProvider");
+                    }
+                }
+            }
+            idx++;
+        }
+        return result;
     }
     
     protected static List<AnnotationNode> copyAnnotations(List<AnnotationNode> originalAnnotations) {
@@ -322,7 +353,7 @@ abstract public class AbstractMethodTransformer {
         }
         @SuppressWarnings("unchecked")
         List<AnnotationNode>[] result = new List[originalAnnotations.length];
-        for (int i = originalAnnotations.length - 1; i >= 0; i++) {
+        for (int i = originalAnnotations.length - 1; i >= 0; i--) {
             result[i] = copyAnnotations(originalAnnotations[i]);
         }
         return result;

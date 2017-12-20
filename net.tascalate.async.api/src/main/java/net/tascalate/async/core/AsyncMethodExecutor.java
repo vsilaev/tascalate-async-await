@@ -164,8 +164,11 @@ public class AsyncMethodExecutor implements Serializable {
         }
     }
     
-    public static Scheduler currentScheduler(Object owner, Class<?> ownerDeclaringClass) {
-        return SchedulerResolvers.currentScheduler(owner, ownerDeclaringClass);
+    public static Scheduler currentScheduler(Scheduler explicitScheduler, Object owner, Class<?> ownerDeclaringClass) {
+        return null != explicitScheduler ? 
+            explicitScheduler 
+            : 
+            SchedulerResolvers.currentScheduler(owner, ownerDeclaringClass);
     }
     
     private static <R, E extends Throwable> Either<R, E> getResolvedOutcome(CompletionStage<R> stage) {

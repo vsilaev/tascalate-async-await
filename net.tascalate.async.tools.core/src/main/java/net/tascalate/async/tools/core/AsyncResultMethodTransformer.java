@@ -85,7 +85,6 @@ public class AsyncResultMethodTransformer extends AbstractMethodTransformer {
         );
 
         asyncRunMethod.visitAnnotation(CONTINUABLE_ANNOTATION_TYPE.getDescriptor(), true);
-
         // Local variables
         // amn.localVariables = methodNode.localVariables;
 
@@ -144,9 +143,8 @@ public class AsyncResultMethodTransformer extends AbstractMethodTransformer {
                     if (vin.var < argTypes.length + thisWasInOriginal) {
                         int i = vin.var - thisWasInOriginal; // method
                                                              // argument's index
-
                         String argName = createOuterClassMethodArgFieldName(i);
-                        String argDesc = Type.getMethodDescriptor(argTypes[i], new Type[0]).substring(2);
+                        String argDesc = argTypes[i].getDescriptor();
 
                         newInstructions.add(new VarInsnNode(ALOAD, 0));
                         if (isLoadOpcode(vin.getOpcode())) {
@@ -162,10 +160,11 @@ public class AsyncResultMethodTransformer extends AbstractMethodTransformer {
                             newInstructions.add(new FieldInsnNode(PUTFIELD, asyncRunnableClass.name, argName, argDesc));
                         }
                         continue;
-                    }
-                    // decrease local variable indexes
-                    else {
-                        newInstructions.add(new VarInsnNode(vin.getOpcode(), vin.var - argTypes.length + thisShiftNecessary));
+                    } else {
+                        // decrease local variable indexes
+                        // newInstructions.add(new VarInsnNode(vin.getOpcode(), vin.var - argTypes.length + thisShiftNecessary));
+                        // looks like decrease is wrong
+                        newInstructions.add(new VarInsnNode(vin.getOpcode(), vin.var));
                         continue;
                     }
                 }

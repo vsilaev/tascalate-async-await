@@ -96,7 +96,7 @@ public class AsyncGeneratorMethodTransformer extends AbstractMethodTransformer {
             labelsMap.put((LabelNode) l, new LabelNode());
         }
 
-        List<TryCatchBlockNode> tryCatchBlocks = new ArrayList<>();//originalAsyncMethod.tryCatchBlocks;
+        List<TryCatchBlockNode> tryCatchBlocks = new ArrayList<>();
         // Try-catch blocks
         for (Iterator<?> it = originalAsyncMethod.tryCatchBlocks.iterator(); it.hasNext();) {
             TryCatchBlockNode tn = (TryCatchBlockNode) it.next();
@@ -134,7 +134,7 @@ public class AsyncGeneratorMethodTransformer extends AbstractMethodTransformer {
                                                              // argument's index
 
                         String argName = createOuterClassMethodArgFieldName(i);
-                        String argDesc = Type.getMethodDescriptor(argTypes[i], new Type[0]).substring(2);
+                        String argDesc = argTypes[i].getDescriptor();
 
                         newInstructions.add(new VarInsnNode(ALOAD, 0));
                         if (isLoadOpcode(vin.getOpcode())) {
@@ -150,10 +150,11 @@ public class AsyncGeneratorMethodTransformer extends AbstractMethodTransformer {
                             newInstructions.add(new FieldInsnNode(PUTFIELD, asyncRunnableClass.name, argName, argDesc));
                         }
                         continue;
-                    }
-                    // decrease local variable indexes
-                    else {
-                        newInstructions.add(new VarInsnNode(vin.getOpcode(), vin.var - argTypes.length + thisShiftNecessary));
+                    } else {
+                        // decrease local variable indexes
+                        // newInstructions.add(new VarInsnNode(vin.getOpcode(), vin.var - argTypes.length + thisShiftNecessary));
+                        // looks like decrease is wrong
+                        newInstructions.add(new VarInsnNode(vin.getOpcode(), vin.var));
                         continue;
                     }
                 }

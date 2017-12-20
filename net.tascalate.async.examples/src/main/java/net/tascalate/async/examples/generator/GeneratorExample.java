@@ -38,6 +38,8 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 
 import net.tascalate.async.api.Generator;
+import net.tascalate.async.api.Scheduler;
+import net.tascalate.async.api.SchedulerProvider;
 import net.tascalate.async.api.ValuesGenerator;
 import net.tascalate.async.api.async;
 import net.tascalate.concurrent.CompletableTask;
@@ -50,7 +52,7 @@ public class GeneratorExample {
         long startTime = System.currentTimeMillis();
         final GeneratorExample example = new GeneratorExample();
         //example.asyncOperation();
-        final CompletionStage<String> result1 = example.mergeStrings();
+        final CompletionStage<String> result1 = example.mergeStrings(", ");
         final CompletionStage<String> result2 = example.iterateStringsEx();
         
         result2.thenCombine(result1, (v1, v2) -> "\n" + v1 + "\n" + v2)
@@ -66,7 +68,7 @@ public class GeneratorExample {
     }
 
     @async
-    CompletionStage<String> mergeStrings() {
+    CompletionStage<String> mergeStrings(String delimeter) {
         StringJoiner joiner = new StringJoiner(", ");
         try (Generator<String> generator = produceStrings()) {
         	System.out.println("%%MergeStrings - before iterations");

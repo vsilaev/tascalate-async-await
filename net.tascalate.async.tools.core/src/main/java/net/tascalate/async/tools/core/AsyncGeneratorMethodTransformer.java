@@ -42,8 +42,10 @@ import org.objectweb.asm.tree.AbstractInsnNode;
 import org.objectweb.asm.tree.ClassNode;
 import org.objectweb.asm.tree.FieldInsnNode;
 import org.objectweb.asm.tree.FieldNode;
+import org.objectweb.asm.tree.IincInsnNode;
 import org.objectweb.asm.tree.InsnList;
 import org.objectweb.asm.tree.InsnNode;
+import org.objectweb.asm.tree.IntInsnNode;
 import org.objectweb.asm.tree.JumpInsnNode;
 import org.objectweb.asm.tree.LabelNode;
 import org.objectweb.asm.tree.MethodInsnNode;
@@ -132,7 +134,6 @@ public class AsyncGeneratorMethodTransformer extends AbstractMethodTransformer {
                     if (vin.var < argTypes.length + thisWasInOriginal) {
                         int i = vin.var - thisWasInOriginal; // method
                                                              // argument's index
-
                         String argName = createOuterClassMethodArgFieldName(i);
                         String argDesc = argTypes[i].getDescriptor();
 
@@ -152,12 +153,30 @@ public class AsyncGeneratorMethodTransformer extends AbstractMethodTransformer {
                         continue;
                     } else {
                         // decrease local variable indexes
-                        // newInstructions.add(new VarInsnNode(vin.getOpcode(), vin.var - argTypes.length + thisShiftNecessary));
-                        // looks like decrease is wrong
-                        newInstructions.add(new VarInsnNode(vin.getOpcode(), vin.var));
+                        newInstructions.add(new VarInsnNode(vin.getOpcode(), vin.var - argTypes.length + thisShiftNecessary));
                         continue;
                     }
                 }
+            } else if (insn instanceof IincInsnNode) {
+                IincInsnNode iins = (IincInsnNode)insn; 
+                if (iins.var < argTypes.length + thisWasInOriginal) {
+                    int i = iins.var - thisWasInOriginal; // method
+                    // argument's index
+                    String argName = createOuterClassMethodArgFieldName(i);
+                    String argDesc = argTypes[i].getDescriptor();
+                    // i+=2 ==> this.val$2 = this.val$2 + 2;
+                    newInstructions.add(new VarInsnNode(ALOAD, 0));
+                    newInstructions.add(new FieldInsnNode(GETFIELD, asyncRunnableClass.name, argName, argDesc));
+                    newInstructions.add(new IntInsnNode(SIPUSH, iins.incr));
+                    newInstructions.add(new InsnNode(IADD));
+                    newInstructions.add(new VarInsnNode(ALOAD, 0));
+                    newInstructions.add(new InsnNode(SWAP));
+                    newInstructions.add(new FieldInsnNode(PUTFIELD, asyncRunnableClass.name, argName, argDesc));                    
+                } else {
+                    newInstructions.add(new IincInsnNode(iins.var - argTypes.length + thisShiftNecessary, iins.incr));
+                }
+                continue;
+                
             } else if (insn instanceof FieldInsnNode) {
                 FieldInsnNode fin = (FieldInsnNode) insn;
                 MethodNode accessMethod;
@@ -169,7 +188,6 @@ public class AsyncGeneratorMethodTransformer extends AbstractMethodTransformer {
                     );
                     continue;
                 }
-                ;
                 if ((fin.getOpcode() == PUTSTATIC || fin.getOpcode() == PUTFIELD) && 
                     (accessMethod = getAccessMethod(fin.owner, fin.name, fin.desc, "S")) != null) {
                     
@@ -178,8 +196,6 @@ public class AsyncGeneratorMethodTransformer extends AbstractMethodTransformer {
                     );
                     continue;
                 }
-                ;
-
             } else if (insn instanceof MethodInsnNode) {
                 // instance method call -> outer class instance method call
                 // using a generated access method

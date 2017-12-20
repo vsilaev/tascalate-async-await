@@ -46,14 +46,10 @@ public class SimpleArgs {
         System.out.println(abs + " -- " + x + ", " + scheduler);
         return AsyncCall.asyncResult(new Date());
     }
-    
-    //vin.var - argTypes.length + thisShiftNecessary + thisWasInOriginal
-    // oldThis - 0, delimeter - 1, scheduler - 2, joiner - 3, generator - 4, param - 5,  i - 6, single result - 7
-    // thisShift
+
     @async
-    CompletionStage<String> mergeStrings(String delimeter, @SchedulerProvider Scheduler scheduler, int zz) {
+    static CompletionStage<String> mergeStrings(String delimeter, @SchedulerProvider Scheduler scheduler, int zz) {
         StringJoiner joiner = new StringJoiner(delimeter);
-        System.out.println(Thread.currentThread().getName());
         try (Generator<String> generator = Generator.of("ABC", "XYZ")) {
             System.out.println("%%MergeStrings - before iterations");
             String param = "GO!";
@@ -62,8 +58,10 @@ public class SimpleArgs {
             while (null != (singleResult = generator.next(param))) {
                 //System.out.println(">>Future is ready: " + Future.class.cast(singleResult).isDone());
                 String v = await(singleResult);
+                System.out.println(Thread.currentThread().getName());
                 System.out.println("Received: " + v + ", " + param);
                 ++i;
+                zz++;
                 if (i > 0) param = "VAL #" + i;
                 joiner.add(v);
                 if (i == 17) {
@@ -71,6 +69,7 @@ public class SimpleArgs {
                 }
             }
         }
+
         return asyncResult(joiner.toString());
     }
 }

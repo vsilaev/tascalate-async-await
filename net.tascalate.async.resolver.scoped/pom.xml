@@ -12,7 +12,7 @@
 	<artifactId>net.tascalate.async.resolver.scoped</artifactId>
 	<packaging>jar</packaging>
 
-	<name>Tascalate Async/Await - ContextualExecutorResolver / Scoped</name>
+	<name>Tascalate Async/Await - SchedulerResolver / Scoped</name>
 	<url>https://github.com/vsilaev/tascalate-async-await</url> 
 
 	<properties>

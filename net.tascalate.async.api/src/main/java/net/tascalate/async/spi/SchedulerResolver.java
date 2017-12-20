@@ -24,15 +24,16 @@
  */
 package net.tascalate.async.spi;
 
-import net.tascalate.async.api.ContextualExecutor;
+import net.tascalate.async.api.Scheduler;
 
-public interface ContextualExecutorResolver extends Comparable<ContextualExecutorResolver> {
+public interface SchedulerResolver extends Comparable<SchedulerResolver> {
     
     int priority();
-    ContextualExecutor resolve(Object owner, Class<?> ownerDeclaringClass);
+    
+    Scheduler resolve(Object owner, Class<?> ownerDeclaringClass);
     
     @Override
-    default int compareTo(ContextualExecutorResolver other) {
+    default int compareTo(SchedulerResolver other) {
         // Highest priority first
         return other.priority() - this.priority();
     } 

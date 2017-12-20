@@ -36,7 +36,7 @@ import org.apache.commons.javaflow.api.continuable;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 
-import net.tascalate.async.api.ContextualExecutor;
+import net.tascalate.async.api.Scheduler;
 import net.tascalate.async.api.NoActiveAsyncCallException;
 
 /**
@@ -146,7 +146,7 @@ public class AsyncMethodExecutor implements Serializable {
         // Let's sleep!
         log.debug("Suspending continuation");
         Object outcome = Continuation.suspend(
-            // Save contextualExecutor of the suspending continuation 
+            // Save Runnable of the suspending continuation + future
             new SuspendParams<>(currentMethod, future)
         );
         log.debug("Continuation continued");
@@ -164,8 +164,8 @@ public class AsyncMethodExecutor implements Serializable {
         }
     }
     
-    public static ContextualExecutor currentContextualExecutor(Object owner, Class<?> ownerDeclaringClass) {
-        return ContextualExecutorResolvers.currentContextualExecutor(owner, ownerDeclaringClass);
+    public static Scheduler currentScheduler(Object owner, Class<?> ownerDeclaringClass) {
+        return SchedulerResolvers.currentScheduler(owner, ownerDeclaringClass);
     }
     
     private static <R, E extends Throwable> Either<R, E> getResolvedOutcome(CompletionStage<R> stage) {

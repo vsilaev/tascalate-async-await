@@ -3,21 +3,21 @@ package net.tascalate.async.resolver.scoped;
 import java.util.concurrent.Callable;
 import java.util.function.Supplier;
 
-import net.tascalate.async.api.ContextualExecutor;
+import net.tascalate.async.api.Scheduler;
 
-public enum ContextualExecutorScope {
-    GLOBAL, DEFAULTS, EXCLUSIVE;
+public enum SchedulerScope {
+    DEFAULTS, DEFAULTS_OVERRIDE, PROVIDER_OVERRIDE;
     
-    final ThreadLocal<ContextualExecutor> currentExecutor = new ThreadLocal<>();
+    final ThreadLocal<Scheduler> currentExecutor = new ThreadLocal<>();
     
-    public void runWith(ContextualExecutor ctxExecutor, Runnable code) {
+    public void runWith(Scheduler ctxExecutor, Runnable code) {
         supplyWith(ctxExecutor, () -> {
             code.run();
             return null;
         });
     }
     
-    public <V> V supplyWith(ContextualExecutor ctxExecutor, Supplier<V> code) {
+    public <V> V supplyWith(Scheduler ctxExecutor, Supplier<V> code) {
         try {
             return callWith(ctxExecutor, code::get);
         } catch (RuntimeException ex) {
@@ -28,8 +28,8 @@ public enum ContextualExecutorScope {
     }
     
     
-    public <V> V callWith(ContextualExecutor ctxExecutor, Callable<V> code) throws Exception {
-        ContextualExecutor previous = currentExecutor.get();
+    public <V> V callWith(Scheduler ctxExecutor, Callable<V> code) throws Exception {
+        Scheduler previous = currentExecutor.get();
         currentExecutor.set(ctxExecutor);
         try {
             return code.call();

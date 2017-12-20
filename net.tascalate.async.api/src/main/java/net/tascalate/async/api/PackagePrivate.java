@@ -5,7 +5,7 @@ import java.util.concurrent.CompletionStage;
 final class PackagePrivate {
     public PackagePrivate() {}
     
-    static final ContextualExecutor SAME_THREAD_EXECUTOR = ContextualExecutor.from(Runnable::run);
+    static final Scheduler SAME_THREAD_SCHEDULER = Scheduler.from(Runnable::run);
     
     static final Generator<?> EMPTY_GENERATOR = new Generator<Object>() {
 

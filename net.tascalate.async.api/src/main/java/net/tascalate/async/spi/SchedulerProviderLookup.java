@@ -1,3 +1,27 @@
+/**
+ * ﻿Copyright 2015-2017 Valery Silaev (http://vsilaev.com)
+ *
+ * Redistribution and use in source and binary forms, with or without
+ * modification, are permitted provided that the following conditions are met:
+
+ * * Redistributions of source code must retain the above copyright notice, this
+ *   list of conditions and the following disclaimer.
+
+ * * Redistributions in binary form must reproduce the above copyright notice,
+ *   this list of conditions and the following disclaimer in the documentation
+ *   and/or other materials provided with the distribution.
+
+ * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
+ * AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+ * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
+ * DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE
+ * FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+ * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR
+ * SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
+ * CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY,
+ * OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
+ * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ */
 package net.tascalate.async.spi;
 
 import java.lang.reflect.AccessibleObject;
@@ -11,14 +35,15 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Objects;
 import java.util.Set;
+import java.util.function.Predicate;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
-import net.tascalate.async.api.ContextualExecutor;
-import net.tascalate.async.api.ContextualExecutorProvider;
-import net.tascalate.async.core.Cache;
+import net.tascalate.async.api.Scheduler;
+import net.tascalate.async.api.SchedulerProvider;
+import net.tascalate.async.util.Cache;
 
-public class ContextualExecutorProviderLookup {
+public class SchedulerProviderLookup {
     
     abstract public static class Accessor {
         abstract protected Object doRead(Object target) throws ReflectiveOperationException;
@@ -42,9 +67,9 @@ public class ContextualExecutorProviderLookup {
             
         }
         
-        final public ContextualExecutor read(Object target) {
+        final public Scheduler read(Object target) {
             try {
-                return (ContextualExecutor)doRead(target);
+                return (Scheduler)doRead(target);
             } catch (ReflectiveOperationException ex) {
                 throw new RuntimeException(ex);
             }
@@ -159,7 +184,7 @@ public class ContextualExecutorProviderLookup {
     private final boolean checkVisibility;
     private final boolean superClassPriority;
     
-    public ContextualExecutorProviderLookup(boolean inspectSuperclasses, boolean inspectInterfaces, boolean checkVisibility, boolean superClassPriority) {
+    public SchedulerProviderLookup(boolean inspectSuperclasses, boolean inspectInterfaces, boolean checkVisibility, boolean superClassPriority) {
         this.inspectSuperclasses = inspectSuperclasses;
         this.inspectInterfaces   = inspectInterfaces;
         this.checkVisibility     = checkVisibility;   
@@ -230,7 +255,7 @@ public class ContextualExecutorProviderLookup {
             default:
                 throw new IllegalStateException(
                     "Ambiguity: class " + targetClass.getName() + " has more than one " +
-                    ContextualExecutorProvider.class.getSimpleName() + " defined by inherited accessors:\n" +
+                    SchedulerProvider.class.getSimpleName() + " defined by inherited accessors:\n" +
                     superAccessors.toString()
                 );                    
         }
@@ -238,24 +263,26 @@ public class ContextualExecutorProviderLookup {
     
     Accessor findDeclaredAccessor(Class<?> targetClass) {
         List<Field> ownProviderFields = Stream.of(targetClass.getDeclaredFields())
-            .filter(ContextualExecutorProviderLookup::isContextualExecutorSubtype)
-            .filter(ContextualExecutorProviderLookup::isAnnotatedAsProvider)
+            .filter(SchedulerProviderLookup::isSchedulerSubtype)
+            .filter(SchedulerProviderLookup::isAnnotatedAsProvider)
             //.limit(2)
             .collect(Collectors.toList());
         
         if (ownProviderFields.size() > 1) {
             throw new IllegalStateException(
                 "Ambiguity: class " + targetClass.getName() + " declares more than one " +
-                ContextualExecutorProvider.class.getSimpleName() + " fields, " +
+                SchedulerProvider.class.getSimpleName() + " fields, " +
                 "at least the following: " + ownProviderFields
             );
         }
         
         List<Method> ownProviderMethods = Stream.of(targetClass.getDeclaredMethods())
-            .filter(ContextualExecutorProviderLookup::hasNoParameters)
-            .filter(ContextualExecutorProviderLookup::isNotSynthetic)            
-            .filter(ContextualExecutorProviderLookup::isContextualExecutorSubtype)
-            .filter(ContextualExecutorProviderLookup::isAnnotatedAsProvider)
+            .filter(
+                 predicate(SchedulerProviderLookup::hasNoParameters)
+                 .and(SchedulerProviderLookup::isNotSynthetic)            
+                 .and(SchedulerProviderLookup::isSchedulerSubtype)
+                 .and(SchedulerProviderLookup::isAnnotatedAsProvider)
+             )
             //.limit(2)
             .collect(Collectors.toList());
         
@@ -264,7 +291,7 @@ public class ContextualExecutorProviderLookup {
         if (fSize + mSize > 1) {
             throw new IllegalStateException(
                 "Ambiguity: class " + targetClass.getName() + " declares more than one " +
-                ContextualExecutorProvider.class.getSimpleName() + " getters and/or fields, " +
+                SchedulerProvider.class.getSimpleName() + " getters and/or fields, " +
                 "at least the following causes the problem:\n " + 
                 "-- fields: "+ ownProviderFields + "\n" +
                 "-- getters: " + ownProviderMethods
@@ -286,20 +313,20 @@ public class ContextualExecutorProviderLookup {
         return !(method.isBridge() || method.isSynthetic()); 
     }
     
-    static boolean isContextualExecutorSubtype(Method method) {
-        return ContextualExecutor.class.isAssignableFrom( method.getReturnType() ); 
+    static boolean isSchedulerSubtype(Method method) {
+        return Scheduler.class.isAssignableFrom( method.getReturnType() ); 
     }
     
     static boolean hasNoParameters(Method method) {
         return method.getParameterCount() == 0; 
     }
     
-    static boolean isContextualExecutorSubtype(Field field) {
-        return ContextualExecutor.class.isAssignableFrom( field.getType() ); 
+    static boolean isSchedulerSubtype(Field field) {
+        return Scheduler.class.isAssignableFrom( field.getType() ); 
     }
     
     static boolean isAnnotatedAsProvider(AnnotatedElement member) {
-        return member.getAnnotation(ContextualExecutorProvider.class) != null; 
+        return member.getAnnotation(SchedulerProvider.class) != null; 
     }
     
     private static <M extends Member> boolean isStatic(M target) {
@@ -312,6 +339,10 @@ public class ContextualExecutorProviderLookup {
             ao.setAccessible(true);
         }
         return target;
+    }
+    
+    private static <T> Predicate<T> predicate(Predicate<T> closure) {
+        return closure;
     }
 
 }

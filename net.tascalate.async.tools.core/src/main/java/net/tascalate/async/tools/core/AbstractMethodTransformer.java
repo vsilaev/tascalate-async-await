@@ -72,7 +72,7 @@ abstract public class AbstractMethodTransformer {
     protected final static Type CLASS_TYPE                  = Type.getType(Class.class);    
 
     private final static Type ASYNC_METHOD_EXECUTOR_TYPE = Type.getObjectType("net/tascalate/async/core/AsyncMethodExecutor");
-    private final static Type CONTEXTUAL_EXECUTOR_TYPE   = Type.getObjectType("net/tascalate/async/api/ContextualExecutor");
+    private final static Type SCHEDULER_TYPE             = Type.getObjectType("net/tascalate/async/api/Scheduler");
     private final static Type ASYNC_METHOD_TYPE          = Type.getObjectType("net/tascalate/async/core/AsyncMethod");
 
     protected final ClassNode classNode;
@@ -182,7 +182,7 @@ abstract public class AbstractMethodTransformer {
             Type.VOID_TYPE,
             appendArray(
                 isStatic ? argTypes : prependArray(argTypes, Type.getObjectType(classNode.name)),
-                CONTEXTUAL_EXECUTOR_TYPE
+                SCHEDULER_TYPE
             )
         );
 
@@ -211,7 +211,7 @@ abstract public class AbstractMethodTransformer {
         mv.visitVarInsn(ALOAD, originalArity + (isStatic ? 1 : 2));
         mv.visitMethodInsn(
             INVOKESPECIAL, superClassType.getInternalName(), 
-            "<init>", Type.getMethodDescriptor(Type.VOID_TYPE, CONTEXTUAL_EXECUTOR_TYPE), false
+            "<init>", Type.getMethodDescriptor(Type.VOID_TYPE, SCHEDULER_TYPE), false
         );
 
         mv.visitInsn(RETURN);
@@ -268,15 +268,15 @@ abstract public class AbstractMethodTransformer {
         }
         replacementAsyncMethodNode.visitLdcInsn(Type.getObjectType(classNode.name));
         replacementAsyncMethodNode.visitMethodInsn(
-            INVOKESTATIC, ASYNC_METHOD_EXECUTOR_TYPE.getInternalName(), "currentContextualExecutor", 
-            Type.getMethodDescriptor(CONTEXTUAL_EXECUTOR_TYPE, OBJECT_TYPE, CLASS_TYPE), false
+            INVOKESTATIC, ASYNC_METHOD_EXECUTOR_TYPE.getInternalName(), "currentScheduler", 
+            Type.getMethodDescriptor(SCHEDULER_TYPE, OBJECT_TYPE, CLASS_TYPE), false
         );
         
         String constructorDesc = Type.getMethodDescriptor(
             Type.VOID_TYPE, 
             appendArray(
                 isStatic ? originalArgTypes : prependArray(originalArgTypes, Type.getObjectType(classNode.name)),
-                CONTEXTUAL_EXECUTOR_TYPE
+                SCHEDULER_TYPE
             )
         );
         

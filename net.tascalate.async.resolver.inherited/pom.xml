@@ -12,7 +12,7 @@
 	<artifactId>net.tascalate.async.resolver.inherited</artifactId>
 	<packaging>jar</packaging>
 
-	<name>Tascalate Async/Await - ContextualExecutorResolver / Inherited</name>
+	<name>Tascalate Async/Await - SchedulerResolver / Inherited</name>
 	<url>https://github.com/vsilaev/tascalate-async-await</url> 
 
 	<properties>

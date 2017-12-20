@@ -28,14 +28,14 @@ import java.util.concurrent.CompletionStage;
 
 import org.apache.commons.javaflow.api.continuable;
 
-import net.tascalate.async.api.ContextualExecutor;
+import net.tascalate.async.api.Scheduler;
 import net.tascalate.async.api.Generator;
 
 abstract public class AsyncGenerator<T> extends AsyncMethod {
     public final LazyGenerator<T> generator;
     
-    protected AsyncGenerator(ContextualExecutor contextualExecutor) {
-        super(contextualExecutor);
+    protected AsyncGenerator(Scheduler scheduler) {
+        super(scheduler);
         this.generator = new LazyGenerator<>(future);
     }
     

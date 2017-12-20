@@ -27,7 +27,7 @@ package net.tascalate.async.api;
 import java.util.concurrent.Executor;
 import java.util.function.Function;
 
-public interface ContextualExecutor extends Executor {
+public interface Scheduler extends Executor {
     
     default boolean interruptible() {
         return false;
@@ -37,20 +37,20 @@ public interface ContextualExecutor extends Executor {
         return resumeContinuation;
     }
     
-    public static ContextualExecutor from(Executor executor) {
+    public static Scheduler from(Executor executor) {
         return executor::execute;
     }
     
-    public static ContextualExecutor from(Executor executor, boolean interruptible) {
+    public static Scheduler from(Executor executor, boolean interruptible) {
     	return from(executor, interruptible, Function.identity());
     }
     
-    public static ContextualExecutor from(Executor executor, Function<? super Runnable, ? extends Runnable> contextualizer) {
+    public static Scheduler from(Executor executor, Function<? super Runnable, ? extends Runnable> contextualizer) {
     	return from(executor, true, contextualizer);
     }
     
-    public static ContextualExecutor from(Executor executor, boolean interruptible, Function<? super Runnable, ? extends Runnable> contextualizer) {
-        return new ContextualExecutor() {
+    public static Scheduler from(Executor executor, boolean interruptible, Function<? super Runnable, ? extends Runnable> contextualizer) {
+        return new Scheduler() {
         	
         	@Override
         	public boolean interruptible() {
@@ -69,7 +69,7 @@ public interface ContextualExecutor extends Executor {
 		};
     }    
     
-    public static ContextualExecutor sameThreadContextless() {
-        return PackagePrivate.SAME_THREAD_EXECUTOR;
+    public static Scheduler sameThreadContextless() {
+        return PackagePrivate.SAME_THREAD_SCHEDULER;
     }
 }

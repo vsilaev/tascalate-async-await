@@ -32,24 +32,24 @@ import java.util.function.Function;
 
 import org.apache.commons.javaflow.api.continuable;
 
-import net.tascalate.async.api.ContextualExecutor;
+import net.tascalate.async.api.Scheduler;
 import net.tascalate.concurrent.CompletableTask;
 import net.tascalate.concurrent.Promises;
 
 abstract public class AsyncMethod implements Runnable {
     protected final CompletableFuture<?> future;
     
-    private final ContextualExecutor contextualExecutor;
+    private final Scheduler scheduler;
     private final AtomicBoolean running = new AtomicBoolean(false);
     private final AtomicLong blockerVersion = new AtomicLong(0);
     
     private volatile CompletionStage<?> originalAwait;
     private volatile CompletableFuture<?> terminateMethod;
     
-    protected AsyncMethod(ContextualExecutor contextualExecutor) {
+    protected AsyncMethod(Scheduler scheduler) {
         this.future = new ResultPromise<>();
-        this.contextualExecutor = contextualExecutor != null ? 
-        contextualExecutor : ContextualExecutor.sameThreadContextless();
+        this.scheduler = scheduler != null ? 
+        scheduler : Scheduler.sameThreadContextless();
     }
 
     public final @continuable void run() {
@@ -75,17 +75,17 @@ abstract public class AsyncMethod implements Runnable {
         cancelAwaitIfNecessary(terminateMethod, originalAwait);
     }
     
-    ContextualExecutor contextualExecutor() {
-        return contextualExecutor;
+    Scheduler scheduler() {
+        return scheduler;
     }
     
     Runnable createResumeHandler(Runnable originalResumer) {
         long currentBlockerVersion = blockerVersion.get();
-        Runnable contextualResumer = contextualExecutor.contextualize(originalResumer);
-        if (contextualExecutor.interruptible()) {
+        Runnable contextualResumer = scheduler.contextualize(originalResumer);
+        if (scheduler.interruptible()) {
             return () -> {
                 CompletionStage<?> resumeFuture = CompletableTask.runAsync(
-                    contextualResumer, contextualExecutor
+                    contextualResumer, scheduler
                 );
                 registerResumeTarget(resumeFuture, currentBlockerVersion);
             };
@@ -96,7 +96,7 @@ abstract public class AsyncMethod implements Runnable {
                     // Is it possible to use originalResumer here, i.e. one without context???
                     contextualResumer.run();
                 } else {
-                    contextualExecutor.execute(contextualResumer);
+                    scheduler.execute(contextualResumer);
                 }
             };
         }        

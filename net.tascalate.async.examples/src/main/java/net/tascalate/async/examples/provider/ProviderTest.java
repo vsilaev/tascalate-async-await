@@ -1,26 +1,26 @@
 package net.tascalate.async.examples.provider;
 
-import net.tascalate.async.api.ContextualExecutor;
-import net.tascalate.async.api.ContextualExecutorProvider;
-import net.tascalate.async.spi.ContextualExecutorProviderLookup;
+import net.tascalate.async.api.Scheduler;
+import net.tascalate.async.api.SchedulerProvider;
+import net.tascalate.async.spi.SchedulerProviderLookup;
 
 public class ProviderTest {
 
     static class Abc {
-        @ContextualExecutorProvider
-        private ContextualExecutor exec = ContextualExecutor.sameThreadContextless();
+        @SchedulerProvider
+        private Scheduler exec = Scheduler.sameThreadContextless();
     }
     
     static class Xyz {
-        @ContextualExecutorProvider
-        public ContextualExecutor exec() {
-            return ContextualExecutor.sameThreadContextless();
+        @SchedulerProvider
+        public Scheduler exec() {
+            return Scheduler.sameThreadContextless();
         }
     }
     
     static class BaseByField {
-        @ContextualExecutorProvider
-        ContextualExecutor baseExec = ContextualExecutor.sameThreadContextless();
+        @SchedulerProvider
+        Scheduler baseExec = Scheduler.sameThreadContextless();
     }
 
     static class InheritedByField extends BaseByField {
@@ -28,9 +28,9 @@ public class ProviderTest {
     }
 
     static class BaseByMethod {
-        @ContextualExecutorProvider
-        protected ContextualExecutor baseExec() {
-            return ContextualExecutor.sameThreadContextless();
+        @SchedulerProvider
+        protected Scheduler baseExec() {
+            return Scheduler.sameThreadContextless();
         }
     }
 
@@ -39,28 +39,28 @@ public class ProviderTest {
     }
 
     interface IntfA {
-        //@ContextualExecutorProvider -- uncomment to see error
-        ContextualExecutor intfExec();
+        //@SchedulerProvider -- uncomment to see error
+        Scheduler intfExec();
     }
     
     interface IntfB {
-        @ContextualExecutorProvider
-        default ContextualExecutor intfExec() {
-            return ContextualExecutor.sameThreadContextless();
+        @SchedulerProvider
+        default Scheduler intfExec() {
+            return Scheduler.sameThreadContextless();
         }
     }
 
     static class InheritedByInterfaces implements IntfA, IntfB {
 
         @Override
-        public ContextualExecutor intfExec() {
+        public Scheduler intfExec() {
             return IntfB.super.intfExec();
         }
         
     }
     
     public static void main(String[] args) {
-        ContextualExecutorProviderLookup lookup = new ContextualExecutorProviderLookup(true, true, true, false);
+        SchedulerProviderLookup lookup = new SchedulerProviderLookup(true, true, true, false);
         tryAccessor(lookup, new Abc());
         tryAccessor(lookup, new Xyz());
         tryAccessor(lookup, new InheritedByField());
@@ -69,8 +69,8 @@ public class ProviderTest {
 
     }
     
-    private static void tryAccessor(ContextualExecutorProviderLookup lookup, Object o) {
-        ContextualExecutorProviderLookup.Accessor reader = lookup.getAccessor(o.getClass());
+    private static void tryAccessor(SchedulerProviderLookup lookup, Object o) {
+        SchedulerProviderLookup.Accessor reader = lookup.getAccessor(o.getClass());
         System.out.println("Class: " + o.getClass().getName());
         System.out.println("Accessor: " + reader);
         if (null != reader) {

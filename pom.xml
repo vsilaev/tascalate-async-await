@@ -8,7 +8,7 @@
 	<packaging>pom</packaging>
 
 	<name>Tascalate Async/Await</name>
-	<url>https://github.com/vsilaev/tascalate-async-await</url> 
+	<url>https://github.com/vsilaev/tascalate-async-await</url>    
 	<description>Async / Await asynchronous programming model for Java similar to the functionality available in C# 5. 
         The implementation is based on continuations for Java (see tascalate-javaflow).</description>
 

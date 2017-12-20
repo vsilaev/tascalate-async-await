@@ -70,7 +70,7 @@ public class ProviderTest {
     }
     
     private static void tryAccessor(SchedulerProviderLookup lookup, Object o) {
-        SchedulerProviderLookup.Accessor reader = lookup.getAccessor(o.getClass());
+        SchedulerProviderLookup.Accessor reader = lookup.getInstanceAccessor(o.getClass());
         System.out.println("Class: " + o.getClass().getName());
         System.out.println("Accessor: " + reader);
         if (null != reader) {

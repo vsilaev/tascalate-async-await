@@ -35,7 +35,6 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Objects;
 import java.util.Set;
-import java.util.function.Predicate;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
@@ -177,7 +176,40 @@ public class SchedulerProviderLookup {
         }
     };
     
-    private final Cache<Class<?>, Accessor> accessorsCache = new Cache<>();
+    enum Kind {
+        INSATNCE {
+            @Override
+            boolean accept(Member m) { return !isStatic(m); }
+            
+            @Override
+            Accessor from(Field f) { return new ReadInstanceField(f); }
+            
+            @Override
+            Accessor from(Method m) { return new InvokeInstanceGetter(m); }            
+        }, 
+        CLASS {
+            @Override
+            boolean accept(Member m) { return isStatic(m); }
+            
+            @Override
+            Accessor from(Field f) { return new ReadClassField(f); }
+            
+            @Override
+            Accessor from(Method m) { return new InvokeClassGetter(m); }
+        };
+        
+        abstract boolean accept(Member m);
+        abstract Accessor from(Field f);
+        abstract Accessor from(Method m);
+        
+        
+        protected static boolean isStatic(Member target) {
+            return (target.getModifiers() & Modifier.STATIC) != 0;
+        }
+    }
+    
+    private final Cache<Class<?>, Accessor> instanceAccessorsCache = new Cache<>();
+    private final Cache<Class<?>, Accessor> classAccessorsCache = new Cache<>();
     
     private final boolean inspectSuperclasses;
     private final boolean inspectInterfaces;
@@ -191,23 +223,28 @@ public class SchedulerProviderLookup {
         this.superClassPriority  = superClassPriority;
     }
     
-    public Accessor getAccessor(Class<?> targetClass) {
-        return getAccessor(targetClass, new HashSet<>());
+    public Accessor getInstanceAccessor(Class<?> targetClass) {
+        return getAccessor(targetClass, instanceAccessorsCache, Kind.INSATNCE, new HashSet<>());
     }
     
-    protected Accessor getAccessor(Class<?> targetClass, Set<Class<?>> visitedInterfaces) {
-        Accessor result = accessorsCache.get(
+    public Accessor getClassAccessor(Class<?> targetClass) {
+        return getAccessor(targetClass, classAccessorsCache, Kind.CLASS, new HashSet<>());
+    }
+
+    
+    protected Accessor getAccessor(Class<?> targetClass, Cache<Class<?>, Accessor> cache, Kind kind, Set<Class<?>> visitedInterfaces) {
+        Accessor result = cache.get(
             targetClass,
             c -> {
-                Accessor a = findAccessor(c, visitedInterfaces);
+                Accessor a = findAccessor(c, cache, kind, visitedInterfaces);
                 return a != null ? a : NO_ACCESSOR;
             }
         );
         return result == NO_ACCESSOR ? null : result;
     }
     
-    protected Accessor findAccessor(Class<?> targetClass, Set<Class<?>> visitedInterfaces) {
-        Accessor accessor = findDeclaredAccessor(targetClass);
+    protected Accessor findAccessor(Class<?> targetClass, Cache<Class<?>, Accessor> cache, Kind kind, Set<Class<?>> visitedInterfaces) {
+        Accessor accessor = findDeclaredAccessor(targetClass, kind);
         if (null != accessor) {
             return accessor;
         }
@@ -215,7 +252,7 @@ public class SchedulerProviderLookup {
         if (inspectSuperclasses) {
             Class<?> superClass = targetClass.getSuperclass();
             if (null != superClass && Object.class != superClass) {
-                accessor = getAccessor(superClass, visitedInterfaces);
+                accessor = getAccessor(superClass, cache, kind, visitedInterfaces);
                 if (null != accessor && checkVisibility && !accessor.isVisibleTo(targetClass)) {
                     accessor = null;
                 }
@@ -235,7 +272,7 @@ public class SchedulerProviderLookup {
             Stream<Accessor> accessorsByInterfaces = Stream.of(targetClass.getInterfaces())
                 .filter(i -> !visitedInterfaces.contains(i))
                 .peek(i -> visitedInterfaces.add(i))
-                .map(i -> getAccessor(i, visitedInterfaces))
+                .map(i -> getAccessor(i, cache, kind, visitedInterfaces))
                 .filter(Objects::nonNull);
             
             if (checkVisibility) {
@@ -261,10 +298,10 @@ public class SchedulerProviderLookup {
         }
     }
     
-    Accessor findDeclaredAccessor(Class<?> targetClass) {
+    Accessor findDeclaredAccessor(Class<?> targetClass, Kind kind) {
         List<Field> ownProviderFields = Stream.of(targetClass.getDeclaredFields())
-            .filter(SchedulerProviderLookup::isSchedulerSubtype)
-            .filter(SchedulerProviderLookup::isAnnotatedAsProvider)
+            .filter(SchedulerProviderLookup::isSchedulerProviderField)
+            .filter(kind::accept)
             //.limit(2)
             .collect(Collectors.toList());
         
@@ -277,12 +314,8 @@ public class SchedulerProviderLookup {
         }
         
         List<Method> ownProviderMethods = Stream.of(targetClass.getDeclaredMethods())
-            .filter(
-                 predicate(SchedulerProviderLookup::hasNoParameters)
-                 .and(SchedulerProviderLookup::isNotSynthetic)            
-                 .and(SchedulerProviderLookup::isSchedulerSubtype)
-                 .and(SchedulerProviderLookup::isAnnotatedAsProvider)
-             )
+            .filter(SchedulerProviderLookup::isSchedulerProviderGetter)
+            .filter(kind::accept)
             //.limit(2)
             .collect(Collectors.toList());
         
@@ -297,15 +330,26 @@ public class SchedulerProviderLookup {
                 "-- getters: " + ownProviderMethods
             );
         } else if (fSize == 1) {
-            Field field = ensureAccessible(ownProviderFields.get(0));
-            return isStatic(field) ? new ReadClassField(field) : new ReadInstanceField(field);
+            return kind.from(ensureAccessible(ownProviderFields.get(0)));
         } else if (mSize == 1) {
-            Method method = ensureAccessible(ownProviderMethods.get(0));
-            return isStatic(method) ? new InvokeClassGetter(method) : new InvokeInstanceGetter(method);
+            return kind.from(ensureAccessible(ownProviderMethods.get(0)));
         } else {
             return null;
         }
-        
+    }
+    
+    static boolean isSchedulerProviderField(Field f) {
+        return
+          isSchedulerSubtype(f) &&
+          isAnnotatedAsProvider(f);        
+    }
+    
+    static boolean isSchedulerProviderGetter(Method m) {
+        return
+          hasNoParameters(m) && 
+          isNotSynthetic(m) &&            
+          isSchedulerSubtype(m) &&
+          isAnnotatedAsProvider(m);        
     }
     
     
@@ -313,12 +357,12 @@ public class SchedulerProviderLookup {
         return !(method.isBridge() || method.isSynthetic()); 
     }
     
-    static boolean isSchedulerSubtype(Method method) {
-        return Scheduler.class.isAssignableFrom( method.getReturnType() ); 
-    }
-    
     static boolean hasNoParameters(Method method) {
         return method.getParameterCount() == 0; 
+    }
+    
+    static boolean isSchedulerSubtype(Method method) {
+        return Scheduler.class.isAssignableFrom( method.getReturnType() ); 
     }
     
     static boolean isSchedulerSubtype(Field field) {
@@ -329,20 +373,12 @@ public class SchedulerProviderLookup {
         return member.getAnnotation(SchedulerProvider.class) != null; 
     }
     
-    private static <M extends Member> boolean isStatic(M target) {
-        return (target.getModifiers() & Modifier.STATIC) != 0;
-    }
-    
     private static <M extends Member> M ensureAccessible(M target) {
         if ((target.getModifiers() & Modifier.PUBLIC) == 0 || (target.getDeclaringClass().getModifiers() & Modifier.PUBLIC) == 0) {
             AccessibleObject ao = (AccessibleObject)target;
             ao.setAccessible(true);
         }
         return target;
-    }
-    
-    private static <T> Predicate<T> predicate(Predicate<T> closure) {
-        return closure;
     }
 
 }

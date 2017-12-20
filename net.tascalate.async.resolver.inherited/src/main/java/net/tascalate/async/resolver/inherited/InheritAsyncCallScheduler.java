@@ -1,4 +1,4 @@
-package net.tascalate.async.resolvers.inherited;
+package net.tascalate.async.resolver.inherited;
 
 import org.kohsuke.MetaInfServices;
 

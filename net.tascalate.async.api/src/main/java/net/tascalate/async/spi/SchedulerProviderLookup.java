@@ -310,7 +310,7 @@ public class SchedulerProviderLookup {
         }
     }
     
-    Accessor findDeclaredAccessor(Class<?> targetClass, Kind kind) {
+    protected Accessor findDeclaredAccessor(Class<?> targetClass, Kind kind) {
         List<Field> ownProviderFields = Stream.of(targetClass.getDeclaredFields())
             .filter(SchedulerProviderLookup::isSchedulerProviderField)
             .filter(kind::accept)
@@ -365,23 +365,23 @@ public class SchedulerProviderLookup {
     }
     
     
-    static boolean isNotSynthetic(Method method) {
+    private static boolean isNotSynthetic(Method method) {
         return !(method.isBridge() || method.isSynthetic()); 
     }
     
-    static boolean hasNoParameters(Method method) {
+    private static boolean hasNoParameters(Method method) {
         return method.getParameterCount() == 0; 
     }
     
-    static boolean isSchedulerSubtype(Method method) {
+    private static boolean isSchedulerSubtype(Method method) {
         return Scheduler.class.isAssignableFrom( method.getReturnType() ); 
     }
     
-    static boolean isSchedulerSubtype(Field field) {
+    private static boolean isSchedulerSubtype(Field field) {
         return Scheduler.class.isAssignableFrom( field.getType() ); 
     }
     
-    static boolean isAnnotatedAsProvider(AnnotatedElement member) {
+    private static boolean isAnnotatedAsProvider(AnnotatedElement member) {
         return member.getAnnotation(SchedulerProvider.class) != null; 
     }
     

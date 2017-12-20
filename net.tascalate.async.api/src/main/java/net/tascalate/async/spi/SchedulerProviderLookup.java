@@ -45,7 +45,6 @@ import net.tascalate.async.util.Cache;
 public class SchedulerProviderLookup {
     
     abstract public static class Accessor {
-        abstract protected Object doRead(Object target) throws ReflectiveOperationException;
         abstract protected boolean isVisibleTo(Class<?> subClass);
         
         final protected boolean isVisibleTo(Class<?> subClass, Member member) {
@@ -65,17 +64,31 @@ public class SchedulerProviderLookup {
             }
             
         }
-        
+    }
+    
+    abstract public static class InstanceAccessor extends Accessor {
+        abstract protected Object doRead(Object target) throws ReflectiveOperationException;
         final public Scheduler read(Object target) {
             try {
                 return (Scheduler)doRead(target);
             } catch (ReflectiveOperationException ex) {
                 throw new RuntimeException(ex);
             }
-        }
+        }        
     }
     
-    static final class ReadClassField extends Accessor {
+    abstract public static class ClassAccessor extends Accessor {
+        abstract protected Object doRead() throws ReflectiveOperationException;
+        final public Scheduler read() {
+            try {
+                return (Scheduler)doRead();
+            } catch (ReflectiveOperationException ex) {
+                throw new RuntimeException(ex);
+            }
+        }        
+    }
+    
+    static final class ReadClassField extends ClassAccessor {
         final private Field field;
         
         ReadClassField(Field field) {
@@ -88,7 +101,7 @@ public class SchedulerProviderLookup {
         }
         
         @Override
-        protected final Object doRead(Object target) throws ReflectiveOperationException {
+        protected final Object doRead() throws ReflectiveOperationException {
             return field.get(null);
         }
         
@@ -98,7 +111,7 @@ public class SchedulerProviderLookup {
         }
     }
     
-    static final class ReadInstanceField extends Accessor {
+    static final class ReadInstanceField extends InstanceAccessor {
         final private Field field;
         
         ReadInstanceField(Field field) {
@@ -121,7 +134,7 @@ public class SchedulerProviderLookup {
         }
     }
     
-    static final class InvokeClassGetter extends Accessor {
+    static final class InvokeClassGetter extends ClassAccessor {
         final private Method method;
         
         InvokeClassGetter(Method method) {
@@ -134,7 +147,7 @@ public class SchedulerProviderLookup {
         }
         
         @Override
-        protected final Object doRead(Object target) throws ReflectiveOperationException {
+        protected final Object doRead() throws ReflectiveOperationException {
             return method.invoke(null);
         }
         
@@ -144,7 +157,7 @@ public class SchedulerProviderLookup {
         }
     }
     
-    static final class InvokeInstanceGetter extends Accessor {
+    static final class InvokeInstanceGetter extends InstanceAccessor {
         final private Method method;
         
         InvokeInstanceGetter(Method method) {
@@ -168,9 +181,6 @@ public class SchedulerProviderLookup {
     }
     
     static final Accessor NO_ACCESSOR = new Accessor() {
-        protected Object doRead(Object target) { 
-            return null; 
-        } 
         protected boolean isVisibleTo(Class<?> subClass) {
             return false;
         }
@@ -223,12 +233,14 @@ public class SchedulerProviderLookup {
         this.superClassPriority  = superClassPriority;
     }
     
-    public Accessor getInstanceAccessor(Class<?> targetClass) {
-        return getAccessor(targetClass, instanceAccessorsCache, Kind.INSATNCE, new HashSet<>());
+    public InstanceAccessor getInstanceAccessor(Class<?> targetClass) {
+        Accessor result = getAccessor(targetClass, instanceAccessorsCache, Kind.INSATNCE, new HashSet<>());
+        return (InstanceAccessor)result;
     }
     
-    public Accessor getClassAccessor(Class<?> targetClass) {
-        return getAccessor(targetClass, classAccessorsCache, Kind.CLASS, new HashSet<>());
+    public ClassAccessor getClassAccessor(Class<?> targetClass) {
+        Accessor result = getAccessor(targetClass, classAccessorsCache, Kind.CLASS, new HashSet<>());
+        return (ClassAccessor)result;
     }
 
     

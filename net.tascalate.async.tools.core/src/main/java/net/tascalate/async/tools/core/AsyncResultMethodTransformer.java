@@ -102,7 +102,7 @@ public class AsyncResultMethodTransformer extends AbstractMethodTransformer {
             labelsMap.put((LabelNode) l, new LabelNode());
         }
 
-        List<TryCatchBlockNode> tryCatchBlocks = new ArrayList<>();//originalAsyncMethod.tryCatchBlocks;
+        List<TryCatchBlockNode> tryCatchBlocks = new ArrayList<>();
         // Try-catch blocks
         for (Iterator<?> it = originalAsyncMethod.tryCatchBlocks.iterator(); it.hasNext();) {
             TryCatchBlockNode tn = (TryCatchBlockNode) it.next();

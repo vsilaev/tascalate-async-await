@@ -66,11 +66,11 @@ abstract public class AsyncGenerator<T> extends AsyncMethod {
     }
     
     protected @continuable static <T> Object $$yield$$(T readyValue, AsyncGenerator<T> self) {
-        return self.generator.produce(readyValue);
+        return self.generator.produce(Generator.of(readyValue));
     }
 
     protected @continuable static <T> Object $$yield$$(CompletionStage<T> pendingValue, AsyncGenerator<T> self) {
-        return self.generator.produce(pendingValue);
+        return self.generator.produce(Generator.of(pendingValue));
     }
 
     protected @continuable static <T> Object $$yield$$(Generator<T> values, AsyncGenerator<T> self) {

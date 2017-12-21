@@ -92,23 +92,9 @@ class LazyGenerator<T> implements Generator<T> {
     }
 
     @continuable
-    Object produce(T readyValue) {
-        return produce(Generator.of(readyValue));
-    }
-
-    @continuable
-    Object produce(CompletionStage<T> pendingValue) {
-        return produce(Generator.of(pendingValue));
-    }
-
-    @continuable
     Object produce(Generator<T> values) {
-        return doProduce(values);
-    }
-
-    private @continuable Object doProduce(Generator<T> state) {
-    	assert producerLock == null;
-        currentState = state;
+        assert producerLock == null;
+        currentState = values;
         // Re-set producerLock
         producerLock = new CompletableFuture<>();
         // Allow to consume new promise(s) yielded

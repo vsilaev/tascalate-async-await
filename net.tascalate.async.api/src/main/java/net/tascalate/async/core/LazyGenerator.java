@@ -53,7 +53,7 @@ class LazyGenerator<T> implements Generator<T> {
         if (result.isDone()) {
             // If we have synchronous error in generator method
             // (as opposed to asynchronous that is managed by consumerLock
-            if (result.isCompletedExceptionally()) {
+            if (!result.isCancelled() && result.isCompletedExceptionally()) {
                 try {
                     result.get();
                 } catch (final CancellationException | InterruptedException ex) {

@@ -24,8 +24,10 @@
  */
 package net.tascalate.async.core;
 
+import java.util.concurrent.CancellationException;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionStage;
+import java.util.concurrent.ExecutionException;
 
 import org.apache.commons.javaflow.api.continuable;
 
@@ -39,9 +41,6 @@ class LazyGenerator<T> implements Generator<T> {
 
     private CompletionStage<T> latestResult;
 
-    private Throwable lastError = null;
-    private boolean done = false;
-
     private Generator<T> currentState = Generator.empty();
     private Object producerParam = Generator.NO_PARAM;
     
@@ -51,12 +50,24 @@ class LazyGenerator<T> implements Generator<T> {
 
     @Override
     public CompletionStage<T> next(Object producerParam) {
-        // If we have synchronous error in generator method
-        // (as opposed to asynchronous that is managed by consumerLock
-        if (null != lastError) {
-            Throwable error = lastError;
-            lastError = null;
-            Either.sneakyThrow(error);
+        if (result.isDone()) {
+            // If we have synchronous error in generator method
+            // (as opposed to asynchronous that is managed by consumerLock
+            if (result.isCompletedExceptionally()) {
+                try {
+                    result.get();
+                } catch (final CancellationException | InterruptedException ex) {
+                    // Should not happen -- completed exceptionally already checked
+                    return null;
+                } catch (final ExecutionException ex) {
+                    Throwable cause = ex.getCause();
+                    assert cause != null;
+                    Either.sneakyThrow(cause);
+                    return null;
+                }
+            } else {
+                return null;
+            }
         }
         // Could we advance further current state?
         latestResult = producerParam == Generator.NO_PARAM ? 
@@ -66,10 +77,6 @@ class LazyGenerator<T> implements Generator<T> {
             // Should be checked before done to let iterate over 
             // chained generators fully
             return latestResult;
-        }
-        
-        if (done) {
-            return null;
         }
 
         this.producerParam = producerParam;
@@ -88,6 +95,7 @@ class LazyGenerator<T> implements Generator<T> {
     @Override
     public void close() {
         result.cancel(true);
+        currentState.close();
         end(null);
     }
 
@@ -111,17 +119,13 @@ class LazyGenerator<T> implements Generator<T> {
     void end(Throwable ex) {
         // Set synchronous error in generator method
         // (as opposed to asynchronous that is managed by consumerLock        
-        lastError = ex;
-    	
-        done = true;
-        currentState = Generator.empty();
-        releaseConsumerLock();
-        
         if (null == ex) {
             result.complete(null);
         } else {
             result.completeExceptionally(ex);
         }
+        currentState = Generator.empty();
+        releaseConsumerLock();
     }
 
     private @continuable Object acquireProducerLock() {

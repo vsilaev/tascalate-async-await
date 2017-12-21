@@ -60,9 +60,7 @@ class LazyGenerator<T> implements Generator<T> {
                     // Should not happen -- completed exceptionally already checked
                     return null;
                 } catch (final ExecutionException ex) {
-                    Throwable cause = ex.getCause();
-                    assert cause != null;
-                    Either.sneakyThrow(cause);
+                    Exceptions.sneakyThrow(Exceptions.unrollExecutionException(ex));
                     return null;
                 }
             } else {

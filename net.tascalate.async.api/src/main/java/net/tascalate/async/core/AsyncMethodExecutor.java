@@ -26,7 +26,6 @@ package net.tascalate.async.core;
 
 import java.io.Serializable;
 import java.util.concurrent.CancellationException;
-import java.util.concurrent.CompletionException;
 import java.util.concurrent.CompletionStage;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Future;
@@ -184,7 +183,7 @@ public class AsyncMethodExecutor implements Serializable {
                     return Either.error(error);
                 } catch (ExecutionException ex) {
                     @SuppressWarnings("unchecked")
-                    E error = (E)unrollExecutionException(ex);
+                    E error = (E)Exceptions.unrollExecutionException(ex);
                     return Either.error(error);
                 } catch (InterruptedException ex) {
                     throw new IllegalStateException("Completed future throws interrupted exception");
@@ -194,23 +193,6 @@ public class AsyncMethodExecutor implements Serializable {
         return null;
     }
 
-    
-    private static Throwable unrollExecutionException(Throwable ex) {
-        Throwable nested = ex;
-        while (nested instanceof ExecutionException) {
-            nested = nested.getCause();
-        }
-        return null == nested ? ex : nested;
-    }
-    
-    static Throwable unrollCompletionException(Throwable ex) {
-        Throwable nested = ex;
-        while (nested instanceof CompletionException) {
-            nested = nested.getCause();
-        }
-        return null == nested ? ex : nested;
-    }
-    
     static class SuspendParams<R> {
         final AsyncMethod suspendedMethod;
         final CompletionStage<R> future;
@@ -239,7 +221,7 @@ public class AsyncMethodExecutor implements Serializable {
             if (error == null) {
                 resume(continuation, Either.result(result));
             } else {
-                Throwable ex = unrollCompletionException(error);
+                Throwable ex = Exceptions.unrollCompletionException(error);
                 if (CloseSignal.INSTANCE == ex) {
                     continuation.terminate();
                 } else {

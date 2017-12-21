@@ -26,60 +26,50 @@ package net.tascalate.async.core;
 
 import java.io.Serializable;
 
-class Either<R, E extends Throwable> implements Serializable {
+abstract class Either<R, E extends Throwable> implements Serializable {
 
     private static final long serialVersionUID = 4315928456202445814L;
 
-    private final R result;
-    private final E error;
-
-    protected Either(R result, E error) {
-        this.result = result;
-        this.error = error;
+    abstract R done() throws E;
+    
+    static class Result<R, E extends Throwable> extends Either<R, E> {
+        
+        private static final long serialVersionUID = -6355632776711993043L;
+        
+        private final R result;
+        
+        Result(R result) {
+            this.result = result;
+        }
+        
+        @Override
+        R done() throws E {
+            return result;
+        }
     }
+    
+    static class Error<R, E extends Throwable> extends Either<R, E> {
 
-    final boolean isError() {
-        return null != error;
-    }
-
-    final boolean isResult() {
-        return !isError();
-    }
-
-    final R result() {
-        return result;
-    }
-
-    final E error() {
-        return error;
+        private static final long serialVersionUID = 1586051308534209953L;
+        
+        private final E error;
+        
+        Error(E error) {
+            this.error = error;
+        }
+        
+        @Override
+        R done() throws E {
+            throw error;
+        }
+        
     }
 
     static <R, E extends Throwable> Either<R, E> result(R result) {
-        return new Either<R, E>(result, null);
+        return new Result<R, E>(result);
     }
 
     static <R, E extends Throwable> Either<R, E> error(E error) {
-        return new Either<R, E>(null, error);
-    }
-
-    R done() throws E {
-        if (isError()) {
-            throw error;
-        } else {
-            return result;
-        }
-    }
-    
-    R doneUnchecked() {
-        if (isError()) {
-            return sneakyThrow(error);
-        } else {
-            return result;
-        }
-    }
-    
-    @SuppressWarnings("unchecked")
-    static <T, E extends Throwable> T sneakyThrow(Throwable ex) throws E {
-        throw (E)ex;
+        return new Error<R, E>(error);
     }
 }

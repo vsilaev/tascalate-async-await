@@ -33,12 +33,12 @@ import net.tascalate.async.api.Generator;
 import net.tascalate.async.api.ValuesGenerator;
 import net.tascalate.async.core.AsyncMethodExecutor;
 
-public class ReadyValuesGenerator<T> implements ValuesGenerator<T> {
+final class ValuesGeneratorImpl<T> implements ValuesGenerator<T> {
     private final Generator<T> delegate;
     private boolean advance;
     private CompletionStage<T> current;
     
-    public ReadyValuesGenerator(Generator<T> delegate) {
+    ValuesGeneratorImpl(Generator<T> delegate) {
         this.delegate = delegate;
         advance = true;
     }

@@ -31,9 +31,9 @@ import java.util.stream.StreamSupport;
 
 import org.apache.commons.javaflow.api.continuable;
 
-import net.tascalate.async.generator.ReadyFirstPromisesGenerator;
-import net.tascalate.async.generator.ReadyValuesGenerator;
-import net.tascalate.async.generator.SimplePromisesGenerator;
+import net.tascalate.async.generator.GeneratorDecorators;
+import net.tascalate.async.generator.ReadyFirstFuturesGenerator;
+import net.tascalate.async.generator.OrderedFuturesGenerator;
 
 public interface Generator<T> extends GeneratorDecorator<T, Generator<T>>, AutoCloseable {
     
@@ -53,7 +53,12 @@ public interface Generator<T> extends GeneratorDecorator<T, Generator<T>>, AutoC
     
     default
     ValuesGenerator<T> values() {
-        return as(ReadyValuesGenerator<T>::new);
+        return as(GeneratorDecorators::values);
+    }
+    
+    default
+    PromisesGenerator<T> promises() {
+        return as(GeneratorDecorators::promises);
     }
     
     @SuppressWarnings("unchecked")
@@ -80,11 +85,11 @@ public interface Generator<T> extends GeneratorDecorator<T, Generator<T>>, AutoC
     }
 
     public static <T> Generator<T> of(Iterable<CompletionStage<T>> pendingValues) {
-        return new SimplePromisesGenerator<T>(pendingValues.iterator(), pendingValues);
+        return new OrderedFuturesGenerator<T>(pendingValues.iterator(), pendingValues);
     }
     
     public static <T> Generator<T> of(Stream<CompletionStage<T>> pendingValues) {
-        return new SimplePromisesGenerator<T>(pendingValues.iterator(), pendingValues);
+        return new OrderedFuturesGenerator<T>(pendingValues.iterator(), pendingValues);
     }
     
     public static <T> Generator<T> ordered(Iterable<T> readyValues) {
@@ -101,11 +106,11 @@ public interface Generator<T> extends GeneratorDecorator<T, Generator<T>>, AutoC
     }
 
     public static <T> Generator<T> readyFirst(Iterable<CompletionStage<T>> pendingValues) {
-        return ReadyFirstPromisesGenerator.create(pendingValues);
+        return ReadyFirstFuturesGenerator.create(pendingValues);
     }
     
     public static <T> Generator<T> readyFirst(Stream<CompletionStage<T>> pendingValues) {
-        return ReadyFirstPromisesGenerator.create(pendingValues);
+        return ReadyFirstFuturesGenerator.create(pendingValues);
     }
     
     public static final Object NO_PARAM = new Object() {

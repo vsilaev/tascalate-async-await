@@ -29,12 +29,12 @@ import java.util.concurrent.CompletionStage;
 
 import net.tascalate.async.api.Generator;
 
-public class SimplePromisesGenerator<T> implements Generator<T> {
+public class OrderedFuturesGenerator<T> implements Generator<T> {
 
     private final Iterator<CompletionStage<T>> delegate;
     private final AutoCloseable closeable;
     
-    public SimplePromisesGenerator(Iterator<CompletionStage<T>> delegate, Object closeable) {
+    public OrderedFuturesGenerator(Iterator<CompletionStage<T>> delegate, Object closeable) {
         this.delegate  = delegate;
         this.closeable = asCloseable(closeable);
     }

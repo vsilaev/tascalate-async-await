@@ -37,7 +37,7 @@ import java.util.stream.Stream;
 import net.tascalate.async.api.Generator;
 import net.tascalate.async.core.AsyncMethodExecutor;
 
-public class ReadyFirstPromisesGenerator<T> implements Generator<T> {
+public class ReadyFirstFuturesGenerator<T> implements Generator<T> {
     
     final private BlockingQueue<CompletionStage<T>> resolvedPromises = new LinkedBlockingQueue<>();
     final private AtomicInteger remaining = new AtomicInteger(0);
@@ -45,7 +45,7 @@ public class ReadyFirstPromisesGenerator<T> implements Generator<T> {
     private volatile CompletableFuture<Void> consumerLock = new CompletableFuture<>();
     private Generator<T> current = Generator.empty();
     
-    private ReadyFirstPromisesGenerator() {  }
+    private ReadyFirstFuturesGenerator() {  }
     
     private void enlistResolved(CompletionStage<T> resolvedPromise) {
         try {
@@ -112,7 +112,7 @@ public class ReadyFirstPromisesGenerator<T> implements Generator<T> {
     }
     
     private static <T> Generator<T> create(Iterator<CompletionStage<T>> pendingPromises) {
-        ReadyFirstPromisesGenerator<T> result = new ReadyFirstPromisesGenerator<>();
+        ReadyFirstFuturesGenerator<T> result = new ReadyFirstFuturesGenerator<>();
         while(pendingPromises.hasNext()) {
             // +1 before setting completion handler -- 
             // while stage may be completed already

@@ -57,23 +57,19 @@ abstract public class AsyncGenerator<T> extends AsyncMethod {
     
     abstract protected @continuable void doRun() throws Throwable;
 
-    protected @continuable static <V, T> V $$await$$(CompletionStage<V> future, AsyncGenerator<T> self) {
-    	return AsyncMethodExecutor.await(future);
+    protected Generator<T> yield() {
+        return generator;
     }
     
-    protected static <T> Generator<T> $$yield$$(AsyncGenerator<T> self) {
-        return self.generator;
-    }
-    
-    protected @continuable static <T> Object $$yield$$(T readyValue, AsyncGenerator<T> self) {
-        return self.generator.produce(Generator.of(readyValue));
+    protected @continuable Object yield(T readyValue) {
+        return generator.produce(Generator.of(readyValue));
     }
 
-    protected @continuable static <T> Object $$yield$$(CompletionStage<T> pendingValue, AsyncGenerator<T> self) {
-        return self.generator.produce(Generator.of(pendingValue));
+    protected @continuable Object yield(CompletionStage<T> pendingValue) {
+        return generator.produce(Generator.of(pendingValue));
     }
 
-    protected @continuable static <T> Object $$yield$$(Generator<T> values, AsyncGenerator<T> self) {
-        return self.generator.produce(values);
+    protected @continuable Object yield(Generator<T> values) {
+        return generator.produce(values);
     }
 }

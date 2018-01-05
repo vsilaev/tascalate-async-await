@@ -26,8 +26,8 @@ package net.tascalate.async.core;
 
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionStage;
-import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicLong;
+import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Function;
 
 import org.apache.commons.javaflow.api.continuable;
@@ -37,10 +37,15 @@ import net.tascalate.concurrent.CompletableTask;
 import net.tascalate.concurrent.Promises;
 
 abstract public class AsyncMethod implements Runnable {
+    
+    enum State {
+        INITIAL, RUNNING, COMPLETED
+    }
+    
     protected final CompletableFuture<?> future;
     
     private final Scheduler scheduler;
-    private final AtomicBoolean running = new AtomicBoolean(false);
+    private final AtomicReference<State> state = new AtomicReference<>(State.INITIAL);
     private final AtomicLong blockerVersion = new AtomicLong(0);
     
     private volatile CompletionStage<?> originalAwait;
@@ -53,22 +58,26 @@ abstract public class AsyncMethod implements Runnable {
     }
 
     public final @continuable void run() {
-        if (!running.compareAndSet(false, true)) {
-            throw new IllegalStateException(getClass().getName() + " is already running");
+        if (!state.compareAndSet(State.INITIAL, State.RUNNING)) {
+            throw new IllegalStateException(getClass().getName() + " should be in INITIAL state");
         }
         try {
             internalRun();
         } finally {
-            if (!running.compareAndSet(true, false)) {
-                throw new IllegalStateException(getClass().getName() + " is not running");
+            if (!state.compareAndSet(State.RUNNING, State.COMPLETED)) {
+                throw new IllegalStateException(getClass().getName() + " should be in RUNNING state");
             }           	
         }
+    }
+    
+    protected @continuable <V> V await(CompletionStage<V> originalAwait) {
+        return AsyncMethodExecutor.await(originalAwait);
     }
     
     abstract protected @continuable void internalRun();
 
     boolean isRunning() {
-        return running.get();
+        return state.get() == State.RUNNING;
     }
 
     void cancelAwaitIfNecessary() {

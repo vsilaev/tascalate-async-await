@@ -53,13 +53,13 @@ import org.objectweb.asm.tree.MethodNode;
 import org.objectweb.asm.tree.TryCatchBlockNode;
 import org.objectweb.asm.tree.VarInsnNode;
 
-public class AsyncResultMethodTransformer extends AbstractMethodTransformer {
+public class AsyncTaskMethodTransformer extends AsyncMethodTransformer {
     private final static Type ASYNC_TASK_TYPE = Type.getObjectType("net/tascalate/async/core/AsyncTask"); 
     private final static Type TASCALATE_PROMISE_TYPE = Type.getObjectType("net/tascalate/concurrent/Promise");
     
-    public AsyncResultMethodTransformer(ClassNode               classNode,
-                                        MethodNode              originalAsyncMethodNode,
-                                        Map<String, MethodNode> accessMethods) {
+    public AsyncTaskMethodTransformer(ClassNode               classNode,
+                                      MethodNode              originalAsyncMethodNode,
+                                      Map<String, MethodNode> accessMethods) {
         super(classNode, originalAsyncMethodNode, accessMethods);
     }
     
@@ -232,26 +232,24 @@ public class AsyncResultMethodTransformer extends AbstractMethodTransformer {
                                 throw new IllegalStateException("Async result must be used only inside methods that return value");
                             }
                             newInstructions.add(new VarInsnNode(ALOAD, 0));
+                            newInstructions.add(new InsnNode(SWAP));
                             newInstructions.add(
-                                new MethodInsnNode(INVOKESTATIC, 
+                                new MethodInsnNode(INVOKEVIRTUAL, 
                                                    ASYNC_TASK_TYPE.getInternalName(), 
-                                                   "$$result$$",
-                                                   Type.getMethodDescriptor(
-                                                       Type.getReturnType(min.desc), OBJECT_TYPE, ASYNC_TASK_TYPE
-                                                   ),
+                                                   "complete",
+                                                   Type.getMethodDescriptor(Type.getReturnType(min.desc), OBJECT_TYPE),
                                                    false
                                 )
                             );
                             continue;
                         case "await":
                             newInstructions.add(new VarInsnNode(ALOAD, 0));
+                            newInstructions.add(new InsnNode(SWAP));
                             newInstructions.add(
-                                new MethodInsnNode(INVOKESTATIC, 
+                                new MethodInsnNode(INVOKEVIRTUAL, 
                                                    ASYNC_TASK_TYPE.getInternalName(), 
-                                                   "$$await$$", 
-                                                   Type.getMethodDescriptor(
-                                                       OBJECT_TYPE, COMPLETION_STAGE_TYPE, ASYNC_TASK_TYPE
-                                                   ),
+                                                   "await", 
+                                                   Type.getMethodDescriptor(OBJECT_TYPE, COMPLETION_STAGE_TYPE),
                                                    false
                                 )
                             );

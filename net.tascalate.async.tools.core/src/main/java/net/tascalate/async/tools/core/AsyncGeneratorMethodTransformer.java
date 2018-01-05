@@ -53,7 +53,7 @@ import org.objectweb.asm.tree.MethodNode;
 import org.objectweb.asm.tree.TryCatchBlockNode;
 import org.objectweb.asm.tree.VarInsnNode;
 
-public class AsyncGeneratorMethodTransformer extends AbstractMethodTransformer {
+public class AsyncGeneratorMethodTransformer extends AsyncMethodTransformer {
     private final static Type ASYNC_GENERATOR_TYPE = Type.getObjectType("net/tascalate/async/core/AsyncGenerator");
     private final static Type LAZY_GENERATOR_TYPE = Type.getObjectType("net/tascalate/async/core/LazyGenerator");
     
@@ -219,27 +219,34 @@ public class AsyncGeneratorMethodTransformer extends AbstractMethodTransformer {
                         case "yield":
                             Type[] args = Type.getArgumentTypes(min.desc);
                             newInstructions.add(new VarInsnNode(ALOAD, 0));
+                            if (null != args) {
+                                switch (args.length) {
+                                    case 0: 
+                                        break;
+                                    case 1: 
+                                        newInstructions.add(new InsnNode(SWAP));
+                                        break;
+                                    default:
+                                        throw new IllegalStateException("Can't support YIELD method with more than one argument");
+                                }
+                            }
                             newInstructions.add(
-                                new MethodInsnNode(INVOKESTATIC, 
+                                new MethodInsnNode(INVOKEVIRTUAL, 
                                                    ASYNC_GENERATOR_TYPE.getInternalName(), 
-                                                   "$$yield$$", 
-                                                   Type.getMethodDescriptor(
-                                                       Type.getReturnType(min.desc), 
-                                                       appendArray(args, ASYNC_GENERATOR_TYPE)
-                                                   ),
+                                                   "yield", 
+                                                   Type.getMethodDescriptor(Type.getReturnType(min.desc), args), 
                                                    false
                                 )
                             );
                             continue;
                         case "await":
                             newInstructions.add(new VarInsnNode(ALOAD, 0));
+                            newInstructions.add(new InsnNode(SWAP));
                             newInstructions.add(
-                                new MethodInsnNode(INVOKESTATIC, 
+                                new MethodInsnNode(INVOKEVIRTUAL, 
                                                    ASYNC_GENERATOR_TYPE.getInternalName(), 
-                                                   "$$await$$", 
-                                                   Type.getMethodDescriptor(
-                                                       OBJECT_TYPE, COMPLETION_STAGE_TYPE, ASYNC_GENERATOR_TYPE
-                                                   ), 
+                                                   "await", 
+                                                   Type.getMethodDescriptor(OBJECT_TYPE, COMPLETION_STAGE_TYPE), 
                                                    false
                                 )
                             );

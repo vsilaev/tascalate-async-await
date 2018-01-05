@@ -25,7 +25,6 @@
 package net.tascalate.async.core;
 
 import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.CompletionStage;
 
 import org.apache.commons.javaflow.api.continuable;
 
@@ -58,7 +57,7 @@ abstract public class AsyncTask<T> extends AsyncMethod {
         try {
             doRun();
             // ensure that promise is resolved
-            $$result$$(null, this);
+            complete(null);
         } catch (Throwable ex) {
             future.completeExceptionally(ex);
         }
@@ -66,14 +65,11 @@ abstract public class AsyncTask<T> extends AsyncMethod {
     
     abstract protected @continuable void doRun() throws Throwable;
 
-    protected static <T> Promise<T> $$result$$(final T value, final AsyncTask<T> self) {
+    protected Promise<T> complete(final T value) {
         @SuppressWarnings("unchecked")
-        CompletableFuture<T> future = (CompletableFuture<T>)self.future; 
+        CompletableFuture<T> future = (CompletableFuture<T>)this.future; 
         future.complete(value);
-        return self.promise;
+        return promise;
     }
-    
-    protected @continuable static <V, T> V $$await$$(final CompletionStage<V> originalAwait, final AsyncTask<T> self) {
-        return AsyncMethodExecutor.await(originalAwait);
-    }
+  
 }

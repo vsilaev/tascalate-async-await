@@ -108,9 +108,9 @@ public class AsyncAwaitClassFileGenerator {
         for (MethodNode methodNode : new ArrayList<MethodNode>(methodsOf(classNode))) {
             if (isAsyncMethod(methodNode)) {
                 Type returnType = Type.getReturnType(methodNode.desc);
-                AbstractMethodTransformer transformer = null;
+                AsyncMethodTransformer transformer = null;
                 if (TYPE_COMPLETION_STAGE.equals(returnType) || TYPE_TASCALATE_PROMISE.equals(returnType) || Type.VOID_TYPE.equals(returnType)) {
-                    transformer = new AsyncResultMethodTransformer(classNode, methodNode, accessMethods);
+                    transformer = new AsyncTaskMethodTransformer(classNode, methodNode, accessMethods);
                 } else if (TYPE_GENERATOR.equals(returnType)) {
                     transformer = new AsyncGeneratorMethodTransformer(classNode, methodNode, accessMethods);
                 } else {

@@ -61,7 +61,7 @@ import org.objectweb.asm.tree.MethodInsnNode;
 import org.objectweb.asm.tree.MethodNode;
 import org.objectweb.asm.tree.TypeAnnotationNode;
 
-abstract public class AbstractMethodTransformer {
+abstract public class AsyncMethodTransformer {
     protected final static Log log = LogFactory.getLog(AsyncAwaitClassFileGenerator.class);
     
     protected final static String ASYNC_CALL_NAME = "net/tascalate/async/api/AsyncCall";
@@ -83,9 +83,9 @@ abstract public class AbstractMethodTransformer {
     // MethodNode
     protected final Map<String, MethodNode> accessMethods;
     
-    protected AbstractMethodTransformer(ClassNode               classNode, 
-                                        MethodNode              originalAsyncMethod,
-                                        Map<String, MethodNode> accessMethods) {
+    protected AsyncMethodTransformer(ClassNode               classNode, 
+                                     MethodNode              originalAsyncMethod,
+                                     Map<String, MethodNode> accessMethods) {
         
         this.classNode = classNode;
         this.originalAsyncMethod = originalAsyncMethod;

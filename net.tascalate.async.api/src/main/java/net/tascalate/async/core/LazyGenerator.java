@@ -32,24 +32,23 @@ import java.util.concurrent.ExecutionException;
 import org.apache.commons.javaflow.api.continuable;
 
 import net.tascalate.async.api.Generator;
+import net.tascalate.async.api.YieldReply;
 
 class LazyGenerator<T> implements Generator<T> {
     private final CompletableFuture<?> result;
 	
-    private CompletableFuture<?> producerLock = new CompletableFuture<>();
-    private CompletableFuture<?> consumerLock = new CompletableFuture<>();
-
+    private CompletableFuture<YieldReply<T>> producerLock;
+    private CompletableFuture<?> consumerLock;
     private CompletionStage<T> latestResult;
 
-    private Generator<T> currentState = Generator.empty();
-    private Object producerParam = Generator.NO_PARAM;
+    private Generator<T> currentDelegate = Generator.empty();
     
     LazyGenerator(CompletableFuture<?> result) {
     	this.result = result;
     }
 
     @Override
-    public CompletionStage<T> next(Object producerParam) {
+    public CompletionStage<T> next(Object param) {
         if (result.isDone()) {
             // If we have synchronous error in generator method
             // (as opposed to asynchronous that is managed by consumerLock
@@ -67,50 +66,53 @@ class LazyGenerator<T> implements Generator<T> {
                 return null;
             }
         }
-        // Could we advance further current state?
-        latestResult = producerParam == Generator.NO_PARAM ? 
-            currentState.next() : currentState.next(producerParam);
+        
+        // Await previously returned result, if any
+        T latestResultValue = null != latestResult ? AsyncMethodExecutor.await(latestResult) : null;
+        
+        // Could we advance further current delegate?
+        latestResult = currentDelegate.next(param);
             
         if (null != latestResult) {
-            // Should be checked before done to let iterate over 
-            // chained generators fully
+            // Yes, we can
             return latestResult;
         }
 
-        this.producerParam = producerParam;
+        // No, need to generate new promise;
+
         // Let produce some value (resumes producer)
-        assert producerLock != null;
-        releaseProducerLock();
+        releaseProducerLock(new YieldReply<>(latestResultValue, param));
         // Wait till value is ready (suspends consumer)
-        assert consumerLock != null;
         acquireConsumerLock();
         consumerLock = new CompletableFuture<>();
         // Check everything once again after wait
-        return next(producerParam);
+        return next(param);
     }
 
 
     @Override
     public void close() {
         result.cancel(true);
-        currentState.close();
+        currentDelegate.close();
         end(null);
     }
 
     @continuable
-    Object produce(Generator<T> values) {
-        assert producerLock == null;
-        currentState = values;
+    YieldReply<T> produce(Generator<T> values) {
+        currentDelegate = values;
         // Re-set producerLock
+        // It's important to reset it before unlocking consumer!
         producerLock = new CompletableFuture<>();
         // Allow to consume new promise(s) yielded
-        assert consumerLock != null;
+        // Unlock consumer, if locked (initially it's unlocked)
         releaseConsumerLock();
         return acquireProducerLock();
     }
 
     @continuable
     void begin() {
+        // Start with locked producer and unlocked consumer
+        producerLock = new CompletableFuture<>();
         acquireProducerLock();
     }
 
@@ -122,32 +124,28 @@ class LazyGenerator<T> implements Generator<T> {
         } else {
             result.completeExceptionally(ex);
         }
-        currentState = Generator.empty();
+        currentDelegate = Generator.empty();
         releaseConsumerLock();
     }
 
-    private @continuable Object acquireProducerLock() {
-    	CompletableFuture<?> currentLock = producerLock;
-        if (null != currentLock) {
-            if (!currentLock.isDone()) {
-                AsyncMethodExecutor.await(currentLock);
-            }
-            // Order matters - set to null only after wait
-            producerLock = null;
+    private @continuable YieldReply<T> acquireProducerLock() {
+        CompletableFuture<YieldReply<T>> currentLock = producerLock;
+        if (!currentLock.isDone()) {
+            return AsyncMethodExecutor.await(currentLock);
+        } else {
+            // Never returns null while isDone() == true
+            return currentLock.getNow(null);
         }
-        T latestResultValue = awaitLatestResult();
-        return producerFeedback(latestResultValue);
     }
 
-    private void releaseProducerLock() {
-        final CompletableFuture<?> currentLock = producerLock;
-        if (null != currentLock) {
-            producerLock = null;
-            currentLock.complete(null);
-        }
+    private void releaseProducerLock(YieldReply<T> reply) {
+        CompletableFuture<YieldReply<T>> currentLock = producerLock;
+        currentLock.complete(reply);
     }
     
     private @continuable void acquireConsumerLock() {
+        // When next() is called for first time
+        // then consumerLock is NULL
         CompletableFuture<?> currentLock = consumerLock;
     	if (null != currentLock) {
     	    if (!currentLock.isDone()) {
@@ -164,26 +162,5 @@ class LazyGenerator<T> implements Generator<T> {
             consumerLock = null;
             currentLock.complete(null);
         }
-    }
-
-    private @continuable T awaitLatestResult() {
-        CompletionStage<T> currentLock = latestResult;
-    	if (null != currentLock) {
-    	    try {
-    	        return AsyncMethodExecutor.await(currentLock);
-    	    } finally {
-  	            latestResult = null;
-    	    }
-    	} else {
-            return null;
-    	}    	
-    }
-    
-    private Object producerFeedback(T latestResultValue) {
-        if (Generator.NO_PARAM == producerParam) {
-            return latestResultValue;
-        } else {
-            return producerParam;
-        }        
     }
 }

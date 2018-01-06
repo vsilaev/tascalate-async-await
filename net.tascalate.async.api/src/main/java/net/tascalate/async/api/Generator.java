@@ -41,7 +41,7 @@ public interface Generator<T> extends GeneratorDecorator<T, Generator<T>>, AutoC
     
     default
     @continuable CompletionStage<T> next() {
-        return next(NO_PARAM);
+        return next(null);
     }
     
     void close();
@@ -112,11 +112,4 @@ public interface Generator<T> extends GeneratorDecorator<T, Generator<T>>, AutoC
     public static <T> Generator<T> readyFirst(Stream<CompletionStage<T>> pendingValues) {
         return ReadyFirstFuturesGenerator.create(pendingValues);
     }
-    
-    public static final Object NO_PARAM = new Object() {
-        @Override
-        public String toString() {
-            return "<<NO PARAM>>";
-        }
-    };
 }

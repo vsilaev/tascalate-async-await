@@ -10,7 +10,7 @@ public interface PromisesGenerator<T> extends GeneratorDecorator<T, PromisesGene
     
     default
     @continuable Promise<T> next() {
-        return next(Generator.NO_PARAM);
+        return next(null);
     }
     
     void close();

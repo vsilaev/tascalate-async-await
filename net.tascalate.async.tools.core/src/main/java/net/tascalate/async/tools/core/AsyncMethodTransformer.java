@@ -70,8 +70,8 @@ abstract public class AsyncMethodTransformer {
     protected final static Type COMPLETION_STAGE_TYPE       = Type.getObjectType("java/util/concurrent/CompletionStage");
     protected final static Type OBJECT_TYPE                 = Type.getType(Object.class);
     protected final static Type CLASS_TYPE                  = Type.getType(Class.class);    
-
-    private final static Type ASYNC_METHOD_EXECUTOR_TYPE = Type.getObjectType("net/tascalate/async/core/AsyncMethodExecutor");
+    protected final static Type ASYNC_METHOD_EXECUTOR_TYPE  = Type.getObjectType("net/tascalate/async/core/AsyncMethodExecutor");
+    
     private final static Type SCHEDULER_TYPE             = Type.getObjectType("net/tascalate/async/api/Scheduler");
     private final static Type SCHEDULER_PROVIDER_TYPE    = Type.getObjectType("net/tascalate/async/api/SchedulerProvider");
     private final static Type ASYNC_METHOD_TYPE          = Type.getObjectType("net/tascalate/async/core/AsyncMethod");

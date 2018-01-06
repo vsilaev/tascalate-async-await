@@ -22,55 +22,19 @@
  * OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
-package net.tascalate.async.core;
+package net.tascalate.async.api;
 
-import java.util.concurrent.CompletionStage;
-
-import org.apache.commons.javaflow.api.continuable;
-
-import net.tascalate.async.api.Scheduler;
-import net.tascalate.async.api.YieldReply;
-import net.tascalate.async.api.Generator;
-
-abstract public class AsyncGenerator<T> extends AsyncMethod {
-    public final LazyGenerator<T> generator;
+public class YieldReply<T> {
+    final public T value;
+    final public Object param;
     
-    protected AsyncGenerator(Scheduler scheduler) {
-        super(scheduler);
-        this.generator = new LazyGenerator<>(future);
+    public YieldReply(T value, Object param) {
+        this.value = value;
+        this.param = param;
     }
     
     @Override
-    protected final @continuable void internalRun() {
-        boolean success = false;
-        try {
-    	    generator.begin();
-    	    doRun();
-    	    success = true;
-        } catch (Throwable ex) {
-            generator.end(ex);
-        } finally {
-            if (success) {
-                generator.end(null);
-            }
-        }
-    }
-    
-    abstract protected @continuable void doRun() throws Throwable;
-
-    protected Generator<T> yield() {
-        return generator;
-    }
-    
-    protected @continuable YieldReply<T> yield(T readyValue) {
-        return generator.produce(Generator.of(readyValue));
-    }
-
-    protected @continuable YieldReply<T> yield(CompletionStage<T> pendingValue) {
-        return generator.produce(Generator.of(pendingValue));
-    }
-
-    protected @continuable YieldReply<T> yield(Generator<T> values) {
-        return generator.produce(values);
+    public String toString() {
+        return String.format("YieldReply[value=%s, param=%s]", value, param);
     }
 }

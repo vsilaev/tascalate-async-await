@@ -240,11 +240,9 @@ public class AsyncGeneratorMethodTransformer extends AsyncMethodTransformer {
                             );
                             continue;
                         case "await":
-                            newInstructions.add(new VarInsnNode(ALOAD, 0));
-                            newInstructions.add(new InsnNode(SWAP));
                             newInstructions.add(
-                                new MethodInsnNode(INVOKEVIRTUAL, 
-                                                   ASYNC_GENERATOR_TYPE.getInternalName(), 
+                                new MethodInsnNode(INVOKESTATIC, 
+                                                   ASYNC_METHOD_EXECUTOR_TYPE.getInternalName(), 
                                                    "await", 
                                                    Type.getMethodDescriptor(OBJECT_TYPE, COMPLETION_STAGE_TYPE), 
                                                    false

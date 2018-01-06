@@ -8,7 +8,6 @@ import java.util.StringJoiner;
 import java.util.concurrent.CompletionStage;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
-import java.util.concurrent.Future;
 import java.util.concurrent.ThreadFactory;
 import java.util.concurrent.atomic.AtomicLong;
 
@@ -30,9 +29,9 @@ public class SimpleArgs {
     });
 
     public static void main(String[] args) {
-        final SimpleArgs example = new SimpleArgs();
+        //final SimpleArgs example = new SimpleArgs();
         //CompletionStage<?> f = example.testArgs("ABC", Scheduler.from(executor, true));
-        CompletionStage<?> f = example.mergeStrings("|", Scheduler.from(executor, true), 10);
+        CompletionStage<?> f = SimpleArgs.mergeStrings("|", Scheduler.from(executor, true), 10);
         f.whenComplete((r, e) -> {
             System.out.println(r);
             executor.shutdownNow();

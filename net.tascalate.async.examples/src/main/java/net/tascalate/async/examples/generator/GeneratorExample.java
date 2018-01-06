@@ -38,9 +38,8 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 
 import net.tascalate.async.api.Generator;
-import net.tascalate.async.api.Scheduler;
-import net.tascalate.async.api.SchedulerProvider;
 import net.tascalate.async.api.ValuesGenerator;
+import net.tascalate.async.api.YieldReply;
 import net.tascalate.async.api.async;
 import net.tascalate.concurrent.CompletableTask;
 
@@ -115,7 +114,7 @@ public class GeneratorExample {
     @async
     Generator<String> produceStrings() {
     	System.out.println("%%ProduceStrings - starting");
-        Object o;
+        YieldReply<String> o;
         o = yield(waitString("ABC"));
         System.out.println("Processed: " + o + ", " + new Date());
         

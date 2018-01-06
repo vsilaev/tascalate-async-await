@@ -70,10 +70,6 @@ abstract public class AsyncMethod implements Runnable {
         }
     }
     
-    protected @continuable <V> V await(CompletionStage<V> originalAwait) {
-        return AsyncMethodExecutor.await(originalAwait);
-    }
-    
     abstract protected @continuable void internalRun();
 
     boolean isRunning() {
@@ -139,7 +135,7 @@ abstract public class AsyncMethod implements Runnable {
 
     private void cancelAwaitIfNecessary(CompletableFuture<?> terminateMethod, CompletionStage<?> originalAwait) {
         if (future.isCancelled()) {
-        	this.terminateMethod = null;
+            this.terminateMethod = null;
             // First terminate method to avoid exceptions in method
             terminateMethod.completeExceptionally(CloseSignal.INSTANCE);
             // No longer need reference

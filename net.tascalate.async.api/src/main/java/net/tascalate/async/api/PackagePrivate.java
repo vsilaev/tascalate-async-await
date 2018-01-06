@@ -3,7 +3,7 @@ package net.tascalate.async.api;
 import java.util.concurrent.CompletionStage;
 
 final class PackagePrivate {
-    public PackagePrivate() {}
+    private PackagePrivate() {}
     
     static final Scheduler SAME_THREAD_SCHEDULER = Scheduler.from(Runnable::run);
     

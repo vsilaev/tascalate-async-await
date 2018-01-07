@@ -40,7 +40,7 @@ abstract public class AsyncTask<T> extends AsyncMethod {
         super(scheduler);
         @SuppressWarnings("unchecked")
         CompletableFuture<T> future = (CompletableFuture<T>)this.future; 
-        this.promise = scheduler.interruptible() ?
+        this.promise = scheduler.characteristics().contains(Scheduler.Characteristics.INTERRUPTIBLE) ?
             // For interruptible Scheduler use AbstractCompletableTask
             CompletableTask
                 .asyncOn(scheduler)

@@ -24,13 +24,20 @@
  */
 package net.tascalate.async.api;
 
+import java.util.Collections;
+import java.util.EnumSet;
+import java.util.Set;
 import java.util.concurrent.Executor;
 import java.util.function.Function;
 
 public interface Scheduler extends Executor {
     
-    default boolean interruptible() {
-        return false;
+    public enum Characteristics {
+        INTERRUPTIBLE;
+    }
+    
+    default Set<Characteristics> characteristics() {
+        return Collections.emptySet();
     }
     
     default Runnable contextualize(Runnable resumeContinuation) {
@@ -41,20 +48,20 @@ public interface Scheduler extends Executor {
         return executor::execute;
     }
     
-    public static Scheduler from(Executor executor, boolean interruptible) {
-    	return from(executor, interruptible, Function.identity());
+    public static Scheduler from(Executor executor, Set<Characteristics> characteristics) {
+    	return from(executor, characteristics, Function.identity());
     }
     
     public static Scheduler from(Executor executor, Function<? super Runnable, ? extends Runnable> contextualizer) {
-    	return from(executor, true, contextualizer);
+    	return from(executor, EnumSet.of(Characteristics.INTERRUPTIBLE), contextualizer);
     }
     
-    public static Scheduler from(Executor executor, boolean interruptible, Function<? super Runnable, ? extends Runnable> contextualizer) {
+    public static Scheduler from(Executor executor, Set<Characteristics> characteristics, Function<? super Runnable, ? extends Runnable> contextualizer) {
         return new Scheduler() {
         	
         	@Override
-        	public boolean interruptible() {
-                return interruptible;
+        	public Set<Characteristics> characteristics() {
+                return characteristics;
             }
 			
         	@Override

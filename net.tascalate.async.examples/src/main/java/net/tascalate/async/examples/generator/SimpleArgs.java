@@ -4,6 +4,7 @@ import static net.tascalate.async.api.AsyncCall.asyncResult;
 import static net.tascalate.async.api.AsyncCall.await;
 
 import java.util.Date;
+import java.util.EnumSet;
 import java.util.StringJoiner;
 import java.util.concurrent.CompletionStage;
 import java.util.concurrent.ExecutorService;
@@ -31,7 +32,7 @@ public class SimpleArgs {
     public static void main(String[] args) {
         //final SimpleArgs example = new SimpleArgs();
         //CompletionStage<?> f = example.testArgs("ABC", Scheduler.from(executor, true));
-        CompletionStage<?> f = SimpleArgs.mergeStrings("|", Scheduler.from(executor, true), 10);
+        CompletionStage<?> f = SimpleArgs.mergeStrings("|", Scheduler.from(executor, EnumSet.of(Scheduler.Characteristics.INTERRUPTIBLE)), 10);
         f.whenComplete((r, e) -> {
             System.out.println(r);
             executor.shutdownNow();

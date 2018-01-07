@@ -90,7 +90,7 @@ abstract public class AsyncMethod implements Runnable {
     Runnable createResumeHandler(Runnable originalResumer) {
         long currentBlockerVersion = blockerVersion.get();
         Runnable contextualResumer = scheduler.contextualize(originalResumer);
-        if (scheduler.interruptible()) {
+        if (scheduler.characteristics().contains(Scheduler.Characteristics.INTERRUPTIBLE)) {
             return () -> {
                 CompletionStage<?> resumeFuture = CompletableTask.runAsync(
                     contextualResumer, scheduler

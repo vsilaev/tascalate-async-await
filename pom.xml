@@ -35,7 +35,7 @@
 	</developers>
 
 	<modules>
-		<module>net.tascalate.async.api</module>
+		<module>net.tascalate.async.runtime</module>
 		<module>net.tascalate.async.resolver.inherited</module>
 		<module>net.tascalate.async.resolver.provided</module>
 		<module>net.tascalate.async.resolver.scoped</module>

@@ -27,7 +27,7 @@
 
 		<dependency>
 			<groupId>net.tascalate.async</groupId>
-			<artifactId>net.tascalate.async.api</artifactId>
+			<artifactId>net.tascalate.async.runtime</artifactId>
 			<version>1.0-SNAPSHOT</version>
 		</dependency>
 

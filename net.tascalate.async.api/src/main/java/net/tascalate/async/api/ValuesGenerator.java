@@ -24,10 +24,8 @@
  */
 package net.tascalate.async.api;
 
-import org.apache.commons.javaflow.api.continuable;
-
 public interface ValuesGenerator<T> extends GeneratorDecorator<T, ValuesGenerator<T>>, AutoCloseable {
-    @continuable T next();
-    @continuable boolean hasNext();
+    @suspendable T next();
+    @suspendable boolean hasNext();
     void close();
 }

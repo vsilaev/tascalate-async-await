@@ -26,9 +26,8 @@ package net.tascalate.async.core;
 
 import java.util.concurrent.CompletableFuture;
 
-import org.apache.commons.javaflow.api.continuable;
-
 import net.tascalate.async.api.Scheduler;
+import net.tascalate.async.api.suspendable;
 import net.tascalate.concurrent.CompletablePromise;
 import net.tascalate.concurrent.CompletableTask;
 import net.tascalate.concurrent.Promise;
@@ -53,7 +52,7 @@ abstract public class AsyncTask<T> extends AsyncMethod {
     }
     
     @Override
-    protected final @continuable void internalRun() {
+    protected final @suspendable void internalRun() {
         try {
             doRun();
             // ensure that promise is resolved
@@ -63,7 +62,7 @@ abstract public class AsyncTask<T> extends AsyncMethod {
         }
     }
     
-    abstract protected @continuable void doRun() throws Throwable;
+    abstract protected @suspendable void doRun() throws Throwable;
 
     protected Promise<T> complete(final T value) {
         @SuppressWarnings("unchecked")

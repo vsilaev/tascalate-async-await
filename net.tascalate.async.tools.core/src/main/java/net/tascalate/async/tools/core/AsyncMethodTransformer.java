@@ -66,7 +66,7 @@ abstract public class AsyncMethodTransformer {
     
     protected final static String ASYNC_CALL_NAME = "net/tascalate/async/api/AsyncCall";
     
-    protected final static Type CONTINUABLE_ANNOTATION_TYPE = Type.getObjectType("org/apache/commons/javaflow/api/continuable");
+    protected final static Type SUSPENDABLE_ANNOTATION_TYPE = Type.getObjectType("net/tascalate/async/api/suspendable");
     protected final static Type COMPLETION_STAGE_TYPE       = Type.getObjectType("java/util/concurrent/CompletionStage");
     protected final static Type OBJECT_TYPE                 = Type.getType(Object.class);
     protected final static Type CLASS_TYPE                  = Type.getType(Class.class);    
@@ -242,7 +242,7 @@ abstract public class AsyncMethodTransformer {
         replacementAsyncMethodNode.invisibleTypeAnnotations = copyTypeAnnotations(invisibleTypeAnnotationsOf(originalAsyncMethod));
         replacementAsyncMethodNode.visibleTypeAnnotations = copyTypeAnnotations(visibleTypeAnnotationsOf(originalAsyncMethod));
         
-        replacementAsyncMethodNode.visitAnnotation(CONTINUABLE_ANNOTATION_TYPE.getDescriptor(), true).visitEnd();
+        replacementAsyncMethodNode.visitAnnotation(SUSPENDABLE_ANNOTATION_TYPE.getDescriptor(), true).visitEnd();
         replacementAsyncMethodNode.visitCode();
 
         int schedulerParamIdx = schedulerProviderParamIdx(originalAsyncMethod);

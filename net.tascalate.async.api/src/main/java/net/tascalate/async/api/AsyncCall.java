@@ -27,6 +27,7 @@ package net.tascalate.async.api;
 import java.util.concurrent.CancellationException;
 import java.util.concurrent.CompletionStage;
 
+import net.tascalate.async.core.AsyncMethodExecutor;
 import net.tascalate.concurrent.Promise;
 
 /**
@@ -41,8 +42,8 @@ public class AsyncCall {
      * The {@link async} method will be suspended until {@link CompletionStage}
      * returns or throws the result.
      */
-    public static <T> T await(CompletionStage<T> condition) throws CancellationException, NoActiveAsyncCallException {
-        throw new IllegalStateException("Method call must be replaced by bytecode enhancer");
+    public @suspendable static <T> T await(CompletionStage<T> future) throws CancellationException, NoActiveAsyncCallException {
+        return AsyncMethodExecutor.await(future);
     }
 
     public static <T> Promise<T> asyncResult(final T value) {

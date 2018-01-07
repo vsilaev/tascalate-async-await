@@ -41,6 +41,8 @@ import net.tascalate.async.api.Generator;
 import net.tascalate.async.api.ValuesGenerator;
 import net.tascalate.async.api.YieldReply;
 import net.tascalate.async.api.async;
+import net.tascalate.async.api.suspendable;
+
 import net.tascalate.concurrent.CompletableTask;
 
 public class GeneratorExample {
@@ -50,7 +52,7 @@ public class GeneratorExample {
     public static void main(String[] args) {
         long startTime = System.currentTimeMillis();
         final GeneratorExample example = new GeneratorExample();
-        //example.asyncOperation();
+        example.asyncOperation();
         final CompletionStage<String> result1 = example.mergeStrings(", ");
         final CompletionStage<String> result2 = example.iterateStringsEx();
         
@@ -108,12 +110,18 @@ public class GeneratorExample {
         System.out.println("Before await!");
         System.out.println("Done");
         await( waitString("111") );
+        System.out.println("CONTINUABLE WAIT: " + continuableWait());
         System.out.println("After await!");
+    }
+    
+    public @suspendable String continuableWait() {
+        return await( waitString("ZZZ") );
     }
     
     @async
     Generator<String> produceStrings() {
-    	System.out.println("%%ProduceStrings - starting");
+       
+    	System.out.println("%%ProduceStrings - starting + ");
         YieldReply<String> o;
         o = yield(waitString("ABC"));
         System.out.println("Processed: " + o + ", " + new Date());

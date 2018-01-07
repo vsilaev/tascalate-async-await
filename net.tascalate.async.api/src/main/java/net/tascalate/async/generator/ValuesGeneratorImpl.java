@@ -27,10 +27,9 @@ package net.tascalate.async.generator;
 import java.util.NoSuchElementException;
 import java.util.concurrent.CompletionStage;
 
-import org.apache.commons.javaflow.api.continuable;
-
 import net.tascalate.async.api.Generator;
 import net.tascalate.async.api.ValuesGenerator;
+import net.tascalate.async.api.suspendable;
 import net.tascalate.async.core.AsyncMethodExecutor;
 
 final class ValuesGeneratorImpl<T> implements ValuesGenerator<T> {
@@ -47,12 +46,12 @@ final class ValuesGeneratorImpl<T> implements ValuesGenerator<T> {
         return delegate.raw();
     }
     
-    public @continuable boolean hasNext() {
+    public @suspendable boolean hasNext() {
         advanceIfNecessary();
         return current != null;
     }
 
-    public @continuable T next() {
+    public @suspendable T next() {
         advanceIfNecessary();
 
         if (current == null)
@@ -70,7 +69,7 @@ final class ValuesGeneratorImpl<T> implements ValuesGenerator<T> {
         delegate.close();
     }
     
-    protected @continuable void advanceIfNecessary() {
+    protected @suspendable void advanceIfNecessary() {
         if (advance)
             current = delegate.next();
         advance = false;

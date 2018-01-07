@@ -29,10 +29,9 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionStage;
 import java.util.concurrent.ExecutionException;
 
-import org.apache.commons.javaflow.api.continuable;
-
 import net.tascalate.async.api.Generator;
 import net.tascalate.async.api.YieldReply;
+import net.tascalate.async.api.suspendable;
 
 class LazyGenerator<T> implements Generator<T> {
     private final CompletableFuture<?> result;
@@ -97,8 +96,7 @@ class LazyGenerator<T> implements Generator<T> {
         end(null);
     }
 
-    @continuable
-    YieldReply<T> produce(Generator<T> values) {
+    @suspendable YieldReply<T> produce(Generator<T> values) {
         currentDelegate = values;
         // Re-set producerLock
         // It's important to reset it before unlocking consumer!
@@ -109,8 +107,7 @@ class LazyGenerator<T> implements Generator<T> {
         return acquireProducerLock();
     }
 
-    @continuable
-    void begin() {
+    @suspendable void begin() {
         // Start with locked producer and unlocked consumer
         producerLock = new CompletableFuture<>();
         acquireProducerLock();
@@ -128,7 +125,7 @@ class LazyGenerator<T> implements Generator<T> {
         releaseConsumerLock();
     }
 
-    private @continuable YieldReply<T> acquireProducerLock() {
+    private @suspendable YieldReply<T> acquireProducerLock() {
         CompletableFuture<YieldReply<T>> currentLock = producerLock;
         if (!currentLock.isDone()) {
             return AsyncMethodExecutor.await(currentLock);
@@ -143,7 +140,7 @@ class LazyGenerator<T> implements Generator<T> {
         currentLock.complete(reply);
     }
     
-    private @continuable void acquireConsumerLock() {
+    private @suspendable void acquireConsumerLock() {
         // When next() is called for first time
         // then consumerLock is NULL
         CompletableFuture<?> currentLock = consumerLock;

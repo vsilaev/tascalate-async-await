@@ -26,10 +26,9 @@ package net.tascalate.async.core;
 
 import java.util.concurrent.CompletionStage;
 
-import org.apache.commons.javaflow.api.continuable;
-
 import net.tascalate.async.api.Scheduler;
 import net.tascalate.async.api.YieldReply;
+import net.tascalate.async.api.suspendable;
 import net.tascalate.async.api.Generator;
 
 abstract public class AsyncGenerator<T> extends AsyncMethod {
@@ -41,7 +40,7 @@ abstract public class AsyncGenerator<T> extends AsyncMethod {
     }
     
     @Override
-    protected final @continuable void internalRun() {
+    protected final @suspendable void internalRun() {
         boolean success = false;
         try {
     	    generator.begin();
@@ -56,21 +55,21 @@ abstract public class AsyncGenerator<T> extends AsyncMethod {
         }
     }
     
-    abstract protected @continuable void doRun() throws Throwable;
+    abstract protected @suspendable void doRun() throws Throwable;
 
     protected Generator<T> yield() {
         return generator;
     }
     
-    protected @continuable YieldReply<T> yield(T readyValue) {
+    protected @suspendable YieldReply<T> yield(T readyValue) {
         return generator.produce(Generator.of(readyValue));
     }
 
-    protected @continuable YieldReply<T> yield(CompletionStage<T> pendingValue) {
+    protected @suspendable YieldReply<T> yield(CompletionStage<T> pendingValue) {
         return generator.produce(Generator.of(pendingValue));
     }
 
-    protected @continuable YieldReply<T> yield(Generator<T> values) {
+    protected @suspendable YieldReply<T> yield(Generator<T> values) {
         return generator.produce(values);
     }
 }

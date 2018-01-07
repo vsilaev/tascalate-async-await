@@ -86,7 +86,7 @@ public class AsyncTaskMethodTransformer extends AsyncMethodTransformer {
             ACC_PROTECTED, "doRun", "()V", null, new String[]{"java/lang/Throwable"}
         );
 
-        asyncRunMethod.visitAnnotation(CONTINUABLE_ANNOTATION_TYPE.getDescriptor(), true);
+        asyncRunMethod.visitAnnotation(SUSPENDABLE_ANNOTATION_TYPE.getDescriptor(), true);
         // Local variables
         // amn.localVariables = methodNode.localVariables;
 

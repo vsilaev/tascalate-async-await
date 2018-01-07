@@ -31,11 +31,12 @@ import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Future;
 
 import org.apache.commons.javaflow.api.Continuation;
-import org.apache.commons.javaflow.api.continuable;
+
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 
 import net.tascalate.async.api.Scheduler;
+import net.tascalate.async.api.suspendable;
 import net.tascalate.async.api.NoActiveAsyncCallException;
 
 /**
@@ -58,8 +59,6 @@ public class AsyncMethodExecutor implements Serializable {
     }
 
     /**
-     * Execute the {@link Continuation} and start {@link Continuator} when the
-     * {@link Continuation} suspends.
      */
     protected void executeTask(AsyncMethod asyncMethod) {
         // Create the initial Continuation
@@ -72,8 +71,6 @@ public class AsyncMethodExecutor implements Serializable {
     }
 
     /**
-     * Continue the {@link Continuation} and start {@link Continuator} when the
-     * {@link Continuation} suspends.
      */
     protected void resume(Continuation initialContinuation, Object context) {
         // Continue Continuation
@@ -120,13 +117,13 @@ public class AsyncMethodExecutor implements Serializable {
 
     /**
      */
-    public @continuable static <R, E extends Throwable> R await(CompletionStage<R> future) throws E {
+    public @suspendable static <R, E extends Throwable> R await(CompletionStage<R> future) throws E {
         return INSTANCE.awaitTask(future);
     }
 
     /**
      */
-    protected @continuable <R, E extends Throwable> R awaitTask(CompletionStage<R> future) throws E {
+    protected @suspendable <R, E extends Throwable> R awaitTask(CompletionStage<R> future) throws E {
         // Blocking is available - resume() method is being called
     	
         // If promise is already resolved don't suspend

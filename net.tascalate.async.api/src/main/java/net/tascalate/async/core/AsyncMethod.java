@@ -30,9 +30,8 @@ import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Function;
 
-import org.apache.commons.javaflow.api.continuable;
-
 import net.tascalate.async.api.Scheduler;
+import net.tascalate.async.api.suspendable;
 import net.tascalate.concurrent.CompletableTask;
 import net.tascalate.concurrent.Promises;
 
@@ -57,7 +56,7 @@ abstract public class AsyncMethod implements Runnable {
         scheduler : Scheduler.sameThreadContextless();
     }
 
-    public final @continuable void run() {
+    public final @suspendable void run() {
         if (!state.compareAndSet(State.INITIAL, State.RUNNING)) {
             throw new IllegalStateException(getClass().getName() + " should be in INITIAL state");
         }
@@ -70,7 +69,7 @@ abstract public class AsyncMethod implements Runnable {
         }
     }
     
-    abstract protected @continuable void internalRun();
+    abstract protected @suspendable void internalRun();
 
     boolean isRunning() {
         return state.get() == State.RUNNING;

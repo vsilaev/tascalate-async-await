@@ -22,38 +22,19 @@
  * OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
-package net.tascalate.async.generator;
+package net.tascalate.async.api;
 
-import java.util.concurrent.CompletionStage;
+import java.lang.annotation.Documented;
+import java.lang.annotation.ElementType;
+import java.lang.annotation.Retention;
+import java.lang.annotation.RetentionPolicy;
+import java.lang.annotation.Target;
 
-import net.tascalate.async.api.Generator;
-import net.tascalate.async.api.PromisesGenerator;
-import net.tascalate.concurrent.Promise;
-import net.tascalate.concurrent.Promises;
+import org.apache.commons.javaflow.api.ContinuableAnnotation;
 
-class PromisesGeneratorImpl <T> implements PromisesGenerator<T> {
-    
-    private final Generator<T> delegate;
-    
-    PromisesGeneratorImpl(Generator<T> delegate) {
-        this.delegate = delegate;
-    }
+@Documented
+@Retention(RetentionPolicy.CLASS)
+@Target({ElementType.METHOD})
+@ContinuableAnnotation
+public @interface suspendable {}
 
-    @Override
-    public Generator<T> raw() {
-        return delegate;
-    }
-
-    @Override
-    public Promise<T> next(Object producerParam) {
-        CompletionStage<T> original = delegate.next(producerParam);
-        return null == original ? null : Promises.from(original);
-    }
-
-    @Override
-    public void close() {
-        delegate.close();
-    }
-
-    
-}

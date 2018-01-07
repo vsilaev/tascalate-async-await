@@ -29,18 +29,16 @@ import java.util.concurrent.CompletionStage;
 import java.util.stream.Stream;
 import java.util.stream.StreamSupport;
 
-import org.apache.commons.javaflow.api.continuable;
-
 import net.tascalate.async.generator.GeneratorDecorators;
 import net.tascalate.async.generator.ReadyFirstFuturesGenerator;
 import net.tascalate.async.generator.OrderedFuturesGenerator;
 
 public interface Generator<T> extends GeneratorDecorator<T, Generator<T>>, AutoCloseable {
     
-    @continuable CompletionStage<T> next(Object producerParam);
+    @suspendable CompletionStage<T> next(Object producerParam);
     
     default
-    @continuable CompletionStage<T> next() {
+    @suspendable CompletionStage<T> next() {
         return next(null);
     }
     

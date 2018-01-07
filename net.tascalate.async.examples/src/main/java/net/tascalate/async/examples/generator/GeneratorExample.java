@@ -82,7 +82,7 @@ public class GeneratorExample {
             	String v = await(singleResult);
                 System.out.println("Received: " + v);
                 ++i;
-                if (i > 2) param = "VAL #" + i;
+                param = "VAL #" + i + "(AFTER " + v + ")";
                 joiner.add(v);
                 if (i == 17) {
                     break;
@@ -126,6 +126,10 @@ public class GeneratorExample {
        
     	System.out.println("%%ProduceStrings - starting + ");
         YieldReply<String> o;
+        
+        o = yield(Generator.empty());
+        System.out.println("INITIAL PARAM: " + o.param);
+        
         o = yield(waitString("ABC"));
         System.out.println("Processed: " + o + ", " + new Date());
         

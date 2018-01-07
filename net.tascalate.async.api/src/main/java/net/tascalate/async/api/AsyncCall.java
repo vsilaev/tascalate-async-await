@@ -27,6 +27,7 @@ package net.tascalate.async.api;
 import java.util.concurrent.CancellationException;
 import java.util.concurrent.CompletionStage;
 
+import net.tascalate.async.core.AsyncMethodAccessor;
 import net.tascalate.async.core.AsyncMethodExecutor;
 import net.tascalate.concurrent.Promise;
 
@@ -44,6 +45,10 @@ public class AsyncCall {
      */
     public @suspendable static <T> T await(CompletionStage<T> future) throws CancellationException, NoActiveAsyncCallException {
         return AsyncMethodExecutor.await(future);
+    }
+    
+    public static boolean interrupted() throws NoActiveAsyncCallException {
+        return AsyncMethodAccessor.isCurrentCallInterrupted(true);
     }
 
     public static <T> Promise<T> asyncResult(final T value) {

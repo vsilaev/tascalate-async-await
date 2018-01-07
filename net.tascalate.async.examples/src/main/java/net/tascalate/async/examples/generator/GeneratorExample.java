@@ -27,6 +27,7 @@ package net.tascalate.async.examples.generator;
 import static net.tascalate.async.api.AsyncCall.asyncResult;
 import static net.tascalate.async.api.AsyncCall.yield;
 import static net.tascalate.async.api.AsyncCall.await;
+import static net.tascalate.async.api.AsyncCall.interrupted;
 
 import java.io.FileNotFoundException;
 import java.util.Date;
@@ -110,11 +111,13 @@ public class GeneratorExample {
         System.out.println("Before await!");
         System.out.println("Done");
         await( waitString("111") );
+        System.out.println("Is async interrupted: " + interrupted());
         System.out.println("CONTINUABLE WAIT: " + continuableWait());
         System.out.println("After await!");
     }
     
     public @suspendable String continuableWait() {
+        System.out.println("Is suspendable interrupted: " + interrupted());
         return await( waitString("ZZZ") );
     }
     
@@ -138,6 +141,7 @@ public class GeneratorExample {
         o = yield(Generator.of("RV-1", "RV-2", "RV-3"));
         System.out.println("AFTER LIST READY: " + o);
 
+        System.out.println("Is generator interrupted: " + interrupted());
         
         o = yield(waitString("DEF"));
         System.out.println("Processed: " + o + ", " + new Date());

@@ -74,6 +74,10 @@ abstract public class AsyncMethod implements Runnable {
     boolean isRunning() {
         return state.get() == State.RUNNING;
     }
+    
+    protected boolean interrupted() {
+        return future.isCancelled();
+    }
 
     void cancelAwaitIfNecessary() {
         cancelAwaitIfNecessary(terminateMethod, originalAwait);

@@ -32,9 +32,14 @@ import net.tascalate.async.api.NoActiveAsyncCallException;
 public class AsyncMethodAccessor {
     private AsyncMethodAccessor() {}
     
-    public static Scheduler currentScheduler() {
-        AsyncMethod asyncMethod = currentAsyncMethod(false);
+    public static Scheduler currentScheduler(boolean asyncCallMustBeAvailable) {
+        AsyncMethod asyncMethod = currentAsyncMethod(asyncCallMustBeAvailable);
         return asyncMethod != null ? asyncMethod.scheduler() : null;
+    }
+    
+    public static boolean isCurrentCallInterrupted(boolean asyncCallMustBeAvailable) {
+        AsyncMethod asyncMethod = currentAsyncMethod(asyncCallMustBeAvailable);
+        return asyncMethod != null && asyncMethod.interrupted();
     }
     
     static AsyncMethod currentAsyncMethod() {

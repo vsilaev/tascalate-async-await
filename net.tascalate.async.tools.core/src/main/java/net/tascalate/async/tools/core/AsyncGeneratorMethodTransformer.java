@@ -239,6 +239,17 @@ public class AsyncGeneratorMethodTransformer extends AsyncMethodTransformer {
                                 )
                             );
                             continue;
+                        case "interrupted":
+                            newInstructions.add(new VarInsnNode(ALOAD, 0));
+                            newInstructions.add(
+                                    new MethodInsnNode(INVOKEVIRTUAL, 
+                                                       ASYNC_GENERATOR_TYPE.getInternalName(), 
+                                                       "interrupted", 
+                                                       Type.getMethodDescriptor(Type.BOOLEAN_TYPE), 
+                                                       false
+                                    )
+                            );                            
+                            continue;
                         case "await":
                             newInstructions.add(
                                 new MethodInsnNode(INVOKESTATIC, 

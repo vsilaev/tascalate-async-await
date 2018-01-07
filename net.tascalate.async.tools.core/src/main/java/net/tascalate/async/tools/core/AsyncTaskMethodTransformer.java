@@ -242,6 +242,17 @@ public class AsyncTaskMethodTransformer extends AsyncMethodTransformer {
                                 )
                             );
                             continue;
+                        case "interrupted":
+                            newInstructions.add(new VarInsnNode(ALOAD, 0));
+                            newInstructions.add(
+                                    new MethodInsnNode(INVOKEVIRTUAL, 
+                                                       ASYNC_TASK_TYPE.getInternalName(), 
+                                                       "interrupted", 
+                                                       Type.getMethodDescriptor(Type.BOOLEAN_TYPE), 
+                                                       false
+                                    )
+                            );                            
+                            continue;                            
                         case "await":
                             newInstructions.add(
                                 new MethodInsnNode(INVOKESTATIC, 

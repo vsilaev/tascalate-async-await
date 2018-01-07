@@ -31,6 +31,6 @@ final public class ActiveAsyncCall {
     private ActiveAsyncCall() {}
     
     public static Scheduler scheduler() {
-        return AsyncMethodAccessor.currentScheduler();
+        return AsyncMethodAccessor.currentScheduler(false);
     }
 }

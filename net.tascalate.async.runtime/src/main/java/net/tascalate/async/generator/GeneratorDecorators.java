@@ -39,4 +39,5 @@ public final class GeneratorDecorators {
     public static <T> PromisesGenerator<T> promises(Generator<T> original) {
         return new PromisesGeneratorImpl<>(original);
     }
+
 }

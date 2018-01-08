@@ -30,6 +30,25 @@ import java.util.concurrent.CompletionStage;
 import net.tascalate.async.api.Generator;
 
 public class OrderedFuturesGenerator<T> implements Generator<T> {
+    
+    public static final Generator<?> EMPTY_GENERATOR = new Generator<Object>() {
+
+        @Override
+        public CompletionStage<Object> next(Object producerParam) {
+            return null;
+        }
+
+        @Override
+        public CompletionStage<Object> next() {
+            return null;
+        }
+
+        @Override
+        public void close() {
+
+        }
+        
+    };
 
     private final Iterator<CompletionStage<T>> delegate;
     private final AutoCloseable closeable;

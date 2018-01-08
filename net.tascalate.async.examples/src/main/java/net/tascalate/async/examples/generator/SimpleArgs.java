@@ -16,6 +16,7 @@ import net.tascalate.async.api.AsyncCall;
 import net.tascalate.async.api.Generator;
 import net.tascalate.async.api.Scheduler;
 import net.tascalate.async.api.SchedulerProvider;
+import net.tascalate.async.api.Schedulers;
 import net.tascalate.async.api.async;
 
 public class SimpleArgs {
@@ -32,7 +33,7 @@ public class SimpleArgs {
     public static void main(String[] args) {
         //final SimpleArgs example = new SimpleArgs();
         //CompletionStage<?> f = example.testArgs("ABC", Scheduler.from(executor, true));
-        CompletionStage<?> f = SimpleArgs.mergeStrings("|", Scheduler.from(executor, EnumSet.of(Scheduler.Characteristics.INTERRUPTIBLE)), 10);
+        CompletionStage<?> f = SimpleArgs.mergeStrings("|", Schedulers.create(executor, EnumSet.of(Scheduler.Characteristics.INTERRUPTIBLE)), 10);
         f.whenComplete((r, e) -> {
             System.out.println(r);
             executor.shutdownNow();

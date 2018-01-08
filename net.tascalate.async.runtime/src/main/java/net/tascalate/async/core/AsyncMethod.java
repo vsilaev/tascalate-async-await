@@ -31,8 +31,9 @@ import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Function;
 
 import net.tascalate.async.api.Scheduler;
+import net.tascalate.async.api.Schedulers;
 import net.tascalate.async.api.suspendable;
-import net.tascalate.concurrent.CompletableTask;
+
 import net.tascalate.concurrent.Promises;
 
 abstract public class AsyncMethod implements Runnable {
@@ -52,8 +53,7 @@ abstract public class AsyncMethod implements Runnable {
     
     protected AsyncMethod(Scheduler scheduler) {
         this.future = new ResultPromise<>();
-        this.scheduler = scheduler != null ? 
-        scheduler : Scheduler.sameThreadContextless();
+        this.scheduler = scheduler != null ? scheduler : Schedulers.sameThreadContextless();
     }
 
     public final @suspendable void run() {
@@ -92,9 +92,7 @@ abstract public class AsyncMethod implements Runnable {
         Runnable contextualResumer = scheduler.contextualize(originalResumer);
         if (scheduler.characteristics().contains(Scheduler.Characteristics.INTERRUPTIBLE)) {
             return () -> {
-                CompletionStage<?> resumeFuture = CompletableTask.runAsync(
-                    contextualResumer, scheduler
-                );
+                CompletionStage<?> resumeFuture = scheduler.schedule(contextualResumer);
                 registerResumeTarget(resumeFuture, currentBlockerVersion);
             };
         } else {
@@ -104,7 +102,7 @@ abstract public class AsyncMethod implements Runnable {
                     // Is it possible to use originalResumer here, i.e. one without context???
                     contextualResumer.run();
                 } else {
-                    scheduler.execute(contextualResumer);
+                    scheduler.schedule(contextualResumer);
                 }
             };
         }        

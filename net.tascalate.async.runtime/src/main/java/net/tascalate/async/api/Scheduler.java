@@ -25,12 +25,10 @@
 package net.tascalate.async.api;
 
 import java.util.Collections;
-import java.util.EnumSet;
 import java.util.Set;
-import java.util.concurrent.Executor;
-import java.util.function.Function;
+import java.util.concurrent.CompletionStage;
 
-public interface Scheduler extends Executor {
+public interface Scheduler {
     
     public enum Characteristics {
         INTERRUPTIBLE;
@@ -44,39 +42,5 @@ public interface Scheduler extends Executor {
         return resumeContinuation;
     }
     
-    public static Scheduler from(Executor executor) {
-        return executor::execute;
-    }
-    
-    public static Scheduler from(Executor executor, Set<Characteristics> characteristics) {
-    	return from(executor, characteristics, Function.identity());
-    }
-    
-    public static Scheduler from(Executor executor, Function<? super Runnable, ? extends Runnable> contextualizer) {
-    	return from(executor, EnumSet.of(Characteristics.INTERRUPTIBLE), contextualizer);
-    }
-    
-    public static Scheduler from(Executor executor, Set<Characteristics> characteristics, Function<? super Runnable, ? extends Runnable> contextualizer) {
-        return new Scheduler() {
-        	
-        	@Override
-        	public Set<Characteristics> characteristics() {
-                return characteristics;
-            }
-			
-        	@Override
-        	public Runnable contextualize(Runnable resumeContinuation) {
-        		return contextualizer == null ? resumeContinuation : contextualizer.apply(resumeContinuation);
-        	}
-        	
-			@Override
-			public void execute(Runnable command) {
-				executor.execute(command);
-			}
-		};
-    }    
-    
-    public static Scheduler sameThreadContextless() {
-        return PackagePrivate.SAME_THREAD_SCHEDULER;
-    }
+    abstract public CompletionStage<?> schedule(Runnable runnable);
 }

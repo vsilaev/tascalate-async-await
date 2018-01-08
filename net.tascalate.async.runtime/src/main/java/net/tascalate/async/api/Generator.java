@@ -61,7 +61,7 @@ public interface Generator<T> extends GeneratorDecorator<T, Generator<T>>, AutoC
     
     @SuppressWarnings("unchecked")
     public static <T> Generator<T> empty() {
-        return (Generator<T>)PackagePrivate.EMPTY_GENERATOR;
+        return (Generator<T>)OrderedFuturesGenerator.EMPTY_GENERATOR;
     }
 
     public static <T> Generator<T> of(T readyValue) {

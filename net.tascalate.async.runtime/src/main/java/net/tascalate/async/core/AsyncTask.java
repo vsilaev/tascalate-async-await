@@ -29,9 +29,7 @@ import java.util.concurrent.CompletableFuture;
 import net.tascalate.async.api.Scheduler;
 import net.tascalate.async.api.suspendable;
 import net.tascalate.concurrent.CompletablePromise;
-import net.tascalate.concurrent.CompletableTask;
 import net.tascalate.concurrent.Promise;
-import net.tascalate.concurrent.PromiseOrigin;
 
 abstract public class AsyncTask<T> extends AsyncMethod {
     public final Promise<T> promise;
@@ -40,15 +38,7 @@ abstract public class AsyncTask<T> extends AsyncMethod {
         super(scheduler);
         @SuppressWarnings("unchecked")
         CompletableFuture<T> future = (CompletableFuture<T>)this.future; 
-        this.promise = scheduler.characteristics().contains(Scheduler.Characteristics.INTERRUPTIBLE) ?
-            // For interruptible Scheduler use AbstractCompletableTask
-            CompletableTask
-                .asyncOn(scheduler)
-                .dependent()
-                .thenCombine(future, (a, b) -> b, PromiseOrigin.PARAM_ONLY)
-            :
-            // For non-interruptible use regular wrapper    
-            new CompletablePromise<>(future);
+        this.promise = new CompletablePromise<>(future);
     }
     
     @Override

@@ -25,20 +25,16 @@
 package net.tascalate.async.core;
 
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CompletionStage;
 
 import net.tascalate.async.api.Scheduler;
 import net.tascalate.async.api.suspendable;
-import net.tascalate.concurrent.CompletablePromise;
-import net.tascalate.concurrent.Promise;
+
 
 abstract public class AsyncTask<T> extends AsyncMethod {
-    public final Promise<T> promise;
-    
+
     protected AsyncTask(Scheduler scheduler) {
         super(scheduler);
-        @SuppressWarnings("unchecked")
-        CompletableFuture<T> future = (CompletableFuture<T>)this.future; 
-        this.promise = new CompletablePromise<>(future);
     }
     
     @Override
@@ -48,17 +44,19 @@ abstract public class AsyncTask<T> extends AsyncMethod {
             // ensure that promise is resolved
             complete(null);
         } catch (Throwable ex) {
-            future.completeExceptionally(ex);
+            @SuppressWarnings("unchecked")
+            CompletableFuture<T> typedFuture = (CompletableFuture<T>)future;
+            typedFuture.completeExceptionally(ex);
         }
     }
     
     abstract protected @suspendable void doRun() throws Throwable;
 
-    protected Promise<T> complete(final T value) {
+    protected CompletionStage<T> complete(final T value) {
         @SuppressWarnings("unchecked")
-        CompletableFuture<T> future = (CompletableFuture<T>)this.future; 
-        future.complete(value);
-        return promise;
+        CompletableFuture<T> typedFuture = (CompletableFuture<T>)future;
+        typedFuture.complete(value);
+        return typedFuture;
     }
   
 }

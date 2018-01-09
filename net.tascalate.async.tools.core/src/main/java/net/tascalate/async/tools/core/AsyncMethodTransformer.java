@@ -71,10 +71,12 @@ abstract public class AsyncMethodTransformer {
     protected final static Type OBJECT_TYPE                 = Type.getType(Object.class);
     protected final static Type CLASS_TYPE                  = Type.getType(Class.class);    
     protected final static Type ASYNC_METHOD_EXECUTOR_TYPE  = Type.getObjectType("net/tascalate/async/core/AsyncMethodExecutor");
+    protected final static Type TASCALATE_PROMISE_TYPE      = Type.getObjectType("net/tascalate/concurrent/Promise");
+    protected final static Type TASCALATE_PROMISES_TYPE     = Type.getObjectType("net/tascalate/concurrent/Promises");
+    protected final static Type ASYNC_METHOD_TYPE           = Type.getObjectType("net/tascalate/async/core/AsyncMethod");
     
     private final static Type SCHEDULER_TYPE             = Type.getObjectType("net/tascalate/async/api/Scheduler");
     private final static Type SCHEDULER_PROVIDER_TYPE    = Type.getObjectType("net/tascalate/async/api/SchedulerProvider");
-    private final static Type ASYNC_METHOD_TYPE          = Type.getObjectType("net/tascalate/async/core/AsyncMethod");
 
     protected final ClassNode classNode;
     protected final MethodNode originalAsyncMethod;
@@ -304,6 +306,12 @@ abstract public class AsyncMethodTransformer {
             replacementAsyncMethodNode.visitFieldInsn(
                 GETFIELD, runnableBaseClass.getInternalName(), runnableFieldName, runnableFieldType.getDescriptor()
             );
+            if (TASCALATE_PROMISE_TYPE.equals(returnType)) {
+                replacementAsyncMethodNode.visitMethodInsn(
+                    INVOKESTATIC, TASCALATE_PROMISES_TYPE.getInternalName(), "from", 
+                    Type.getMethodDescriptor(TASCALATE_PROMISE_TYPE, COMPLETION_STAGE_TYPE), false
+                ); 
+            }
             replacementAsyncMethodNode.visitInsn(ARETURN);
         } else {
             replacementAsyncMethodNode.visitInsn(RETURN);

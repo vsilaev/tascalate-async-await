@@ -22,8 +22,13 @@
  * OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
-package net.tascalate.async.api;
+package net.tascalate.async.xpi;
 
+import java.util.function.Function;
+
+import net.tascalate.async.api.Generator;
+import net.tascalate.async.api.GeneratorDecorator;
+import net.tascalate.async.api.suspendable;
 import net.tascalate.concurrent.Promise;
 
 public interface PromisesGenerator<T> extends GeneratorDecorator<T, PromisesGenerator<T>>, AutoCloseable {
@@ -36,4 +41,8 @@ public interface PromisesGenerator<T> extends GeneratorDecorator<T, PromisesGene
     }
     
     void close();
+    
+    public static <T> Function<Generator<T>, PromisesGenerator<T>> promises() {
+        return PromisesGeneratorImpl.toPromisesGenerator();
+    }
 }

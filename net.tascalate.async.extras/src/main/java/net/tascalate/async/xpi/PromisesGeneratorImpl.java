@@ -22,12 +22,12 @@
  * OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
-package net.tascalate.async.generator;
+package net.tascalate.async.xpi;
 
 import java.util.concurrent.CompletionStage;
+import java.util.function.Function;
 
 import net.tascalate.async.api.Generator;
-import net.tascalate.async.api.PromisesGenerator;
 import net.tascalate.concurrent.Promise;
 import net.tascalate.concurrent.Promises;
 
@@ -55,5 +55,13 @@ class PromisesGeneratorImpl <T> implements PromisesGenerator<T> {
         delegate.close();
     }
 
+    
+    private static final Function<Generator<Object>, PromisesGenerator<Object>> CONVERTER = PromisesGeneratorImpl::new;
+    
+    static <T> Function<Generator<T>, PromisesGenerator<T>> toPromisesGenerator() {
+        @SuppressWarnings("unchecked")
+        Function<Generator<T>, PromisesGenerator<T>> result = (Function<Generator<T>, PromisesGenerator<T>>)(Object)CONVERTER;
+        return result;
+    }
     
 }

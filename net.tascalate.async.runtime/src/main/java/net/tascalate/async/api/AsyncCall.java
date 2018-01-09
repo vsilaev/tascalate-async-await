@@ -29,7 +29,6 @@ import java.util.concurrent.CompletionStage;
 
 import net.tascalate.async.core.AsyncMethodAccessor;
 import net.tascalate.async.core.AsyncMethodExecutor;
-import net.tascalate.concurrent.Promise;
 
 /**
  * @author Valery Silaev
@@ -51,7 +50,7 @@ public class AsyncCall {
         return AsyncMethodAccessor.isCurrentCallInterrupted(true);
     }
 
-    public static <T> Promise<T> asyncResult(final T value) {
+    public static <T, R extends CompletionStage<T>> R asyncResult(final T value) {
         throw new IllegalStateException("Method call must be replaced by bytecode enhancer");
     }
 

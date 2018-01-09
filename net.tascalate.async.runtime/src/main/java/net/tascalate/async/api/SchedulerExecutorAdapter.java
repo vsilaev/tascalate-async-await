@@ -22,57 +22,46 @@
  * OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
-package net.tascalate.async.generator;
+package net.tascalate.async.api;
 
-import java.util.NoSuchElementException;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionStage;
+import java.util.concurrent.Executor;
 
-import net.tascalate.async.api.Generator;
-import net.tascalate.async.api.ValuesGenerator;
-import net.tascalate.async.api.suspendable;
-import net.tascalate.async.core.AsyncMethodExecutor;
+import java.util.function.Function;
 
-final class ValuesGeneratorImpl<T> implements ValuesGenerator<T> {
-    private final Generator<T> delegate;
-    private boolean advance;
-    private CompletionStage<T> current;
+final class SchedulerExecutorAdapter implements Scheduler {
+    private final Executor executor;
+    private final Function<? super Runnable, ? extends Runnable> contextualizer;
     
-    ValuesGeneratorImpl(Generator<T> delegate) {
-        this.delegate = delegate;
-        advance = true;
+    static final Scheduler SAME_THREAD_SCHEDULER = new SchedulerExecutorAdapter(Runnable::run);
+    
+    SchedulerExecutorAdapter(Executor executor) {
+        this(executor, null);
     }
     
-    public Generator<T> raw() {
-        return delegate.raw();
+    SchedulerExecutorAdapter(Executor executor, Function<? super Runnable, ? extends Runnable> contextualizer) {
+        this.executor = executor;
+        this.contextualizer = contextualizer;
     }
     
-    public @suspendable boolean hasNext() {
-        advanceIfNecessary();
-        return current != null;
-    }
-
-    public @suspendable T next() {
-        advanceIfNecessary();
-
-        if (current == null)
-            throw new NoSuchElementException();
-
-        final T result = AsyncMethodExecutor.await(current);
-        advance = true;
-
+    @Override
+    public CompletionStage<?> schedule(Runnable command) {
+        CompletableFuture<?> result = new CompletableFuture<>();
+        executor.execute(() -> {
+            try {
+                command.run();
+                result.complete(null);
+            } catch (final Throwable ex) {
+                result.completeExceptionally(ex);
+            }
+        });
         return result;
     }
+    
+    @Override
+    public Runnable contextualize(Runnable resumeContinuation) {
+        return contextualizer == null ? resumeContinuation : contextualizer.apply(resumeContinuation);
+    } 
 
-    public void close() {
-        current = null;
-        advance = false;
-        delegate.close();
-    }
-    
-    protected @suspendable void advanceIfNecessary() {
-        if (advance)
-            current = delegate.next();
-        advance = false;
-    }
-    
 }

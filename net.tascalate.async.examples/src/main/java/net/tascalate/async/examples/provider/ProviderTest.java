@@ -2,26 +2,25 @@ package net.tascalate.async.examples.provider;
 
 import net.tascalate.async.api.Scheduler;
 import net.tascalate.async.api.SchedulerProvider;
-import net.tascalate.async.api.Schedulers;
 import net.tascalate.async.spi.SchedulerProviderLookup;
 
 public class ProviderTest {
 
     static class Abc {
         @SchedulerProvider
-        private Scheduler exec = Schedulers.sameThreadContextless();
+        private Scheduler exec = Scheduler.sameThreadContextless();
     }
     
     static class Xyz {
         @SchedulerProvider
         public Scheduler exec() {
-            return Schedulers.sameThreadContextless();
+            return Scheduler.sameThreadContextless();
         }
     }
     
     static class BaseByField {
         @SchedulerProvider
-        Scheduler baseExec = Schedulers.sameThreadContextless();
+        Scheduler baseExec = Scheduler.sameThreadContextless();
     }
 
     static class InheritedByField extends BaseByField {
@@ -31,7 +30,7 @@ public class ProviderTest {
     static class BaseByMethod {
         @SchedulerProvider
         protected Scheduler baseExec() {
-            return Schedulers.sameThreadContextless();
+            return Scheduler.sameThreadContextless();
         }
     }
 
@@ -47,7 +46,7 @@ public class ProviderTest {
     interface IntfB {
         @SchedulerProvider
         default Scheduler intfExec() {
-            return Schedulers.sameThreadContextless();
+            return Scheduler.sameThreadContextless();
         }
     }
 

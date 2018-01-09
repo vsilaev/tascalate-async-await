@@ -24,17 +24,17 @@
  */
 package net.tascalate.async.core;
 
+import java.lang.reflect.Method;
+import java.util.concurrent.CancellationException;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionStage;
+import java.util.concurrent.Future;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Function;
 
 import net.tascalate.async.api.Scheduler;
-import net.tascalate.async.api.Schedulers;
 import net.tascalate.async.api.suspendable;
-
-import net.tascalate.concurrent.Promises;
 
 abstract public class AsyncMethod implements Runnable {
     
@@ -42,7 +42,7 @@ abstract public class AsyncMethod implements Runnable {
         INITIAL, RUNNING, COMPLETED
     }
     
-    protected final CompletableFuture<?> future;
+    public final CompletableFuture<?> future;
     
     private final Scheduler scheduler;
     private final AtomicReference<State> state = new AtomicReference<>(State.INITIAL);
@@ -53,7 +53,7 @@ abstract public class AsyncMethod implements Runnable {
     
     protected AsyncMethod(Scheduler scheduler) {
         this.future = new ResultPromise<>();
-        this.scheduler = scheduler != null ? scheduler : Schedulers.sameThreadContextless();
+        this.scheduler = scheduler != null ? scheduler : Scheduler.sameThreadContextless();
     }
 
     public final @suspendable void run() {
@@ -143,7 +143,7 @@ abstract public class AsyncMethod implements Runnable {
             this.originalAwait = null;
             // Then cancel promise we are waiting on
             if (null != originalAwait) {
-                Promises.from(originalAwait).cancel(true);
+                cancelCompletionStage(originalAwait, true);
             }
         }
     }
@@ -163,4 +163,34 @@ abstract public class AsyncMethod implements Runnable {
             }
         }
     }
+    
+    
+    private static boolean cancelCompletionStage(CompletionStage<?> promise, boolean mayInterruptIfRunning) {
+        if (promise instanceof Future) {
+            Future<?> future = (Future<?>) promise;
+            return future.cancel(mayInterruptIfRunning);
+        } else {
+            Method m = completeExceptionallyMethodOf(promise);
+            if (null != m) {
+                try {
+                    return (Boolean) m.invoke(promise, new CancellationException());
+                } catch (final ReflectiveOperationException ex) {
+                    return false;
+                }
+            } else {
+                return false;
+            }
+        }
+    }
+    
+
+    private static Method completeExceptionallyMethodOf(CompletionStage<?> promise) {
+        try {
+            Class<?> clazz = promise.getClass();
+            return clazz.getMethod("completeExceptionally", Throwable.class);
+        } catch (ReflectiveOperationException | SecurityException ex) {
+            return null;
+        }
+    }
+
 }

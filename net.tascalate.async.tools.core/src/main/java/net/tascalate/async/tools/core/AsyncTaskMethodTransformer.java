@@ -54,8 +54,8 @@ import org.objectweb.asm.tree.TryCatchBlockNode;
 import org.objectweb.asm.tree.VarInsnNode;
 
 public class AsyncTaskMethodTransformer extends AsyncMethodTransformer {
-    private final static Type ASYNC_TASK_TYPE = Type.getObjectType("net/tascalate/async/core/AsyncTask"); 
-    private final static Type TASCALATE_PROMISE_TYPE = Type.getObjectType("net/tascalate/concurrent/Promise");
+    private final static Type ASYNC_TASK_TYPE         = Type.getObjectType("net/tascalate/async/core/AsyncTask");
+    private final static Type COMPLETABLE_FUTURE_TYPE = Type.getObjectType("java/util/concurrent/CompletableFuture");
     
     public AsyncTaskMethodTransformer(ClassNode               classNode,
                                       MethodNode              originalAsyncMethodNode,
@@ -70,7 +70,7 @@ public class AsyncTaskMethodTransformer extends AsyncMethodTransformer {
     
     @Override
     protected MethodNode createReplacementAsyncMethod(String asyncTaskClassName) {
-        return createReplacementAsyncMethod(asyncTaskClassName, ASYNC_TASK_TYPE, "promise", TASCALATE_PROMISE_TYPE);
+        return createReplacementAsyncMethod(asyncTaskClassName, ASYNC_TASK_TYPE, "future", COMPLETABLE_FUTURE_TYPE);
     }
     
     @Override
@@ -237,10 +237,20 @@ public class AsyncTaskMethodTransformer extends AsyncMethodTransformer {
                                 new MethodInsnNode(INVOKEVIRTUAL, 
                                                    ASYNC_TASK_TYPE.getInternalName(), 
                                                    "complete",
-                                                   Type.getMethodDescriptor(Type.getReturnType(min.desc), OBJECT_TYPE),
+                                                   Type.getMethodDescriptor(COMPLETION_STAGE_TYPE, OBJECT_TYPE),
                                                    false
                                 )
                             );
+                            if (TASCALATE_PROMISE_TYPE.equals(returnType)) {
+                                newInstructions.add(
+                                    new MethodInsnNode(INVOKESTATIC, 
+                                                       TASCALATE_PROMISES_TYPE.getInternalName(), 
+                                                       "from",
+                                                       Type.getMethodDescriptor(TASCALATE_PROMISE_TYPE, COMPLETION_STAGE_TYPE),
+                                                       false
+                                    )
+                                );                                   
+                            }
                             continue;
                         case "interrupted":
                             newInstructions.add(new VarInsnNode(ALOAD, 0));

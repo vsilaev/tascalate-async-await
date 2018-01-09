@@ -54,7 +54,8 @@ public class AsyncAwaitClassFileTransformer implements ClassFileTransformer {
 			                final Class<?> classBeingRedefined, 
 			                final ProtectionDomain protectionDomain, 
 			                final byte[] classfileBuffer) throws IllegalClassFormatException {
-	    try{		
+	    
+	    try {		
     		final ClassLoader classLoader = getSafeClassLoader(originalClassLoader);
     				
     		final AsyncAwaitClassFileGenerator generator = new AsyncAwaitClassFileGenerator();

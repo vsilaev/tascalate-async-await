@@ -1,10 +1,11 @@
 package net.tascalate.async.examples.generator;
 
+
 import static net.tascalate.async.api.AsyncCall.asyncResult;
 import static net.tascalate.async.api.AsyncCall.await;
+import static net.tascalate.async.xpi.PromisesGenerator.promises;
 
 import java.util.Date;
-import java.util.EnumSet;
 import java.util.StringJoiner;
 import java.util.concurrent.CompletionStage;
 import java.util.concurrent.ExecutorService;
@@ -12,12 +13,13 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.ThreadFactory;
 import java.util.concurrent.atomic.AtomicLong;
 
-import net.tascalate.async.api.AsyncCall;
 import net.tascalate.async.api.Generator;
 import net.tascalate.async.api.Scheduler;
 import net.tascalate.async.api.SchedulerProvider;
-import net.tascalate.async.api.Schedulers;
 import net.tascalate.async.api.async;
+import net.tascalate.async.xpi.PromisesGenerator;
+import net.tascalate.async.xpi.TaskScheduler;
+import net.tascalate.concurrent.Promise;
 
 public class SimpleArgs {
     final private static AtomicLong idx = new AtomicLong(0);
@@ -33,7 +35,7 @@ public class SimpleArgs {
     public static void main(String[] args) {
         //final SimpleArgs example = new SimpleArgs();
         //CompletionStage<?> f = example.testArgs("ABC", Scheduler.from(executor, true));
-        CompletionStage<?> f = SimpleArgs.mergeStrings("|", Schedulers.create(executor, EnumSet.of(Scheduler.Characteristics.INTERRUPTIBLE)), 10);
+        CompletionStage<?> f = SimpleArgs.mergeStrings("|", new TaskScheduler(executor), 10);
         f.whenComplete((r, e) -> {
             System.out.println(r);
             executor.shutdownNow();
@@ -45,13 +47,13 @@ public class SimpleArgs {
         x.hashCode();
         System.out.println(Thread.currentThread().getName());
         System.out.println(abs + " -- " + x + ", " + scheduler);
-        return AsyncCall.asyncResult(new Date());
+        return asyncResult(new Date());
     }
 
     @async
-    static CompletionStage<String> mergeStrings(String delimeter, @SchedulerProvider Scheduler scheduler, int zz) {
+    static Promise<String> mergeStrings(String delimeter, @SchedulerProvider Scheduler scheduler, int zz) {
         StringJoiner joiner = new StringJoiner(delimeter);
-        try (Generator<String> generator = Generator.of("ABC", "XYZ")) {
+        try (PromisesGenerator<String> generator = Generator.of("ABC", "XYZ").as(promises())) {
             System.out.println("%%MergeStrings - before iterations");
             String param = "GO!";
             int i = 0;

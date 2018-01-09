@@ -24,38 +24,61 @@
  */
 package net.tascalate.async.api;
 
-import java.util.Collections;
-import java.util.Set;
+import java.util.NoSuchElementException;
 import java.util.concurrent.CompletionStage;
-import java.util.concurrent.Executor;
 import java.util.function.Function;
 
-public interface Scheduler {
+import net.tascalate.async.core.AsyncMethodExecutor;
+
+final class ValuesGeneratorImpl<T> implements ValuesGenerator<T> {
+    private final Generator<T> delegate;
+    private boolean advance;
+    private CompletionStage<T> current;
     
-    public enum Characteristics {
-        INTERRUPTIBLE;
+    public ValuesGeneratorImpl(Generator<T> delegate) {
+        this.delegate = delegate;
+        advance = true;
     }
     
-    default Set<Characteristics> characteristics() {
-        return Collections.emptySet();
+    public Generator<T> raw() {
+        return delegate.raw();
     }
     
-    default Runnable contextualize(Runnable resumeContinuation) {
-        return resumeContinuation;
+    public @suspendable boolean hasNext() {
+        advanceIfNecessary();
+        return current != null;
+    }
+
+    public @suspendable T next() {
+        advanceIfNecessary();
+
+        if (current == null)
+            throw new NoSuchElementException();
+
+        final T result = AsyncMethodExecutor.await(current);
+        advance = true;
+
+        return result;
+    }
+
+    public void close() {
+        current = null;
+        advance = false;
+        delegate.close();
     }
     
-    abstract public CompletionStage<?> schedule(Runnable runnable);
-    
-    
-    public static Scheduler sameThreadContextless() {
-        return SchedulerExecutorAdapter.SAME_THREAD_SCHEDULER;
+    protected @suspendable void advanceIfNecessary() {
+        if (advance)
+            current = delegate.next();
+        advance = false;
     }
+
     
-    public static Scheduler from(Executor executor) {
-        return new SchedulerExecutorAdapter(executor);
-    }
+    private static final Function<Generator<Object>, ValuesGenerator<Object>> CONVERTER = ValuesGeneratorImpl::new;
     
-    public static Scheduler from(Executor executor, Function<? super Runnable, ? extends Runnable> contextualizer) {
-        return new SchedulerExecutorAdapter(executor, contextualizer);
+    static <T> Function<Generator<T>, ValuesGenerator<T>> toValuesGenerator() {
+        @SuppressWarnings("unchecked")
+        Function<Generator<T>, ValuesGenerator<T>> result = (Function<Generator<T>, ValuesGenerator<T>>)(Object)CONVERTER;
+        return result;
     }
 }

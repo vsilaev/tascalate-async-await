@@ -29,7 +29,6 @@ import java.util.ServiceLoader;
 import java.util.stream.StreamSupport;
 
 import net.tascalate.async.api.Scheduler;
-import net.tascalate.async.api.Schedulers;
 import net.tascalate.async.spi.SchedulerResolver;
 import net.tascalate.async.util.Cache;
 
@@ -45,7 +44,7 @@ class SchedulerResolvers {
             .map(l -> l.resolve(owner, ownerDeclaringClass))
             .filter(Objects::nonNull)
             .findFirst()
-            .orElse(Schedulers.sameThreadContextless())
+            .orElse(Scheduler.sameThreadContextless())
         ;
     }
     

@@ -29,7 +29,6 @@ import java.util.concurrent.CompletionStage;
 import java.util.stream.Stream;
 import java.util.stream.StreamSupport;
 
-import net.tascalate.async.generator.GeneratorDecorators;
 import net.tascalate.async.generator.ReadyFirstFuturesGenerator;
 import net.tascalate.async.generator.OrderedFuturesGenerator;
 
@@ -51,12 +50,7 @@ public interface Generator<T> extends GeneratorDecorator<T, Generator<T>>, AutoC
     
     default
     ValuesGenerator<T> values() {
-        return as(GeneratorDecorators::values);
-    }
-    
-    default
-    PromisesGenerator<T> promises() {
-        return as(GeneratorDecorators::promises);
+        return as(ValuesGenerator.values());
     }
     
     @SuppressWarnings("unchecked")

@@ -24,7 +24,7 @@
  */
 package net.tascalate.async.examples.nio;
 
-import static net.tascalate.async.api.AsyncCall.asyncResult;
+import static net.tascalate.async.api.AsyncCall.async;
 import static net.tascalate.async.api.AsyncCall.await;
 
 import java.io.File;
@@ -83,7 +83,7 @@ public class AsyncAwaitNioFileChannelDemo {
    
 			final String result = processBytes(buffer);
 			 
-			return asyncResult(result);
+			return async(result);
 			
 		} catch (final IOException ex) {
 			ex.printStackTrace(System.out);

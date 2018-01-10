@@ -260,7 +260,7 @@ public class AsyncGeneratorMethodTransformer extends AsyncMethodTransformer {
                                 )
                             );
                             continue;
-                        case "asyncResult":
+                        case "async":
                             throw new IllegalStateException("Async result must be used only inside non-generator methods");
                     }
                 }

@@ -41,7 +41,7 @@ public class FraudDetectionService {
 	
 	@async public CompletionStage<Result> checkFraud(final BankAccount bankAccount, final BigDecimal amount) throws InterruptedException {
 		final Result resultFromWs = await( ws.checkFraud(bankAccount, amount) );
-		return asyncResult( resultFromWs );
+		return async( resultFromWs );
 	}
 
 }

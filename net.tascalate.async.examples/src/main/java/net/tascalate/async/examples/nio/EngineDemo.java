@@ -41,7 +41,7 @@ public class EngineDemo implements Closeable {
 			) {
 			String x = "" + other.hashCode();
 			System.out.println(x);
-			return AsyncCall.asyncResult("Done");
+			return AsyncCall.async("Done");
 		} catch (final IOException ex) {
 			throw ex;
 		}

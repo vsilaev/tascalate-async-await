@@ -1,7 +1,7 @@
 package net.tascalate.async.examples.generator;
 
 
-import static net.tascalate.async.api.AsyncCall.asyncResult;
+import static net.tascalate.async.api.AsyncCall.async;
 import static net.tascalate.async.api.AsyncCall.await;
 import static net.tascalate.async.xpi.PromisesGenerator.promises;
 
@@ -47,7 +47,7 @@ public class SimpleArgs {
         x.hashCode();
         System.out.println(Thread.currentThread().getName());
         System.out.println(abs + " -- " + x + ", " + scheduler);
-        return asyncResult(new Date());
+        return async(new Date());
     }
 
     @async
@@ -73,6 +73,6 @@ public class SimpleArgs {
             }
         }
 
-        return asyncResult(joiner.toString());
+        return async(joiner.toString());
     }
 }

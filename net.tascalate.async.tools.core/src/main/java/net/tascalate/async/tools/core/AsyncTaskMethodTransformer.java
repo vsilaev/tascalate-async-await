@@ -227,7 +227,7 @@ public class AsyncTaskMethodTransformer extends AsyncMethodTransformer {
 
                 } else if (min.getOpcode() == INVOKESTATIC && ASYNC_CALL_NAME.equals(min.owner)) {
                     switch (min.name) {
-                        case "asyncResult":
+                        case "async":
                             if (Type.VOID_TYPE.equals(returnType)) {
                                 throw new IllegalStateException("Async result must be used only inside methods that return value");
                             }

@@ -24,7 +24,7 @@
  */
 package net.tascalate.async.examples.generator;
 
-import static net.tascalate.async.api.AsyncCall.asyncResult;
+import static net.tascalate.async.api.AsyncCall.async;
 import static net.tascalate.async.api.AsyncCall.yield;
 import static net.tascalate.async.api.AsyncCall.await;
 import static net.tascalate.async.api.AsyncCall.interrupted;
@@ -89,7 +89,7 @@ public class GeneratorExample {
                 }
             }
         }
-        return asyncResult(joiner.toString());
+        return async(joiner.toString());
     }
     
     @async
@@ -101,9 +101,9 @@ public class GeneratorExample {
             }
         } catch (FileNotFoundException | IllegalArgumentException ex) {
             System.out.println("EXCEPTION!!!!");
-            return asyncResult("ERROR: " + ex);
+            return async("ERROR: " + ex);
         }
-        return asyncResult("NO ERROR");
+        return async("NO ERROR");
     }
     
     @async

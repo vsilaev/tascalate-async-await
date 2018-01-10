@@ -24,7 +24,7 @@
  */
 package net.tascalate.async.examples.bank;
 
-import static net.tascalate.async.api.AsyncCall.asyncResult;
+import static net.tascalate.async.api.AsyncCall.async;
 import static net.tascalate.async.api.AsyncCall.await;
 
 import java.math.BigDecimal;
@@ -58,7 +58,7 @@ public class MoneyWithdrawalTask {
 		class DemoPrint {
 			@async CompletionStage<Integer> go() {
 				System.out.println("Inner Class " + amount + " " + MoneyWithdrawalTask.this);
-				return asyncResult(10);
+				return async(10);
 			}
 		}
 		
@@ -72,10 +72,10 @@ public class MoneyWithdrawalTask {
 			if (fraudCheckResult == Result.DENY) {
 				throw new IllegalStateException("Fraud detected");
 			}
-			return asyncResult(timeStamp(formatOutput("withdraw")) + ": success, balance is " + currentBalance);
+			return async(timeStamp(formatOutput("withdraw")) + ": success, balance is " + currentBalance);
 					
 		} catch (final InsufficientFundsException ex) {
-			return asyncResult(timeStamp(formatOutput("withdraw")) + ": failed, insufficient funds (" + bankAccount.amount + ")"); 
+			return async(timeStamp(formatOutput("withdraw")) + ": failed, insufficient funds (" + bankAccount.amount + ")"); 
 		}
 	}
 	

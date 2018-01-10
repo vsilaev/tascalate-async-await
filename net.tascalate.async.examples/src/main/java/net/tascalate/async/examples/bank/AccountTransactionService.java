@@ -35,14 +35,14 @@ public class AccountTransactionService {
 	@async public CompletionStage<BigDecimal> deposit(final BankAccount account, final BigDecimal amount) throws InterruptedException {
 		Thread.sleep(2000L);
 		account.amount = account.amount.add(amount);
-		return asyncResult(account.amount);
+		return async(account.amount);
 	}
 	
 	@async public CompletionStage<BigDecimal> withdraw(final BankAccount account, final BigDecimal amount) throws InterruptedException, InsufficientFundsException {
 		Thread.sleep(30L);
 		if (amount.compareTo(account.amount) < 0) {
 			account.amount = account.amount.subtract(amount);
-			return asyncResult(account.amount);
+			return async(account.amount);
 		} else {
 			throw new InsufficientFundsException();
 		}

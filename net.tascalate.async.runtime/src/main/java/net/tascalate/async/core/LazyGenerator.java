@@ -48,44 +48,49 @@ class LazyGenerator<T> implements Generator<T> {
 
     @Override
     public CompletionStage<T> next(Object param) {
-        if (result.isDone()) {
-            // If we have synchronous error in generator method
-            // (as opposed to asynchronous that is managed by consumerLock
-            if (!result.isCancelled() && result.isCompletedExceptionally()) {
-                try {
-                    result.get();
-                } catch (final CancellationException | InterruptedException ex) {
-                    // Should not happen -- completed exceptionally already checked
-                    return null;
-                } catch (final ExecutionException ex) {
-                    Exceptions.sneakyThrow(Exceptions.unrollExecutionException(ex));
+        // Loop to replace tail recursion - BEGIN
+        while (true) {
+            if (result.isDone()) {
+                // If we have synchronous error in generator method
+                // (as opposed to asynchronous that is managed by consumerLock
+                if (!result.isCancelled() && result.isCompletedExceptionally()) {
+                    try {
+                        result.get();
+                    } catch (final CancellationException | InterruptedException ex) {
+                        // Should not happen -- completed exceptionally already checked
+                        return null;
+                    } catch (final ExecutionException ex) {
+                        Exceptions.sneakyThrow(Exceptions.unrollExecutionException(ex));
+                        return null;
+                    }
+                } else {
                     return null;
                 }
-            } else {
-                return null;
             }
-        }
-        
-        // Await previously returned result, if any
-        T latestResultValue = null != latestResult ? AsyncMethodExecutor.await(latestResult) : null;
-        
-        // Could we advance further current delegate?
-        latestResult = currentDelegate.next(param);
             
-        if (null != latestResult) {
-            // Yes, we can
-            return latestResult;
+            // Await previously returned result, if any
+            T latestResultValue = null != latestResult ? AsyncMethodExecutor.await(latestResult) : null;
+            
+            // Could we advance further current delegate?
+            latestResult = currentDelegate.next(param);
+                
+            if (null != latestResult) {
+                // Yes, we can
+                return latestResult;
+            }
+    
+            // No, need to generate new promise;
+    
+            // Let produce some value (resumes producer)
+            releaseProducerLock(new YieldReply<>(latestResultValue, param));
+            // Wait till value is ready (suspends consumer)
+            acquireConsumerLock();
+            consumerLock = new CompletableFuture<>();
+            // Check everything once again after wait
         }
-
-        // No, need to generate new promise;
-
-        // Let produce some value (resumes producer)
-        releaseProducerLock(new YieldReply<>(latestResultValue, param));
-        // Wait till value is ready (suspends consumer)
-        acquireConsumerLock();
-        consumerLock = new CompletableFuture<>();
-        // Check everything once again after wait
-        return next(param);
+        // Loop to replace tail recursion - END
+        // The actual tail recursive call is:
+        //return next(param);
     }
 
 

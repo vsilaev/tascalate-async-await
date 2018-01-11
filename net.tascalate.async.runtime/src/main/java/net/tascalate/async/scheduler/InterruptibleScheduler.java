@@ -22,44 +22,60 @@
  * OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
-package net.tascalate.async.xpi;
+package net.tascalate.async.scheduler;
 
 import java.util.EnumSet;
 import java.util.Set;
-
-import java.util.concurrent.Executor;
-
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Future;
 import java.util.function.Function;
 
-import net.tascalate.async.scheduler.AbstractScheduler;
-
-import net.tascalate.concurrent.CompletableTask;
-import net.tascalate.concurrent.Promise;
-
-public class TaskScheduler extends AbstractScheduler {
+public class InterruptibleScheduler extends AbstractScheduler {
+    private final ExecutorService executor;
     
-    private final Executor executor;
-
-    public TaskScheduler(Executor executor) {
-        this(executor, EnumSet.of(Characteristics.INTERRUPTIBLE));
+    public InterruptibleScheduler(ExecutorService executor) {
+        this(executor, EnumSet.of(Characteristics.INTERRUPTIBLE), null);
     }
     
-    public TaskScheduler(Executor executor, Set<Characteristics> characteristics) {
+    public InterruptibleScheduler(ExecutorService executor, Set<Characteristics> characteristics) {
         this(executor, characteristics, null);
     }
-    
-    public TaskScheduler(Executor executor, Function<? super Runnable, ? extends Runnable> contextualizer) {
+
+    public InterruptibleScheduler(ExecutorService executor, Function<? super Runnable, ? extends Runnable> contextualizer) {
         this(executor, EnumSet.of(Characteristics.INTERRUPTIBLE), contextualizer);
-    }
+    }   
     
-    public TaskScheduler(Executor executor, Set<Characteristics> characteristics, Function<? super Runnable, ? extends Runnable> contextualizer) {
-        super(ensureInterruptibleCharacteristic(characteristics), contextualizer); 
+    public InterruptibleScheduler(ExecutorService executor, Set<Characteristics> characteristics, Function<? super Runnable, ? extends Runnable> contextualizer) {
+        super(ensureInterruptibleCharacteristic(characteristics), contextualizer);
         this.executor = executor;
     }
     
     @Override
-    public Promise<?> schedule(Runnable command) {
-        return CompletableTask.runAsync(command, executor);
+    public CompletableFuture<?> schedule(Runnable command) {
+        Future<?>[] delegate = {null};
+        CompletableFuture<?> result = new CompletableFuture<Void>() {
+            @Override
+            public boolean cancel(boolean mayInterruptIfRunning) {
+                if (super.cancel(mayInterruptIfRunning)) {
+                    delegate[0].cancel(mayInterruptIfRunning);
+                    return true;
+                } else {
+                    return false;
+                }
+            }
+        };
+        delegate[0] = executor.submit(() -> {
+            try {
+                command.run();
+                result.complete(null);
+                return null;
+            } catch (final Throwable ex) {
+                result.completeExceptionally(ex);
+                throw ex;
+            }
+        });
+        return result;
     }
     
     private static Set<Characteristics> ensureInterruptibleCharacteristic(Set<Characteristics> characteristics) {

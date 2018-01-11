@@ -22,51 +22,31 @@
  * OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
-package net.tascalate.async.api;
+package net.tascalate.async.scheduler;
 
 import java.util.Collections;
 import java.util.Set;
-import java.util.concurrent.CompletionStage;
-import java.util.concurrent.Executor;
-import java.util.concurrent.ExecutorService;
 import java.util.function.Function;
 
-import net.tascalate.async.scheduler.InterruptibleScheduler;
-import net.tascalate.async.scheduler.SimpleScheduler;
+import net.tascalate.async.api.Scheduler;
 
-public interface Scheduler {
+public abstract class AbstractScheduler implements Scheduler {
+    private final Set<Characteristics> characteristics;
+    private final Function<? super Runnable, ? extends Runnable> contextualizer;
     
-    public enum Characteristics {
-        INTERRUPTIBLE;
+    protected AbstractScheduler(Set<Characteristics> characteristics, Function<? super Runnable, ? extends Runnable> contextualizer) {
+        this.characteristics = null != characteristics ? Collections.unmodifiableSet(characteristics) : Collections.emptySet();
+        this.contextualizer  = contextualizer;
     }
     
-    default Set<Characteristics> characteristics() {
-        return Collections.emptySet();
+    @Override
+    public Set<Characteristics> characteristics() {
+        return characteristics;
     }
     
-    default Runnable contextualize(Runnable resumeContinuation) {
-        return resumeContinuation;
-    }
     
-    abstract public CompletionStage<?> schedule(Runnable runnable);
-    
-    public static Scheduler sameThreadContextless() {
-        return SimpleScheduler.SAME_THREAD_SCHEDULER;
-    }
-    
-    public static Scheduler nonInterruptible(Executor executor) {
-        return new SimpleScheduler(executor);
-    }
-    
-    public static Scheduler nonInterruptible(Executor executor, Function<? super Runnable, ? extends Runnable> contextualizer) {
-        return new SimpleScheduler(executor, contextualizer);
-    }
-    
-    public static Scheduler interruptible(ExecutorService executor) {
-        return new InterruptibleScheduler(executor);
-    }
-    
-    public static Scheduler interruptible(ExecutorService executor, Function<? super Runnable, ? extends Runnable> contextualizer) {
-        return new InterruptibleScheduler(executor, contextualizer);
-    }
+    @Override
+    public Runnable contextualize(Runnable resumeContinuation) {
+        return contextualizer == null ? resumeContinuation : contextualizer.apply(resumeContinuation);
+    } 
 }

@@ -22,27 +22,36 @@
  * OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
-package net.tascalate.async.api;
+package net.tascalate.async.scheduler;
 
+import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionStage;
 import java.util.concurrent.Executor;
-
 import java.util.function.Function;
 
-final class SchedulerExecutorAdapter implements Scheduler {
+import net.tascalate.async.api.Scheduler;
+
+public class SimpleScheduler extends AbstractScheduler {
+    public static final Scheduler SAME_THREAD_SCHEDULER = new SimpleScheduler(Runnable::run);
+    
     private final Executor executor;
-    private final Function<? super Runnable, ? extends Runnable> contextualizer;
     
-    static final Scheduler SAME_THREAD_SCHEDULER = new SchedulerExecutorAdapter(Runnable::run);
-    
-    SchedulerExecutorAdapter(Executor executor) {
-        this(executor, null);
+    public SimpleScheduler(Executor executor) {
+        this(executor, null, null);
     }
     
-    SchedulerExecutorAdapter(Executor executor, Function<? super Runnable, ? extends Runnable> contextualizer) {
+    public SimpleScheduler(Executor executor, Set<Characteristics> characteristics) {
+        this(executor, characteristics, null);
+    }
+
+    public SimpleScheduler(Executor executor, Function<? super Runnable, ? extends Runnable> contextualizer) {
+        this(executor, null, contextualizer);
+    }        
+    
+    public SimpleScheduler(Executor executor, Set<Characteristics> characteristics, Function<? super Runnable, ? extends Runnable> contextualizer) {
+        super(ensureNonInterruptibleCharacteristic(characteristics), contextualizer);
         this.executor = executor;
-        this.contextualizer = contextualizer;
     }
     
     @Override
@@ -59,9 +68,10 @@ final class SchedulerExecutorAdapter implements Scheduler {
         return result;
     }
     
-    @Override
-    public Runnable contextualize(Runnable resumeContinuation) {
-        return contextualizer == null ? resumeContinuation : contextualizer.apply(resumeContinuation);
-    } 
-
+    private static Set<Characteristics> ensureNonInterruptibleCharacteristic(Set<Characteristics> characteristics) {
+        if (null == characteristics || !characteristics.contains(Characteristics.INTERRUPTIBLE)) {
+            return characteristics;
+        }
+        throw new IllegalArgumentException("Characteristics must contains " + Characteristics.INTERRUPTIBLE);
+    }
 }

@@ -41,6 +41,7 @@
 		<module>net.tascalate.async.resolver.provided</module>
 		<module>net.tascalate.async.resolver.scoped</module>
 		<module>net.tascalate.async.tools.core</module>
+		<module>net.tascalate.async.tools.maven</module>
 		<module>net.tascalate.async.tools.javaagent</module>
 		<module>net.tascalate.async.examples</module>
 	</modules>
@@ -48,6 +49,7 @@
 
 	<properties>
 		<project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+		<tascalate.concurrent.version>0.5.4</tascalate.concurrent.version>
 	</properties>
 
 	<dependencyManagement>

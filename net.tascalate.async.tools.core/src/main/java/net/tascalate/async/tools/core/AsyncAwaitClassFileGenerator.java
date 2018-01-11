@@ -56,8 +56,13 @@ public class AsyncAwaitClassFileGenerator {
     // Original method's "method name + method desc" -> Access method's
     // MethodNode
     private final Map<String, MethodNode> accessMethods = new HashMap<String, MethodNode>();
-
-    public byte[] transform(String className, byte[] classfileBuffer, ResourceLoader resourceLoader) throws IllegalClassFormatException {
+    private final ResourceLoader resourceLoader;
+    
+    public AsyncAwaitClassFileGenerator(ResourceLoader resourceLoader) {
+        this.resourceLoader = resourceLoader;
+    }
+    
+    public byte[] transform(byte[] classfileBuffer) throws IllegalClassFormatException {
         // Read
         ClassReader classReader = new ClassReader(classfileBuffer);
         ClassNode classNode = new ClassNode();
@@ -87,7 +92,7 @@ public class AsyncAwaitClassFileGenerator {
         return generatedClassBytes;
     }
 
-    public Map<String, byte[]> getGeneratedClasses(ResourceLoader resourceLoader) {
+    public Map<String, byte[]> getGeneratedClasses() {
         Map<String, byte[]> result = new HashMap<String, byte[]>();
         for (ClassNode classNode : newClasses) {
             ClassWriter cw = new ComputeClassWriter(ClassWriter.COMPUTE_FRAMES, resourceLoader);

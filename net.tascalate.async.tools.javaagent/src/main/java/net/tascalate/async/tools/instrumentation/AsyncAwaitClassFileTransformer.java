@@ -58,13 +58,13 @@ public class AsyncAwaitClassFileTransformer implements ClassFileTransformer {
 	    try {		
     		final ClassLoader classLoader = getSafeClassLoader(originalClassLoader);
     				
-    		final AsyncAwaitClassFileGenerator generator = new AsyncAwaitClassFileGenerator();
-    		final byte[] transformed = generator.transform(className, classfileBuffer, new ClasspathResourceLoader(classLoader));
+    		final AsyncAwaitClassFileGenerator generator = new AsyncAwaitClassFileGenerator(new ClasspathResourceLoader(classLoader));
+    		final byte[] transformed = generator.transform(classfileBuffer);
     		if (null == transformed) {
     			return postProcess(classLoader, className, classBeingRedefined, protectionDomain, classfileBuffer);	
     		}
     		
-    		final Map<String, byte[]> extraClasses = generator.getGeneratedClasses(new ClasspathResourceLoader(classLoader));
+    		final Map<String, byte[]> extraClasses = generator.getGeneratedClasses();
     		generator.reset(); 
     		
     		// Define new classes and then redefine inner classes

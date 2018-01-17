@@ -54,7 +54,7 @@ Second, add the following build plugins in the specified order:
 ```
 You are ready to start coding!
 # Asynchronous tasks
-The first type of functions the library supports is asycnhronous task. Asynchronous task is an asynchronous method (either instance or class method) that return `CompletionStage<T>` or `void`. In the later case it is a "fire-and-forget" task that is intended primarly to be used for event handlers inside UI framework (like JavaFX or Swing). Let us write a simple example:
+The first type of functions the library supports is asycnhronous task. Asynchronous task is a method (either instance or class method) that is annotated with `net.tascalate.async.api.async` annotation and returns `CompletionStage<T>` or `void`. In the later case it is a "fire-and-forget" task that is intended primarly to be used for event handlers inside UI framework (like JavaFX or Swing). Let us write a simple example:
 ```java
 import static net.tascalate.async.api.AsyncCall.async;
 import static net.tascalate.async.api.AsyncCall.await;
@@ -76,13 +76,13 @@ class MyClass {
     }
     
     public @async CompletionStage<String> decorateStringsAsync(int i, String prefix, String suffix) {
-        String value = prefix + await( produceStringAsync("value" + i) ) + suffix;
+        String value = prefix + await( produceStringAsync("value " + i) ) + suffix;
         return async(value);
     }
     
     // Emulate some asynchronous business service call
     private static CompletionStage<String> produceStringAsync(String value) {
-    		return CompletableFuture.supplyAsync(() -> value, executor);
+        return CompletableFuture.supplyAsync(() -> value, executor);
     }
     
     private static final ExecutorService executor = Executors.newFixedThreadPool(4);

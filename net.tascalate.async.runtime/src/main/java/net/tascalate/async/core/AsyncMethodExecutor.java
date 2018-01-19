@@ -88,8 +88,8 @@ public class AsyncMethodExecutor implements Serializable {
         log.debug("Continuation suspended");
 
         // Check if the Continuation was suspended in our way.
-        if (newContinuation.value() == null) {
-            throw new NoActiveAsyncCallException("Continuation was suspended incorrectly");
+        if (!(newContinuation.value() instanceof SuspendParams)) {
+            throw new NoActiveAsyncCallException("Continuation was suspended incorrectly, use AsyncCall.await");
         }
 
         setupContinuation(newContinuation);

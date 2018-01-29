@@ -24,7 +24,9 @@
  */
 package net.tascalate.async.core;
 
+import java.util.concurrent.CancellationException;
 import java.util.concurrent.CompletionStage;
+import java.util.concurrent.ExecutionException;
 
 import net.tascalate.async.api.Scheduler;
 import net.tascalate.async.api.YieldReply;
@@ -36,7 +38,7 @@ abstract public class AsyncGenerator<T> extends AsyncMethod {
     
     protected AsyncGenerator(Scheduler scheduler) {
         super(scheduler);
-        this.generator = new LazyGenerator<>(future);
+        this.generator = new LazyGenerator<>(this);
     }
     
     @Override
@@ -56,6 +58,27 @@ abstract public class AsyncGenerator<T> extends AsyncMethod {
     }
     
     abstract protected @suspendable void doRun() throws Throwable;
+    
+    boolean checkDone() {
+        if (future.isDone()) {
+            // If we have synchronous error in generator method
+            // (as opposed to asynchronous that is managed by consumerLock
+            if (!future.isCancelled() && future.isCompletedExceptionally()) {
+                try {
+                    future.get();
+                } catch (final CancellationException | InterruptedException ex) {
+                    // Should not happen -- completed exceptionally already checked
+                    throw new IllegalStateException(ex);
+                } catch (final ExecutionException ex) {
+                    Exceptions.sneakyThrow(Exceptions.unrollExecutionException(ex));
+                    return true;
+                }
+            }
+            return true;
+        } else {
+            return false;
+        }
+    }
 
     protected Generator<T> yield() {
         return generator;

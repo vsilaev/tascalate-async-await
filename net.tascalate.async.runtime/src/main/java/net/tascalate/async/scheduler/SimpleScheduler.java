@@ -25,7 +25,6 @@
 package net.tascalate.async.scheduler;
 
 import java.util.Set;
-import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionStage;
 import java.util.concurrent.Executor;
 import java.util.function.Function;
@@ -56,13 +55,13 @@ public class SimpleScheduler extends AbstractScheduler {
     
     @Override
     public CompletionStage<?> schedule(Runnable command) {
-        CompletableFuture<?> result = new CompletableFuture<>();
+        SchedulePromise<?> result = new SchedulePromise<>();
         executor.execute(() -> {
             try {
                 command.run();
-                result.complete(null);
+                result.success(null);
             } catch (final Throwable ex) {
-                result.completeExceptionally(ex);
+                result.failure(ex);
             }
         });
         return result;

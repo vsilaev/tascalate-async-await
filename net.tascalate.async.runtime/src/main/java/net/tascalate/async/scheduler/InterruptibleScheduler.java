@@ -54,7 +54,7 @@ public class InterruptibleScheduler extends AbstractScheduler {
     @Override
     public CompletableFuture<?> schedule(Runnable command) {
         Future<?>[] delegate = {null};
-        CompletableFuture<?> result = new CompletableFuture<Void>() {
+        SchedulePromise<?> result = new SchedulePromise<Void>() {
             @Override
             public boolean cancel(boolean mayInterruptIfRunning) {
                 if (super.cancel(mayInterruptIfRunning)) {
@@ -68,10 +68,10 @@ public class InterruptibleScheduler extends AbstractScheduler {
         delegate[0] = executor.submit(() -> {
             try {
                 command.run();
-                result.complete(null);
+                result.success(null);
                 return null;
             } catch (final Throwable ex) {
-                result.completeExceptionally(ex);
+                result.failure(ex);
                 throw ex;
             }
         });

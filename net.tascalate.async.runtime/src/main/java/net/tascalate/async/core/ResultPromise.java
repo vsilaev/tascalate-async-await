@@ -25,36 +25,24 @@
 package net.tascalate.async.core;
 
 import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.CompletionStage;
 
-import net.tascalate.async.api.Scheduler;
-import net.tascalate.async.api.suspendable;
-
-
-abstract public class AsyncTask<T> extends AsyncMethod {
-
-    protected AsyncTask(Scheduler scheduler) {
-        super(scheduler);
+public class ResultPromise<T> extends CompletableFuture<T> {
+    protected boolean internalSuccess(T value) {
+        return super.complete(value);
+    }
+    
+    protected boolean internalFailure(Throwable exception) {
+        return super.completeExceptionally(exception);
     }
     
     @Override
-    protected final @suspendable void internalRun() {
-        try {
-            doRun();
-            // ensure that promise is resolved
-            success(null);
-        } catch (Throwable ex) {
-            failure(ex);
-        }
+    public boolean complete(T value) {
+        throw new UnsupportedOperationException("ResultPromise may not be completed explicitly");
     }
     
-    abstract protected @suspendable void doRun() throws Throwable;
-
-    protected CompletionStage<T> complete(final T value) {
-        success(value);
-        @SuppressWarnings("unchecked")
-        CompletableFuture<T> typedFuture = (CompletableFuture<T>)future;
-        return typedFuture;
+    @Override
+    public boolean completeExceptionally(Throwable exception) {
+        throw new UnsupportedOperationException("ResultPromise may not be completed explicitly");
     }
-  
+
 }

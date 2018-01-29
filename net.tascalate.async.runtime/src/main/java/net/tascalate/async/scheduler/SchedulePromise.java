@@ -22,39 +22,26 @@
  * OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
-package net.tascalate.async.core;
+package net.tascalate.async.scheduler;
 
-import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.CompletionStage;
+import net.tascalate.async.core.ResultPromise;
 
-import net.tascalate.async.api.Scheduler;
-import net.tascalate.async.api.suspendable;
-
-
-abstract public class AsyncTask<T> extends AsyncMethod {
-
-    protected AsyncTask(Scheduler scheduler) {
-        super(scheduler);
+class SchedulePromise<T> extends ResultPromise<T> {
+    boolean success(T value) {
+        return super.internalSuccess(value);
+    }
+    
+    boolean failure(Throwable exception) {
+        return super.internalFailure(exception);
     }
     
     @Override
-    protected final @suspendable void internalRun() {
-        try {
-            doRun();
-            // ensure that promise is resolved
-            success(null);
-        } catch (Throwable ex) {
-            failure(ex);
-        }
+    protected boolean internalSuccess(T value) {
+        throw new UnsupportedOperationException("SchedulePromise may not be completed explicitly");
     }
     
-    abstract protected @suspendable void doRun() throws Throwable;
-
-    protected CompletionStage<T> complete(final T value) {
-        success(value);
-        @SuppressWarnings("unchecked")
-        CompletableFuture<T> typedFuture = (CompletableFuture<T>)future;
-        return typedFuture;
+    @Override
+    protected boolean internalFailure(Throwable exception) {
+        throw new UnsupportedOperationException("SchedulePromise may not be completed explicitly");
     }
-  
 }

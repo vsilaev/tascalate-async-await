@@ -24,17 +24,15 @@
  */
 package net.tascalate.async.core;
 
-import java.util.concurrent.CancellationException;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionStage;
-import java.util.concurrent.ExecutionException;
 
 import net.tascalate.async.api.Generator;
 import net.tascalate.async.api.YieldReply;
 import net.tascalate.async.api.suspendable;
 
 class LazyGenerator<T> implements Generator<T> {
-    private final CompletableFuture<?> result;
+    private final AsyncGenerator<?> owner;
 	
     private CompletableFuture<YieldReply<T>> producerLock;
     private CompletableFuture<?> consumerLock;
@@ -42,30 +40,16 @@ class LazyGenerator<T> implements Generator<T> {
 
     private Generator<T> currentDelegate = Generator.empty();
     
-    LazyGenerator(CompletableFuture<?> result) {
-    	this.result = result;
+    LazyGenerator(AsyncGenerator<T> owner) {
+    	this.owner = owner;
     }
 
     @Override
     public CompletionStage<T> next(Object param) {
         // Loop to replace tail recursion - BEGIN
         while (true) {
-            if (result.isDone()) {
-                // If we have synchronous error in generator method
-                // (as opposed to asynchronous that is managed by consumerLock
-                if (!result.isCancelled() && result.isCompletedExceptionally()) {
-                    try {
-                        result.get();
-                    } catch (final CancellationException | InterruptedException ex) {
-                        // Should not happen -- completed exceptionally already checked
-                        return null;
-                    } catch (final ExecutionException ex) {
-                        Exceptions.sneakyThrow(Exceptions.unrollExecutionException(ex));
-                        return null;
-                    }
-                } else {
-                    return null;
-                }
+            if (owner.checkDone()) {
+                return null;
             }
             
             // Await previously returned result, if any
@@ -96,7 +80,7 @@ class LazyGenerator<T> implements Generator<T> {
 
     @Override
     public void close() {
-        result.cancel(true);
+        owner.future.cancel(true);
         currentDelegate.close();
         end(null);
     }
@@ -122,9 +106,9 @@ class LazyGenerator<T> implements Generator<T> {
         // Set synchronous error in generator method
         // (as opposed to asynchronous that is managed by consumerLock        
         if (null == ex) {
-            result.complete(null);
+            owner.success(null);
         } else {
-            result.completeExceptionally(ex);
+            owner.failure(ex);
         }
         currentDelegate = Generator.empty();
         releaseConsumerLock();

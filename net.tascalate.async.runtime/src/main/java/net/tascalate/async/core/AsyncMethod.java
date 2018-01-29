@@ -52,7 +52,7 @@ abstract public class AsyncMethod implements Runnable {
     private volatile CompletableFuture<?> terminateMethod;
     
     protected AsyncMethod(Scheduler scheduler) {
-        this.future = new ResultPromise<>();
+        this.future = new CancellableResultPromise<>();
         this.scheduler = scheduler != null ? scheduler : Scheduler.sameThreadContextless();
     }
 
@@ -79,6 +79,15 @@ abstract public class AsyncMethod implements Runnable {
         return future.isCancelled();
     }
 
+    @SuppressWarnings("unchecked")
+    protected <T> boolean success(T value) {
+        return ((ResultPromise<T>)future).internalSuccess(value);
+    }
+    
+    protected <T> boolean failure(Throwable exception) {
+        return ((ResultPromise<?>)future).internalFailure(exception);
+    }
+    
     void cancelAwaitIfNecessary() {
         cancelAwaitIfNecessary(terminateMethod, originalAwait);
     }
@@ -148,7 +157,7 @@ abstract public class AsyncMethod implements Runnable {
         }
     }
     
-    class ResultPromise<T> extends CompletableFuture<T> {
+    class CancellableResultPromise<T> extends ResultPromise<T> {
         @Override
         public boolean cancel(boolean mayInterruptIfRunning) {
             boolean doCancel = mayInterruptIfRunning || !isRunning();

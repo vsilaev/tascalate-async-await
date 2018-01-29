@@ -59,7 +59,7 @@ abstract public class AsyncGenerator<T> extends AsyncMethod {
     
     abstract protected @suspendable void doRun() throws Throwable;
     
-    boolean checkDone() {
+    final boolean checkDone() {
         if (future.isDone()) {
             // If we have synchronous error in generator method
             // (as opposed to asynchronous that is managed by consumerLock
@@ -79,19 +79,19 @@ abstract public class AsyncGenerator<T> extends AsyncMethod {
         }
     }
 
-    protected Generator<T> yield() {
+    protected final Generator<T> yield() {
         return generator;
     }
     
-    protected @suspendable YieldReply<T> yield(T readyValue) {
+    protected @suspendable final YieldReply<T> yield(T readyValue) {
         return generator.produce(Generator.of(readyValue));
     }
 
-    protected @suspendable YieldReply<T> yield(CompletionStage<T> pendingValue) {
+    protected @suspendable final YieldReply<T> yield(CompletionStage<T> pendingValue) {
         return generator.produce(Generator.of(pendingValue));
     }
 
-    protected @suspendable YieldReply<T> yield(Generator<T> values) {
+    protected @suspendable final YieldReply<T> yield(Generator<T> values) {
         return generator.produce(values);
     }
 }

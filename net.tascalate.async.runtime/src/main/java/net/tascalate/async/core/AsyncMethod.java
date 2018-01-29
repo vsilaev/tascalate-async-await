@@ -71,32 +71,32 @@ abstract public class AsyncMethod implements Runnable {
     
     abstract protected @suspendable void internalRun();
 
-    boolean isRunning() {
+    final boolean isRunning() {
         return state.get() == State.RUNNING;
     }
     
-    protected boolean interrupted() {
+    protected final boolean interrupted() {
         return future.isCancelled();
     }
 
     @SuppressWarnings("unchecked")
-    protected <T> boolean success(T value) {
+    protected final <T> boolean success(T value) {
         return ((ResultPromise<T>)future).internalSuccess(value);
     }
     
-    protected <T> boolean failure(Throwable exception) {
+    protected final <T> boolean failure(Throwable exception) {
         return ((ResultPromise<?>)future).internalFailure(exception);
     }
     
-    void cancelAwaitIfNecessary() {
+    final void cancelAwaitIfNecessary() {
         cancelAwaitIfNecessary(terminateMethod, originalAwait);
     }
     
-    Scheduler scheduler() {
+    final Scheduler scheduler() {
         return scheduler;
     }
     
-    Runnable createResumeHandler(Runnable originalResumer) {
+    final Runnable createResumeHandler(Runnable originalResumer) {
         long currentBlockerVersion = blockerVersion.get();
         Runnable contextualResumer = scheduler.contextualize(originalResumer);
         if (scheduler.characteristics().contains(Scheduler.Characteristics.INTERRUPTIBLE)) {
@@ -131,7 +131,7 @@ abstract public class AsyncMethod implements Runnable {
         }
     }
     
-    <V> CompletionStage<V> registerAwaitTarget(CompletionStage<V> originalAwait) {
+    final <V> CompletionStage<V> registerAwaitTarget(CompletionStage<V> originalAwait) {
         blockerVersion.incrementAndGet();
     	CompletableFuture<V> terminateMethod = new CompletableFuture<>();
         CompletionStage<V> guardedAwait = terminateMethod.applyToEither(originalAwait, Function.identity());

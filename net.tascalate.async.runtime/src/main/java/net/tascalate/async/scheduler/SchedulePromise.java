@@ -27,21 +27,21 @@ package net.tascalate.async.scheduler;
 import net.tascalate.async.core.ResultPromise;
 
 class SchedulePromise<T> extends ResultPromise<T> {
-    boolean success(T value) {
+    final boolean success(T value) {
         return super.internalSuccess(value);
     }
     
-    boolean failure(Throwable exception) {
+    final boolean failure(Throwable exception) {
         return super.internalFailure(exception);
     }
     
     @Override
-    protected boolean internalSuccess(T value) {
+    protected final boolean internalSuccess(T value) {
         throw new UnsupportedOperationException("SchedulePromise may not be completed explicitly");
     }
     
     @Override
-    protected boolean internalFailure(Throwable exception) {
+    protected final boolean internalFailure(Throwable exception) {
         throw new UnsupportedOperationException("SchedulePromise may not be completed explicitly");
     }
 }

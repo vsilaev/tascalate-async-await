@@ -43,7 +43,7 @@ abstract class Either<R, E extends Throwable> implements Serializable {
         }
         
         @Override
-        R done() throws E {
+        final R done() throws E {
             return result;
         }
     }
@@ -59,7 +59,7 @@ abstract class Either<R, E extends Throwable> implements Serializable {
         }
         
         @Override
-        R done() throws E {
+        final R done() throws E {
             throw error;
         }
         

@@ -36,12 +36,12 @@ public class ResultPromise<T> extends CompletableFuture<T> {
     }
     
     @Override
-    public boolean complete(T value) {
+    public final boolean complete(T value) {
         throw new UnsupportedOperationException("ResultPromise may not be completed explicitly");
     }
     
     @Override
-    public boolean completeExceptionally(Throwable exception) {
+    public final boolean completeExceptionally(Throwable exception) {
         throw new UnsupportedOperationException("ResultPromise may not be completed explicitly");
     }
 

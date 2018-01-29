@@ -35,8 +35,6 @@ final class Exceptions {
         throw (E)ex;
     }
     
-
-    
     static Throwable unrollExecutionException(Throwable ex) {
         Throwable nested = ex;
         while (nested instanceof ExecutionException) {

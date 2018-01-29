@@ -50,7 +50,7 @@ abstract public class AsyncTask<T> extends AsyncMethod {
     
     abstract protected @suspendable void doRun() throws Throwable;
 
-    protected CompletionStage<T> complete(final T value) {
+    protected final CompletionStage<T> complete(final T value) {
         success(value);
         @SuppressWarnings("unchecked")
         CompletableFuture<T> typedFuture = (CompletableFuture<T>)future;

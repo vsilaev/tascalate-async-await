@@ -29,7 +29,7 @@ class CloseSignal extends Error {
     private CloseSignal() {}
 
     @Override
-    public Throwable fillInStackTrace() {
+    public final Throwable fillInStackTrace() {
         return this;
     }
 

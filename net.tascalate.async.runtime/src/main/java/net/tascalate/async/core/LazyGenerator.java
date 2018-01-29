@@ -85,7 +85,7 @@ class LazyGenerator<T> implements Generator<T> {
         end(null);
     }
 
-    @suspendable YieldReply<T> produce(Generator<T> values) {
+    final @suspendable YieldReply<T> produce(Generator<T> values) {
         currentDelegate = values;
         // Re-set producerLock
         // It's important to reset it before unlocking consumer!
@@ -96,13 +96,13 @@ class LazyGenerator<T> implements Generator<T> {
         return acquireProducerLock();
     }
 
-    @suspendable void begin() {
+    final @suspendable void begin() {
         // Start with locked producer and unlocked consumer
         producerLock = new CompletableFuture<>();
         acquireProducerLock();
     }
 
-    void end(Throwable ex) {
+    final void end(Throwable ex) {
         // Set synchronous error in generator method
         // (as opposed to asynchronous that is managed by consumerLock        
         if (null == ex) {

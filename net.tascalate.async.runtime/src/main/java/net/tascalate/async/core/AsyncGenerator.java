@@ -71,7 +71,6 @@ abstract public class AsyncGenerator<T> extends AsyncMethod {
                     throw new IllegalStateException(ex);
                 } catch (final ExecutionException ex) {
                     Exceptions.sneakyThrow(Exceptions.unrollExecutionException(ex));
-                    return true;
                 }
             }
             return true;

@@ -25,8 +25,8 @@
 package net.tascalate.async.core;
 
 import java.util.concurrent.CancellationException;
+import java.util.concurrent.CompletionException;
 import java.util.concurrent.CompletionStage;
-import java.util.concurrent.ExecutionException;
 
 import net.tascalate.async.api.Scheduler;
 import net.tascalate.async.api.YieldReply;
@@ -65,12 +65,12 @@ abstract public class AsyncGenerator<T> extends AsyncMethod {
             // (as opposed to asynchronous that is managed by consumerLock
             if (!future.isCancelled() && future.isCompletedExceptionally()) {
                 try {
-                    future.get();
-                } catch (final CancellationException | InterruptedException ex) {
+                    future.join();
+                } catch (final CancellationException ex) {
                     // Should not happen -- completed exceptionally already checked
                     throw new IllegalStateException(ex);
-                } catch (final ExecutionException ex) {
-                    Exceptions.sneakyThrow(Exceptions.unrollExecutionException(ex));
+                } catch (final CompletionException ex) {
+                    Exceptions.sneakyThrow(Exceptions.unrollCompletionException(ex));
                 }
             }
             return true;

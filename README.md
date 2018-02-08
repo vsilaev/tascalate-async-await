@@ -108,8 +108,8 @@ public @async CompletionStage<String> bar(int i) {
   String result;
     switch (i) {
       case 1: result = "A"; break;
-      case 1: result = "B"; break;
-      case 1: result = "C"; break;
+      case 2: result = "B"; break;
+      case 3: result = "C"; break;
       default:
         result = "<UNKNOWN>";
     }

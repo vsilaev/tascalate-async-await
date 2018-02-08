@@ -90,6 +90,33 @@ class MyClass {
 ```
 Thanks to statically imported methods of `net.tascalate.async.api.AsyncCall` the code looks very close to the one developed with languages having native support for async/await. Both `mergeStrings` and `decorateStrings` are asynchronous methods -- they are marked with `net.tascalate.async.api.async` annotation and returns `CompletionStage<T>`. Inside these methods you may call `await` to suspend the method till the `CompletionStage<T>` supplied as the argument is resolved (either sucessfully or exceptionally). Please notice, that you can await for any `CompletionStage<T>` implementation obtained from different libraries - like inside the `decorateStrings` method, including pending result of another asynchronous method - like in `mergeStrings`. 
 
+To return a result from the asynchronous method you have to use syntatic construct `return async(value)`. You must always treat both of this statements (calling `async` method and returning it result) as the single syntatic construct and don't call `async` method separately or store it return value to variable while these will lead to unpredicatble results. It's especially important if your method body it's not linear. Depending on your established coding practice how to deal with multiple returns you should use either...
+```java
+public @async CompletionStage<String> foo(int i) {
+  switch (i) {
+    case 1: return async("A");
+    case 2: return async("B");
+    case 3: return async("C");
+    default:
+      return async("<UNKNOWN>");
+  }
+}
+```
+...or...
+```java
+public @async CompletionStage<String> bar(int i) {
+  String result;
+    switch (i) {
+      case 1: result = "A"; break;
+      case 1: result = "B"; break;
+      case 1: result = "C"; break;
+      default:
+        result = "<UNKNOWN>";
+    }
+    return async(result);
+}
+```
+
 # Generators
 
 # Suspendable methods

@@ -8,7 +8,7 @@ Traditional asynchronous programming involves using callbacks these are executed
 
 To alleviate aforementioned readability and maintainability issues some languages provides `async/await` asynchronous programming model. This lets developer make asynchronous calls just as easily as she can invoke synchronous ones, with the tiny addition of a keyword `await` and without sacrifying any of asynchronous programming benefits. With `await` keyword asynchronous calls may be used inside regular control flow statements (including exception handling) as naturally as calls to synchronous methods. The list of the languages that support this model is steadly growing: C# 5, ECMAScript 7, Kotlin, Scala. 
 
-Tascalate Async/Await library enables `async/await` model for projects built with the Java 8 and beyond. The implementation is based on [continuations for Java](https://github.com/vsilaev/tascalate-javaflow) and provides runtime API + bytecode enchancement tools to let developers use syntax constructs similar to C# 5 or ECMAScript 7 with pure Java.
+Tascalate Async/Await library enables `async/await` model for projects built with the Java 8 and beyond. The implementation is based on [continuations for Java](https://github.com/vsilaev/tascalate-javaflow) and provides runtime API + bytecode enchancement tools to let developers use syntax constructs similar to C# 5 or ECMAScript 2017/2018 with pure Java.
 
 # How to use?
 First, add Maven dependency to the library runtime:
@@ -21,36 +21,36 @@ First, add Maven dependency to the library runtime:
 ```
 Second, add the following build plugins in the specified order:
 ```xml
-	<build>
-		<plugins>
-			<plugin>
-				<groupId>net.tascalate.async</groupId>
-				<artifactId>net.tascalate.async.tools.maven</artifactId>
-				<version>1.0.0</version>
-				<executions>
-					<execution>
-						<phase>process-classes</phase>
-						<goals>
-							<goal>tascalate-async-enhance</goal>
-						</goals>
-					</execution>
-				</executions>
-			</plugin>
-			<plugin>
-				<groupId>net.tascalate.javaflow</groupId>
-				<artifactId>net.tascalate.javaflow.tools.maven</artifactId>
-				<version>2.1</version>
-				<executions>
-					<execution>
-						<phase>process-classes</phase>
-						<goals>
-							<goal>javaflow-enhance</goal>
-						</goals>
-					</execution>
-				</executions>
-			</plugin>
-		</plugins>
-	</build>
+<build>
+  <plugins>
+    <plugin>
+      <groupId>net.tascalate.async</groupId>
+      <artifactId>net.tascalate.async.tools.maven</artifactId>
+      <version>1.0.0</version>
+      <executions>
+        <execution>
+	  <phase>process-classes</phase>
+	  <goals>
+	    <goal>tascalate-async-enhance</goal>
+	  </goals>
+	</execution>
+      </executions>
+    </plugin>
+    <plugin>
+      <groupId>net.tascalate.javaflow</groupId>
+      <artifactId>net.tascalate.javaflow.tools.maven</artifactId>
+      <version>2.1</version>
+      <executions>
+        <execution>
+	  <phase>process-classes</phase>
+	  <goals>
+	    <goal>javaflow-enhance</goal>
+	  </goals>
+	</execution>
+      </executions>
+    </plugin>
+  </plugins>
+</build>
 ```
 You are ready to start coding!
 # Asynchronous tasks
@@ -66,29 +66,32 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
 class MyClass {
-    public @async CompletionStage<String> mergeStringsAsync() {
+    public @async CompletionStage<String> mergeStrings() {
         StringBuilder result = new StringBuilder();
         for (int i = 1; i <= 10; i++) {
-          String v = await( decorateStringsAsync(i, "async ", " awaited") );
+          String v = await( decorateStrings(i, "async ", " awaited") );
           result.append(v).append('\n');
         }
         return async(result.toString());
     }
     
-    public @async CompletionStage<String> decorateStringsAsync(int i, String prefix, String suffix) {
-        String value = prefix + await( produceStringAsync("value " + i) ) + suffix;
+    public @async CompletionStage<String> decorateStrings(int i, String prefix, String suffix) {
+        String value = prefix + await( produceString("value " + i) ) + suffix;
         return async(value);
     }
     
     // Emulate some asynchronous business service call
-    private static CompletionStage<String> produceStringAsync(String value) {
+    private static CompletionStage<String> produceString(String value) {
         return CompletableFuture.supplyAsync(() -> value, executor);
     }
     
     private static final ExecutorService executor = Executors.newFixedThreadPool(4);
 }
 ```
-# Suspendable methods
+Thanks to statically imported methods of `net.tascalate.async.api.AsyncCall` the code looks very close to the one developed with languages having native support for async/await. Both `mergeStrings` and `decorateStrings` are asynchronous methods -- they are marked with `net.tascalate.async.api.async` annotation and returns `CompletionStage<T>`. Inside these methods you may call `await` to suspend the method till the `CompletionStage<T>` supplied as the argument is resolved (either sucessfully or exceptionally). Please notice, that you can await for any `CompletionStage<T>` implementation obtained from different libraries - like inside the `decorateStrings` method, including pending result of another asynchronous method - like in `mergeStrings`. 
+
 # Generators
+
+# Suspendable methods
 # Scheduler - where is my code executed?
 # SchedulerResolver - what Scheduler to use?

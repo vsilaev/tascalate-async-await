@@ -96,6 +96,13 @@ abstract public class AsyncMethod implements Runnable {
         return scheduler;
     }
     
+    final protected String toString(String implementationName, String className, String methodSignature) {
+        return String.format("%s[origin-class=%s, origin-method=%s, state=%s, scheduler=%s, blocker-version=%s, awaiting-on=%s]", 
+            implementationName, className, methodSignature,
+            state, scheduler, blockerVersion, originalAwait
+        );
+    }
+    
     final Runnable createResumeHandler(Runnable originalResumer) {
         long currentBlockerVersion = blockerVersion.get();
         Runnable contextualResumer = scheduler.contextualize(originalResumer);

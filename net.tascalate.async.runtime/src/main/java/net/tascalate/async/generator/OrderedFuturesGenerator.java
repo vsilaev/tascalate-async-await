@@ -48,6 +48,11 @@ public class OrderedFuturesGenerator<T> implements Generator<T> {
 
         }
         
+        @Override
+        public String toString() {
+            return "<empty-generator>";
+        }
+        
     };
 
     private final Iterator<CompletionStage<T>> delegate;
@@ -74,6 +79,11 @@ public class OrderedFuturesGenerator<T> implements Generator<T> {
             throw new RuntimeException(ex);
         }
     }    
+    
+    @Override
+    public String toString() {
+        return String.format("<generator{%s}>[delegate=%s]", getClass().getSimpleName(), delegate);
+    }
     
     private AutoCloseable asCloseable(Object source) {
         if (source instanceof AutoCloseable) {

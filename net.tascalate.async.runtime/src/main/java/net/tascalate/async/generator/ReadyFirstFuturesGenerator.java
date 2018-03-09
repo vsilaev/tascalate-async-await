@@ -102,6 +102,14 @@ public class ReadyFirstFuturesGenerator<T> implements Generator<T> {
         current.close();
         current = Generator.empty();
     }
+    
+    @Override
+    public String toString() {
+        return String.format(
+            "<generator{%s}>[current=%s, consumer-lock=%s, remaining=%s, resolved-promises=%s]",
+            getClass().getSimpleName(), current, consumerLock, remaining, resolvedPromises
+        );
+    }
 
     public static <T> Generator<T> create(Stream<CompletionStage<T>> pendingPromises) {
         return create(pendingPromises.iterator());

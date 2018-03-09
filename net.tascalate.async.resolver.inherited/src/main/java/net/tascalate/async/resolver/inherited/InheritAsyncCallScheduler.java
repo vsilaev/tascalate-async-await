@@ -19,4 +19,8 @@ public class InheritAsyncCallScheduler implements SchedulerResolver {
         return ActiveAsyncCall.scheduler();
     }
     
+    @Override
+    public String toString() {
+        return String.format("<scheduler-resolver{%s}>[priority=%d]", getClass().getSimpleName(), priority());
+    }
 }

@@ -149,4 +149,12 @@ class LazyGenerator<T> implements Generator<T> {
             currentLock.complete(null);
         }
     }
+    
+    @Override
+    public String toString() {
+        return String.format(
+            "<generator{%s}>[consumer-lock=%s, producer-lock=%s, current-delegate=%s]", 
+            getClass().getSimpleName(), consumerLock, producerLock, currentDelegate
+        );
+    }
 }

@@ -38,4 +38,8 @@ public class GetSchedulerFromProvider implements SchedulerResolver {
         }
     }
     
+    @Override
+    public String toString() {
+        return String.format("<scheduler-resolver{%s}>[priority=%d, lookup=%s]", getClass().getSimpleName(), priority(), lookup);
+    }
 }

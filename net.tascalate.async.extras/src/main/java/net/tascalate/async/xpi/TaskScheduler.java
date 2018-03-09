@@ -31,14 +31,12 @@ import java.util.concurrent.Executor;
 
 import java.util.function.Function;
 
-import net.tascalate.async.scheduler.AbstractScheduler;
+import net.tascalate.async.scheduler.AbstractExecutorScheduler;
 
 import net.tascalate.concurrent.CompletableTask;
 import net.tascalate.concurrent.Promise;
 
-public class TaskScheduler extends AbstractScheduler {
-    
-    private final Executor executor;
+public class TaskScheduler extends AbstractExecutorScheduler<Executor> {
 
     public TaskScheduler(Executor executor) {
         this(executor, EnumSet.of(Characteristics.INTERRUPTIBLE));
@@ -53,8 +51,7 @@ public class TaskScheduler extends AbstractScheduler {
     }
     
     public TaskScheduler(Executor executor, Set<Characteristics> characteristics, Function<? super Runnable, ? extends Runnable> contextualizer) {
-        super(ensureInterruptibleCharacteristic(characteristics), contextualizer); 
-        this.executor = executor;
+        super(executor, ensureInterruptibleCharacteristic(characteristics), contextualizer); 
     }
     
     @Override

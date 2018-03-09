@@ -29,6 +29,7 @@ import static net.tascalate.async.tools.core.BytecodeIntrospection.createInnerCl
 import static net.tascalate.async.tools.core.BytecodeIntrospection.createOuterClassMethodArgFieldName;
 import static net.tascalate.async.tools.core.BytecodeIntrospection.getField;
 import static net.tascalate.async.tools.core.BytecodeIntrospection.getMethod;
+import static net.tascalate.async.tools.core.BytecodeIntrospection.getMethodSignature;
 import static net.tascalate.async.tools.core.BytecodeIntrospection.innerClassesOf;
 import static net.tascalate.async.tools.core.BytecodeIntrospection.invisibleAnnotationsOf;
 import static net.tascalate.async.tools.core.BytecodeIntrospection.invisibleParameterAnnotationsOf;
@@ -69,6 +70,7 @@ abstract public class AsyncMethodTransformer {
     protected final static Type SUSPENDABLE_ANNOTATION_TYPE = Type.getObjectType("net/tascalate/async/api/suspendable");
     protected final static Type COMPLETION_STAGE_TYPE       = Type.getObjectType("java/util/concurrent/CompletionStage");
     protected final static Type OBJECT_TYPE                 = Type.getType(Object.class);
+    protected final static Type STRING_TYPE                 = Type.getType(String.class);
     protected final static Type CLASS_TYPE                  = Type.getType(Class.class);    
     protected final static Type ASYNC_METHOD_EXECUTOR_TYPE  = Type.getObjectType("net/tascalate/async/core/AsyncMethodExecutor");
     protected final static Type TASCALATE_PROMISE_TYPE      = Type.getObjectType("net/tascalate/concurrent/Promise");
@@ -172,6 +174,7 @@ abstract public class AsyncMethodTransformer {
 
         addAnonymousClassConstructor(asyncRunnableClass, superClassType, outerClassField);
         addAnonymousClassRunMethod(asyncRunnableClass, outerClassField);
+        addAnonymousClassToStringMethod(asyncRunnableClass, superClassType);
         return asyncRunnableClass;
     }
     
@@ -222,6 +225,24 @@ abstract public class AsyncMethodTransformer {
         mv.visitEnd();
 
         return (MethodNode) mv;        
+    }
+
+    protected MethodNode addAnonymousClassToStringMethod(ClassNode asyncRunnableClass, Type runnableBaseClass) {
+        MethodNode asyncToStringMethod = (MethodNode)asyncRunnableClass.visitMethod(
+            ACC_PUBLIC, "toString", Type.getMethodDescriptor(STRING_TYPE), null, null
+        );
+        asyncToStringMethod.visitVarInsn(ALOAD, 0);
+        asyncToStringMethod.visitLdcInsn(classNode.name.replace('/', '.'));
+        asyncToStringMethod.visitLdcInsn(getMethodSignature(originalAsyncMethod, true));
+        asyncToStringMethod.visitMethodInsn(
+            INVOKEVIRTUAL, runnableBaseClass.getInternalName(), 
+            "toString", Type.getMethodDescriptor(STRING_TYPE, STRING_TYPE, STRING_TYPE), 
+            false
+         );
+        asyncToStringMethod.visitInsn(ARETURN);
+        asyncToStringMethod.visitMaxs(3, 1);
+        return asyncToStringMethod;
+        
     }
     
     protected MethodNode createReplacementAsyncMethod(String asyncTaskClassName, Type runnableBaseClass, String runnableFieldName, Type runnableFieldType) {

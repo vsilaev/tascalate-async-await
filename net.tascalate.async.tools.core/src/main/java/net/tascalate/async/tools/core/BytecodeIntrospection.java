@@ -24,16 +24,26 @@
  */
 package net.tascalate.async.tools.core;
 
+import static org.objectweb.asm.Opcodes.ACC_ABSTRACT;
+import static org.objectweb.asm.Opcodes.ACC_FINAL;
+import static org.objectweb.asm.Opcodes.ACC_PRIVATE;
+import static org.objectweb.asm.Opcodes.ACC_PROTECTED;
+import static org.objectweb.asm.Opcodes.ACC_PUBLIC;
+import static org.objectweb.asm.Opcodes.ACC_STATIC;
+import static org.objectweb.asm.Opcodes.ACC_STRICT;
+import static org.objectweb.asm.Opcodes.ACC_SYNCHRONIZED;
 import static org.objectweb.asm.Opcodes.ILOAD;
 import static org.objectweb.asm.Opcodes.ISTORE;
 
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.Iterator;
 import java.util.List;
+import java.util.stream.Collectors;
 
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
-
+import org.objectweb.asm.Type;
 import org.objectweb.asm.tree.AnnotationNode;
 import org.objectweb.asm.tree.ClassNode;
 import org.objectweb.asm.tree.FieldNode;
@@ -48,6 +58,41 @@ class BytecodeIntrospection {
 
     private BytecodeIntrospection() {
     }
+    
+
+    static String getMethodSignature(MethodNode methodNode, boolean outputExceptions) {
+        StringBuilder result = new StringBuilder();
+        int access = methodNode.access;
+        if ((access & ACC_PUBLIC) != 0) result.append("public ");
+        if ((access & ACC_PROTECTED) != 0) result.append("protected ");
+        if ((access & ACC_PRIVATE) != 0) result.append("private ");
+        if ((access & ACC_ABSTRACT) != 0) result.append("abstract ");
+        if ((access & ACC_FINAL) != 0) result.append("final ");
+        if ((access & ACC_STATIC) != 0) result.append("static ");
+        if ((access & ACC_STRICT) != 0) result.append("strictfp ");
+        if ((access & ACC_SYNCHRONIZED) != 0) result.append("synchronized ");
+        result.append(Type.getReturnType(methodNode.desc).getClassName()).append(' ');
+        result.append(methodNode.name);
+        result.append('(');
+        result.append(
+            Arrays.stream( Type.getArgumentTypes(methodNode.desc) )
+                .map(t -> t.getClassName())
+                .collect(Collectors.joining(", "))
+        );
+        result.append(')');
+        if (outputExceptions && null != methodNode.exceptions && !methodNode.exceptions.isEmpty()) {
+            result.append(" throws ");
+            @SuppressWarnings("unchecked")
+            List<String> exceptions = (List<String>)methodNode.exceptions;
+            result.append(
+                exceptions.stream()
+                    .map(v -> v.toString().replace('/', '.'))
+                    .collect(Collectors.joining(", "))
+            );
+        }
+        return result.toString();
+    }
+    
 
     // --- Instructions and Opcodes ---
     static boolean isLoadOpcode(int opcode) {

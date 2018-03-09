@@ -57,4 +57,7 @@ abstract public class AsyncTask<T> extends AsyncMethod {
         return typedFuture;
     }
   
+    final protected String toString(String className, String methodSignature) {
+        return toString("<generated-async-task>", className, methodSignature);
+    }
 }

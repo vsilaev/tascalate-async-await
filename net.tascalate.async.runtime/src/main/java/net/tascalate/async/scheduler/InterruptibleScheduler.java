@@ -31,8 +31,7 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Future;
 import java.util.function.Function;
 
-public class InterruptibleScheduler extends AbstractScheduler {
-    private final ExecutorService executor;
+public class InterruptibleScheduler extends AbstractExecutorScheduler<ExecutorService> {
     
     public InterruptibleScheduler(ExecutorService executor) {
         this(executor, EnumSet.of(Characteristics.INTERRUPTIBLE), null);
@@ -47,8 +46,7 @@ public class InterruptibleScheduler extends AbstractScheduler {
     }   
     
     public InterruptibleScheduler(ExecutorService executor, Set<Characteristics> characteristics, Function<? super Runnable, ? extends Runnable> contextualizer) {
-        super(ensureInterruptibleCharacteristic(characteristics), contextualizer);
-        this.executor = executor;
+        super(executor, ensureInterruptibleCharacteristic(characteristics), contextualizer);
     }
     
     @Override

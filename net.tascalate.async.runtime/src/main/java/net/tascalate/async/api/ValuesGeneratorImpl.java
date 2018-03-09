@@ -73,6 +73,10 @@ final class ValuesGeneratorImpl<T> implements ValuesGenerator<T> {
         advance = false;
     }
 
+    @Override
+    public String toString() {
+        return String.format("<generator-decorator{%s}>[delegate=%s, current=%s]", ValuesGenerator.class.getSimpleName(), delegate, current);
+    }
     
     private static final Function<Generator<Object>, ValuesGenerator<Object>> CONVERTER = ValuesGeneratorImpl::new;
     

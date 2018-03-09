@@ -31,10 +31,13 @@ import java.util.function.Function;
 
 import net.tascalate.async.api.Scheduler;
 
-public class SimpleScheduler extends AbstractScheduler {
-    public static final Scheduler SAME_THREAD_SCHEDULER = new SimpleScheduler(Runnable::run);
-    
-    private final Executor executor;
+public class SimpleScheduler extends AbstractExecutorScheduler<Executor> {
+    public static final Scheduler SAME_THREAD_SCHEDULER = new SimpleScheduler(Runnable::run) {
+        @Override
+        public String toString() {
+            return "<same-thread-contextless-scheduler>";
+        }
+    };
     
     public SimpleScheduler(Executor executor) {
         this(executor, null, null);
@@ -49,8 +52,7 @@ public class SimpleScheduler extends AbstractScheduler {
     }        
     
     public SimpleScheduler(Executor executor, Set<Characteristics> characteristics, Function<? super Runnable, ? extends Runnable> contextualizer) {
-        super(ensureNonInterruptibleCharacteristic(characteristics), contextualizer);
-        this.executor = executor;
+        super(executor, ensureNonInterruptibleCharacteristic(characteristics), contextualizer);
     }
     
     @Override

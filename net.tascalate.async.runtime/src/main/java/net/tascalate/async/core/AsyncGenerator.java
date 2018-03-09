@@ -94,4 +94,10 @@ abstract public class AsyncGenerator<T> extends AsyncMethod {
     protected @suspendable final YieldReply<T> yield(Generator<T> values) {
         return generator.produce(values);
     }
+    
+    final protected String toString(String className, String methodSignature) {
+        return 
+            toString("<generated-async-generator>", className, methodSignature) +
+            String.format("[lazy-generator=%s]", generator);
+    }
 }

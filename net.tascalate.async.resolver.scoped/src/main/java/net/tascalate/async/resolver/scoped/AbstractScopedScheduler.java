@@ -23,4 +23,8 @@ public class AbstractScopedScheduler implements SchedulerResolver {
         return scope.currentExecutor.get();
     }
 
+    @Override
+    public String toString() {
+        return String.format("<scheduler-resolver{%s}>[priority=%d, scope=%s]", getClass().getSimpleName(), priority(), scope);
+    }
 }

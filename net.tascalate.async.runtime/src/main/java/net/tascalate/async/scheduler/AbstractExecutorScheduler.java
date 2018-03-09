@@ -24,39 +24,21 @@
  */
 package net.tascalate.async.scheduler;
 
-import java.util.Collections;
 import java.util.Set;
+import java.util.concurrent.Executor;
 import java.util.function.Function;
 
-import net.tascalate.async.api.Scheduler;
-
-public abstract class AbstractScheduler implements Scheduler {
-    private final Set<Characteristics> characteristics;
-    private final Function<? super Runnable, ? extends Runnable> contextualizer;
+abstract public class AbstractExecutorScheduler<T extends Executor> extends AbstractScheduler {
     
-    protected AbstractScheduler(Set<Characteristics> characteristics, Function<? super Runnable, ? extends Runnable> contextualizer) {
-        this.characteristics = null != characteristics ? Collections.unmodifiableSet(characteristics) : Collections.emptySet();
-        this.contextualizer  = contextualizer;
+    protected final T executor;
+    
+    protected AbstractExecutorScheduler(T executor, Set<Characteristics> characteristics, Function<? super Runnable, ? extends Runnable> contextualizer) {
+        super(characteristics, contextualizer);
+        this.executor = executor;
     }
-    
-    @Override
-    public Set<Characteristics> characteristics() {
-        return characteristics;
-    }
-    
-    
-    @Override
-    public Runnable contextualize(Runnable resumeContinuation) {
-        return contextualizer == null ? resumeContinuation : contextualizer.apply(resumeContinuation);
-    } 
     
     @Override
     public String toString() {
-        return String.format(
-            "<scheduler{%s}>[characteristics=%s, contextualizer=%s]",
-            getClass().getSimpleName(), 
-            characteristics, 
-            null == contextualizer || Function.identity().equals(contextualizer) ? "<none>" : contextualizer.toString()
-        );
+        return super.toString() + String.format("[executor=%s]", executor);
     }
 }

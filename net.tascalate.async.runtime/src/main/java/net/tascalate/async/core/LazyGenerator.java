@@ -36,7 +36,7 @@ class LazyGenerator<T> implements Generator<T> {
 	
     private CompletableFuture<YieldReply<T>> producerLock;
     private CompletableFuture<?> consumerLock;
-    private CompletionStage<T> latestResult;
+    private CompletionStage<T> latestFuture;
 
     private Generator<T> currentDelegate = Generator.empty();
     
@@ -53,20 +53,20 @@ class LazyGenerator<T> implements Generator<T> {
             }
             
             // Await previously returned result, if any
-            T latestResultValue = null != latestResult ? AsyncMethodExecutor.await(latestResult) : null;
+            FutureResult<T> latestResult = FutureResult.of(latestFuture);
             
             // Could we advance further current delegate?
-            latestResult = currentDelegate.next(param);
+            latestFuture = currentDelegate.next(param);
                 
-            if (null != latestResult) {
+            if (null != latestFuture) {
                 // Yes, we can
-                return latestResult;
+                return latestFuture;
             }
     
             // No, need to generate new promise;
     
             // Let produce some value (resumes producer)
-            releaseProducerLock(new YieldReply<>(latestResultValue, param));
+            latestResult.releaseLock(producerLock, param);
             // Wait till value is ready (suspends consumer)
             acquireConsumerLock();
             consumerLock = new CompletableFuture<>();
@@ -76,7 +76,6 @@ class LazyGenerator<T> implements Generator<T> {
         // The actual tail recursive call is:
         //return next(param);
     }
-
 
     @Override
     public void close() {
@@ -123,11 +122,6 @@ class LazyGenerator<T> implements Generator<T> {
             return currentLock.getNow(null);
         }
     }
-
-    private void releaseProducerLock(YieldReply<T> reply) {
-        CompletableFuture<YieldReply<T>> currentLock = producerLock;
-        currentLock.complete(reply);
-    }
     
     private @suspendable void acquireConsumerLock() {
         // When next() is called for first time
@@ -156,5 +150,52 @@ class LazyGenerator<T> implements Generator<T> {
             "<generator{%s}>[consumer-lock=%s, producer-lock=%s, current-delegate=%s]", 
             getClass().getSimpleName(), consumerLock, producerLock, currentDelegate
         );
+    }
+    
+    abstract static class FutureResult<T> {
+        static class Success<T> extends FutureResult<T> {
+            final T result;
+            
+            Success(T result) { 
+                this.result = result; 
+            }
+            
+            @Override
+            void releaseLock(CompletableFuture<YieldReply<T>> lock, Object param) {
+                lock.complete(new YieldReply<>(result, param));
+            }
+        }
+        
+        static class Failure<T> extends FutureResult<T> {
+            final Throwable error;
+            
+            Failure(Throwable error) { 
+                this.error  = error; 
+            }
+            
+            @Override
+            void releaseLock(CompletableFuture<YieldReply<T>> lock, Object param) {
+                lock.completeExceptionally(error);
+            }
+        }
+        
+        @suspendable 
+        static <T> FutureResult<T> of(CompletionStage<? extends T> future) {
+            if (null == future) {
+                @SuppressWarnings("unchecked")
+                FutureResult<T> empty = (FutureResult<T>)EMPTY;
+                return empty;
+            } else {
+                try {
+                    return new Success<T>(AsyncMethodExecutor.await(future));
+                } catch (Exception ex) {
+                    return new Failure<T>(ex);
+                }
+            }
+        }
+        
+        abstract void releaseLock(CompletableFuture<YieldReply<T>> lock, Object param);
+        
+        private static final FutureResult<Object> EMPTY = new Success<Object>(null);
     }
 }

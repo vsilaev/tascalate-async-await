@@ -70,4 +70,20 @@ public class AsyncCall {
         throw new IllegalStateException("Method call must be replaced by bytecode enhancer");
     }
 
+    public static <E1 extends Throwable> void throwing(Class<E1> e1) throws E1 {}
+    public static <E1 extends Throwable, 
+                   E2 extends Throwable> void throwing(Class<E1> e1, Class<E2> e2) throws E1, E2 {}
+    public static <E1 extends Throwable, 
+                   E2 extends Throwable,
+                   E3 extends Throwable> void throwing(Class<E1> e1, Class<E2> e2, Class<E3> e3) throws E1, E2, E3 {}
+    public static <E1 extends Throwable, 
+                   E2 extends Throwable,
+                   E3 extends Throwable,
+                   E4 extends Throwable> void throwing(Class<E1> e1, Class<E2> e2, Class<E3> e3, Class<E4> e4) throws E1, E2, E3, E4 {}
+    public static <E1 extends Throwable,
+                   E2 extends Throwable,
+                   E3 extends Throwable,
+                   E4 extends Throwable,
+                   E5 extends Throwable> void throwing(Class<E1> e1, Class<E2> e2, Class<E3> e3, Class<E4> e4, Class<E5> e5) throws E1, E2, E3, E4, E5 {}
+    
 }

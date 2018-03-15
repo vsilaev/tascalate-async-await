@@ -24,7 +24,6 @@
  */
 package net.tascalate.async.core;
 
-import java.io.Serializable;
 import java.util.concurrent.CancellationException;
 import java.util.concurrent.CompletionStage;
 import java.util.concurrent.ExecutionException;
@@ -43,9 +42,7 @@ import net.tascalate.async.api.NoActiveAsyncCallException;
  * 
  * @author Valery Silaev
  */
-public class AsyncMethodExecutor implements Serializable {
-
-    private static final long serialVersionUID = 1L;
+public class AsyncMethodExecutor {
 
     private static final Log log = LogFactory.getLog(AsyncMethodExecutor.class);
 
@@ -111,7 +108,7 @@ public class AsyncMethodExecutor implements Serializable {
                 wrappedResumer.run();
             });
         } catch (Throwable error) {
-            resume(continuation, Either.error(error));
+            resume(continuation, FutureResult.failure(error));
         }
     }
 
@@ -128,7 +125,7 @@ public class AsyncMethodExecutor implements Serializable {
     	
         // If promise is already resolved don't suspend
         // at all but rather return directly
-        Either<R, E> earlyResult = getResolvedOutcome(future);
+        FutureResult<R, E> earlyResult = getResolvedOutcome(future);
         if (earlyResult != null) {
             return earlyResult.done();
         }
@@ -147,10 +144,10 @@ public class AsyncMethodExecutor implements Serializable {
         );
         log.debug("Continuation continued");
 
-        if (outcome instanceof Either) {
+        if (outcome instanceof FutureResult) {
             // Unwrap and return value
             @SuppressWarnings("unchecked")
-            Either<R, E> either = (Either<R, E>) outcome;
+            FutureResult<R, E> either = (FutureResult<R, E>) outcome;
             return either.done();
         } else {
             // Illegal wake-up
@@ -167,21 +164,21 @@ public class AsyncMethodExecutor implements Serializable {
             SchedulerResolvers.currentScheduler(owner, ownerDeclaringClass);
     }
     
-    private static <R, E extends Throwable> Either<R, E> getResolvedOutcome(CompletionStage<R> stage) {
+    private static <R, E extends Throwable> FutureResult<R, E> getResolvedOutcome(CompletionStage<R> stage) {
         if (stage instanceof Future) {
             @SuppressWarnings("unchecked")
             Future<R> future = (Future<R>)stage;
             if (future.isDone()) {
                 try {
-                    return Either.result(future.get());
+                    return FutureResult.success(future.get());
                 } catch (CancellationException ex) {
                     @SuppressWarnings("unchecked")
                     E error = (E)ex;
-                    return Either.error(error);
+                    return FutureResult.failure(error);
                 } catch (ExecutionException ex) {
                     @SuppressWarnings("unchecked")
                     E error = (E)Exceptions.unrollExecutionException(ex);
-                    return Either.error(error);
+                    return FutureResult.failure(error);
                 } catch (InterruptedException ex) {
                     throw new IllegalStateException("Completed future throws interrupted exception");
                 }
@@ -200,6 +197,49 @@ public class AsyncMethodExecutor implements Serializable {
         }
     }
     
+    abstract static class FutureResult<R, E extends Throwable> {
+
+        abstract R done() throws E;
+        
+        private static class Success<R, E extends Throwable> extends FutureResult<R, E> {
+            
+            private final R result;
+            
+            Success(R result) {
+                this.result = result;
+            }
+            
+            @Override
+            final R done() throws E {
+                return result;
+            }
+        }
+        
+        private static class Failure<R, E extends Throwable> extends FutureResult<R, E> {
+            
+            private final E error;
+            
+            Failure(E error) {
+                this.error = error;
+            }
+            
+            @Override
+            final R done() throws E {
+                throw error;
+            }
+            
+        }
+
+        static <R, E extends Throwable> FutureResult<R, E> success(R result) {
+            return new Success<R, E>(result);
+        }
+
+        static <R, E extends Throwable> FutureResult<R, E> failure(E error) {
+            return new Failure<R, E>(error);
+        }
+    }
+
+    
     class ContinuationResumer<R, E extends Throwable> implements Runnable {
         private final Continuation continuation;
         private R result;
@@ -216,13 +256,13 @@ public class AsyncMethodExecutor implements Serializable {
         @Override
         public void run() {
             if (error == null) {
-                resume(continuation, Either.result(result));
+                resume(continuation, FutureResult.success(result));
             } else {
                 Throwable ex = Exceptions.unrollCompletionException(error);
                 if (CloseSignal.INSTANCE == ex) {
                     continuation.terminate();
                 } else {
-                    resume(continuation, Either.error(ex));
+                    resume(continuation, FutureResult.failure(ex));
                 }
             }            
         }

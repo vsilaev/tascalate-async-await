@@ -272,6 +272,13 @@ public class AsyncTaskMethodTransformer extends AsyncMethodTransformer {
                                                    false
                                 )
                             );
+                            continue;    
+                        case "throwing":
+                            int exceptionTypesCount = Type.getArgumentTypes(min.desc).length;
+                            // POP-out method arguments from stack
+                            for (int i = exceptionTypesCount; i > 0; i--) {
+                                newInstructions.add(new InsnNode(POP));
+                            }
                             continue;                            
                         case "yield":
                             throw new IllegalStateException("Yield must be used only inside generator methods");

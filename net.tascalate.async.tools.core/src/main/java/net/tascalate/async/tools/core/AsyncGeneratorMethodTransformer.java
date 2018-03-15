@@ -260,6 +260,13 @@ public class AsyncGeneratorMethodTransformer extends AsyncMethodTransformer {
                                 )
                             );
                             continue;
+                        case "throwing":
+                            int exceptionTypesCount = Type.getArgumentTypes(min.desc).length;
+                            // POP-out method arguments from stack
+                            for (int i = exceptionTypesCount; i > 0; i--) {
+                                newInstructions.add(new InsnNode(POP));
+                            }
+                            continue;                            
                         case "async":
                             throw new IllegalStateException("Async result must be used only inside non-generator methods");
                     }

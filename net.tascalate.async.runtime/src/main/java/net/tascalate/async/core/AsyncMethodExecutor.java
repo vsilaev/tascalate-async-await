@@ -201,7 +201,7 @@ public class AsyncMethodExecutor {
 
         abstract R done() throws E;
         
-        private static class Success<R, E extends Throwable> extends FutureResult<R, E> {
+        static class Success<R, E extends Throwable> extends FutureResult<R, E> {
             
             private final R result;
             
@@ -215,7 +215,7 @@ public class AsyncMethodExecutor {
             }
         }
         
-        private static class Failure<R, E extends Throwable> extends FutureResult<R, E> {
+        static class Failure<R, E extends Throwable> extends FutureResult<R, E> {
             
             private final E error;
             

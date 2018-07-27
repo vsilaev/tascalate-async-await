@@ -53,6 +53,22 @@ public interface Generator<T> extends GeneratorDecorator<T, Generator<T>>, AutoC
         return as(ValuesGenerator.values());
     }
     
+    default
+    SuspendableStream<CompletionStage<T>> stream() {
+        return new SuspendableStream<>(new SuspendableProducer<CompletionStage<T>>() {
+            @Override
+            public CompletionStage<T> produce(Object param) {
+                return Generator.this.next(param);
+            }
+
+            @Override
+            public void close() {
+                Generator.this.close();
+            }
+            
+        });
+    }
+    
     @SuppressWarnings("unchecked")
     public static <T> Generator<T> empty() {
         return (Generator<T>)OrderedFuturesGenerator.EMPTY_GENERATOR;

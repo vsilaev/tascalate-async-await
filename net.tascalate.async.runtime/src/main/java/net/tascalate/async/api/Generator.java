@@ -1,5 +1,5 @@
 /**
- * ﻿Copyright 2015-2017 Valery Silaev (http://vsilaev.com)
+ * ﻿Copyright 2015-2018 Valery Silaev (http://vsilaev.com)
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
@@ -26,6 +26,7 @@ package net.tascalate.async.api;
 
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionStage;
+import java.util.function.Function;
 import java.util.stream.Stream;
 import java.util.stream.StreamSupport;
 
@@ -48,17 +49,26 @@ public interface Generator<T> extends GeneratorDecorator<T, Generator<T>>, AutoC
         return this;
     }
     
+    default <D extends GeneratorDecorator<T, D>> D as(Function<? super Generator<T>, D> decoratorFactory) {
+        return decoratorFactory.apply(this);
+    }
+    
     default
     ValuesGenerator<T> values() {
         return as(ValuesGenerator.values());
     }
     
     default
-    SuspendableStream<CompletionStage<T>> stream() {
+    SuspendableStream<? extends CompletionStage<T>> stream() {
         return new SuspendableStream<>(new SuspendableProducer<CompletionStage<T>>() {
             @Override
             public CompletionStage<T> produce(Object param) {
-                return Generator.this.next(param);
+                CompletionStage<T> result = Generator.this.next(param);
+                if (null != result) {
+                    return result;
+                } else {
+                    throw STOP;
+                }
             }
 
             @Override
@@ -92,11 +102,11 @@ public interface Generator<T> extends GeneratorDecorator<T, Generator<T>>, AutoC
         return of(Stream.of(pendingValues));
     }
 
-    public static <T> Generator<T> of(Iterable<CompletionStage<T>> pendingValues) {
+    public static <T> Generator<T> of(Iterable<? extends CompletionStage<T>> pendingValues) {
         return new OrderedFuturesGenerator<T>(pendingValues.iterator(), pendingValues);
     }
     
-    public static <T> Generator<T> of(Stream<CompletionStage<T>> pendingValues) {
+    public static <T> Generator<T> of(Stream<? extends CompletionStage<T>> pendingValues) {
         return new OrderedFuturesGenerator<T>(pendingValues.iterator(), pendingValues);
     }
     
@@ -113,11 +123,11 @@ public interface Generator<T> extends GeneratorDecorator<T, Generator<T>>, AutoC
         return readyFirst(Stream.of(pendingValues));
     }
 
-    public static <T> Generator<T> readyFirst(Iterable<CompletionStage<T>> pendingValues) {
+    public static <T> Generator<T> readyFirst(Iterable<? extends CompletionStage<T>> pendingValues) {
         return ReadyFirstFuturesGenerator.create(pendingValues);
     }
     
-    public static <T> Generator<T> readyFirst(Stream<CompletionStage<T>> pendingValues) {
+    public static <T> Generator<T> readyFirst(Stream<? extends CompletionStage<T>> pendingValues) {
         return ReadyFirstFuturesGenerator.create(pendingValues);
     }
 }

@@ -1,5 +1,5 @@
 /**
- * ﻿Copyright 2015-2017 Valery Silaev (http://vsilaev.com)
+ * ﻿Copyright 2015-2018 Valery Silaev (http://vsilaev.com)
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
@@ -29,6 +29,7 @@ import java.util.function.Function;
 public interface ValuesGenerator<T> extends GeneratorDecorator<T, ValuesGenerator<T>>, AutoCloseable {
     @suspendable T next();
     @suspendable boolean hasNext();
+    SuspendableStream<T> stream();
     void close();
     
     public static <T> Function<Generator<T>, ValuesGenerator<T>> values() {

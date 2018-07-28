@@ -1,5 +1,5 @@
 /**
- * ﻿Copyright 2015-2017 Valery Silaev (http://vsilaev.com)
+ * ﻿Copyright 2015-2018 Valery Silaev (http://vsilaev.com)
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
@@ -55,10 +55,10 @@ public class OrderedFuturesGenerator<T> implements Generator<T> {
         
     };
 
-    private final Iterator<CompletionStage<T>> delegate;
+    private final Iterator<? extends CompletionStage<T>> delegate;
     private final AutoCloseable closeable;
     
-    public OrderedFuturesGenerator(Iterator<CompletionStage<T>> delegate, Object closeable) {
+    public OrderedFuturesGenerator(Iterator<? extends CompletionStage<T>> delegate, Object closeable) {
         this.delegate  = delegate;
         this.closeable = asCloseable(closeable);
     }

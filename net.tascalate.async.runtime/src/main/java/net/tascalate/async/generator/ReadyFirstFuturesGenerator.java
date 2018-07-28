@@ -1,5 +1,5 @@
 /**
- * ﻿Copyright 2015-2017 Valery Silaev (http://vsilaev.com)
+ * ﻿Copyright 2015-2018 Valery Silaev (http://vsilaev.com)
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
@@ -111,15 +111,15 @@ public class ReadyFirstFuturesGenerator<T> implements Generator<T> {
         );
     }
 
-    public static <T> Generator<T> create(Stream<CompletionStage<T>> pendingPromises) {
+    public static <T> Generator<T> create(Stream<? extends CompletionStage<T>> pendingPromises) {
         return create(pendingPromises.iterator());
     }
 
-    public static <T> Generator<T> create(Iterable<CompletionStage<T>> pendingPromises) {
+    public static <T> Generator<T> create(Iterable<? extends CompletionStage<T>> pendingPromises) {
         return create(pendingPromises.iterator());
     }
     
-    private static <T> Generator<T> create(Iterator<CompletionStage<T>> pendingPromises) {
+    private static <T> Generator<T> create(Iterator<? extends CompletionStage<T>> pendingPromises) {
         ReadyFirstFuturesGenerator<T> result = new ReadyFirstFuturesGenerator<>();
         while(pendingPromises.hasNext()) {
             // +1 before setting completion handler -- 

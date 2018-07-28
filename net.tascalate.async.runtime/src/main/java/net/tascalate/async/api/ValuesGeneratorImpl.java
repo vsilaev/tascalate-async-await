@@ -1,5 +1,5 @@
 /**
- * ﻿Copyright 2015-2017 Valery Silaev (http://vsilaev.com)
+ * ﻿Copyright 2015-2018 Valery Silaev (http://vsilaev.com)
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
@@ -29,6 +29,7 @@ import java.util.concurrent.CompletionStage;
 import java.util.function.Function;
 
 import net.tascalate.async.core.AsyncMethodExecutor;
+import net.tascalate.async.function.SuspendableFunction;
 
 final class ValuesGeneratorImpl<T> implements ValuesGenerator<T> {
     private final Generator<T> delegate;
@@ -40,16 +41,19 @@ final class ValuesGeneratorImpl<T> implements ValuesGenerator<T> {
         advance = true;
     }
     
+    @Override
     public Generator<T> raw() {
         return delegate.raw();
     }
     
-    public @suspendable boolean hasNext() {
+    @Override
+    public boolean hasNext() {
         advanceIfNecessary();
         return current != null;
     }
 
-    public @suspendable T next() {
+    @Override
+    public T next() {
         advanceIfNecessary();
 
         if (current == null)
@@ -61,10 +65,23 @@ final class ValuesGeneratorImpl<T> implements ValuesGenerator<T> {
         return result;
     }
 
+    @Override
     public void close() {
         current = null;
         advance = false;
         delegate.close();
+    }
+    
+    @Override
+    public SuspendableStream<T> stream() {
+        return delegate.stream().mapWithSuspendable(
+           new SuspendableFunction<CompletionStage<T>, T>() {
+               @Override
+               public T apply(CompletionStage<T> future) {
+                   return AsyncMethodExecutor.await(future);
+               }
+           }
+        );
     }
     
     protected @suspendable void advanceIfNecessary() {

@@ -1,5 +1,5 @@
 /**
- * ﻿Copyright 2015-2017 Valery Silaev (http://vsilaev.com)
+ * ﻿Copyright 2015-2018 Valery Silaev (http://vsilaev.com)
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
@@ -28,6 +28,7 @@ import java.util.concurrent.CompletionStage;
 import java.util.function.Function;
 
 import net.tascalate.async.api.Generator;
+import net.tascalate.async.api.SuspendableStream;
 import net.tascalate.concurrent.Promise;
 import net.tascalate.concurrent.Promises;
 
@@ -55,6 +56,11 @@ class PromisesGeneratorImpl <T> implements PromisesGenerator<T> {
         delegate.close();
     }
 
+    @Override
+    public SuspendableStream<Promise<T>> stream() {
+        return delegate.stream().map(Promises::from);
+    }
+    
     @Override
     public String toString() {
         return String.format("<generator-decorator{%s}>[delegate=%s]", PromisesGenerator.class.getSimpleName(), delegate);

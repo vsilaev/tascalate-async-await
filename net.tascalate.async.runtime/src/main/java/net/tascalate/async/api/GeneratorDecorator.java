@@ -1,5 +1,5 @@
 /**
- * ﻿Copyright 2015-2017 Valery Silaev (http://vsilaev.com)
+ * ﻿Copyright 2015-2018 Valery Silaev (http://vsilaev.com)
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
@@ -24,15 +24,7 @@
  */
 package net.tascalate.async.api;
 
-import java.util.function.Function;
-
 public interface GeneratorDecorator<T, S extends GeneratorDecorator<T, S>> extends AutoCloseable {
-    
-    @SuppressWarnings("unchecked")
-    default <D extends GeneratorDecorator<T, D>> D as(Function<S, D> decoratorFactory) {
-        return decoratorFactory.apply((S)this);
-    }
-
     Generator<T> raw();
     
     @Override

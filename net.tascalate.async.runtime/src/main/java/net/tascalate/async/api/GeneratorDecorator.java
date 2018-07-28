@@ -24,7 +24,7 @@
  */
 package net.tascalate.async.api;
 
-public interface GeneratorDecorator<T, S extends GeneratorDecorator<T, S>> extends AutoCloseable {
+public interface GeneratorDecorator<T> extends AutoCloseable {
     Generator<T> raw();
     
     @Override

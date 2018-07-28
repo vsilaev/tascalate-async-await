@@ -26,7 +26,7 @@ package net.tascalate.async.api;
 
 import java.util.function.Function;
 
-public interface ValuesGenerator<T> extends GeneratorDecorator<T, ValuesGenerator<T>>, AutoCloseable {
+public interface ValuesGenerator<T> extends GeneratorDecorator<T>, AutoCloseable {
     @suspendable T next();
     @suspendable boolean hasNext();
     SuspendableStream<T> stream();

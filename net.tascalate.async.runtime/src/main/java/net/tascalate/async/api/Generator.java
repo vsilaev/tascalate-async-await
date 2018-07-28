@@ -33,7 +33,7 @@ import java.util.stream.StreamSupport;
 import net.tascalate.async.generator.ReadyFirstFuturesGenerator;
 import net.tascalate.async.generator.OrderedFuturesGenerator;
 
-public interface Generator<T> extends GeneratorDecorator<T, Generator<T>>, AutoCloseable {
+public interface Generator<T> extends GeneratorDecorator<T>, AutoCloseable {
     
     @suspendable CompletionStage<T> next(Object producerParam);
     
@@ -49,7 +49,7 @@ public interface Generator<T> extends GeneratorDecorator<T, Generator<T>>, AutoC
         return this;
     }
     
-    default <D extends GeneratorDecorator<T, D>> D as(Function<? super Generator<T>, D> decoratorFactory) {
+    default <D extends GeneratorDecorator<T>> D as(Function<Generator<T>, D> decoratorFactory) {
         return decoratorFactory.apply(this);
     }
     

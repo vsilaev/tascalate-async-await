@@ -44,24 +44,41 @@ public class StreamTest {
 
     public static void main(String[] args) {
         final StreamTest example = new StreamTest();
-        example.asyncOperation().toCompletableFuture().join();
+        example.div = 2;
+        example.asyncOperation(2).toCompletableFuture().join();
         executor.shutdown();
     }
     
-    public @suspendable String waitFuture(CompletionStage<String> f) {
-        return await(f);
+    int div;
+    
+    boolean isEven(String v) {
+        return Integer.parseInt(v) % 2 == 0;
     }
 
+    public @suspendable String waitFuture(CompletionStage<String> f) {
+        return await(f); 
+    }
+
+    /*
+    void print(Object v) {
+        System.out.println(v);
+    }*/
+
     @async
-    public CompletionStage<Void> asyncOperation() {
+    public CompletionStage<Void> asyncOperation(int outerDiv) {
         produceStrings()
-            .values()
-            .stream() 
-            //.map(() -> f -> await(f))
-            .map(v -> "000" + v)
-            .forEach(System.out::println);
+            .stream()  
+            //.mapWithSuspendable(f -> await(f))    // -- worked, static
+            //.mapWithSuspendable(this::waitFuture) // -- worked, instance ref
+            //.mapWithSuspendable(f -> waitFuture(f)) // -- worked, instance
+            .map(() -> f -> await(f))
+            .filter(v -> Integer.parseInt(v) % div == 0) 
+            .filter(this::isEven)
+            .map(v -> "000" + v) 
+            .forEach(System.out::println)
+            ; 
         System.out.println("Return after for each"); 
-        return async(null);
+        return async(null); 
     }
     
     // Private to ensure that generated accessor methods work 

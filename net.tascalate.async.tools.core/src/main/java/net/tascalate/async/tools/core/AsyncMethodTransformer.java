@@ -1,5 +1,5 @@
 /**
- * ﻿Copyright 2015-2017 Valery Silaev (http://vsilaev.com)
+ * ﻿Copyright 2015-2018 Valery Silaev (http://vsilaev.com)
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
@@ -42,6 +42,7 @@ import static net.tascalate.async.tools.core.BytecodeIntrospection.visibleTypeAn
 import static org.objectweb.asm.Opcodes.*;
 
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
@@ -49,6 +50,7 @@ import java.util.stream.Collectors;
 
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
+import org.objectweb.asm.Handle;
 import org.objectweb.asm.MethodVisitor;
 import org.objectweb.asm.Opcodes;
 import org.objectweb.asm.Type;
@@ -58,6 +60,7 @@ import org.objectweb.asm.tree.ClassNode;
 import org.objectweb.asm.tree.FieldInsnNode;
 import org.objectweb.asm.tree.FieldNode;
 import org.objectweb.asm.tree.InnerClassNode;
+import org.objectweb.asm.tree.InvokeDynamicInsnNode;
 import org.objectweb.asm.tree.MethodInsnNode;
 import org.objectweb.asm.tree.MethodNode;
 import org.objectweb.asm.tree.TypeAnnotationNode;
@@ -243,6 +246,30 @@ abstract public class AsyncMethodTransformer {
         asyncToStringMethod.visitMaxs(3, 1);
         return asyncToStringMethod;
         
+    }
+    
+    protected Object[] findOwnerInvokeDynamic(AbstractInsnNode instruction, List<MethodNode> ownerMethods) {
+        if (instruction instanceof InvokeDynamicInsnNode) {
+            InvokeDynamicInsnNode n = (InvokeDynamicInsnNode) instruction;
+            Handle bsm = n.bsm;
+            if ("java/lang/invoke/LambdaMetafactory".equals(bsm.getOwner()) && "metafactory".equals(bsm.getName())) {
+                Handle method = Arrays
+                    .stream(n.bsmArgs)
+                    .filter(Handle.class::isInstance)
+                    .map(Handle.class::cast)
+                    .filter(h -> h.getOwner().equals(classNode.name) /*&& h.getName().startsWith("lambda$")*/)
+                    .findFirst()
+                    .orElse(null);
+                
+                if (null != method) {
+                    MethodNode targetMethodNode = getMethod(method.getName(), method.getDesc(), ownerMethods);
+                    if (null != targetMethodNode && (targetMethodNode.access & (/*ACC_STATIC + ACC_PRIVATE +*/ ACC_SYNTHETIC)) == /*ACC_STATIC + ACC_PRIVATE + */ACC_SYNTHETIC) {
+                        return new Object[] {method, targetMethodNode};
+                    }
+                }
+            }
+        }
+        return null;
     }
     
     protected MethodNode createReplacementAsyncMethod(String asyncTaskClassName, Type runnableBaseClass, String runnableFieldName, Type runnableFieldType) {
@@ -452,9 +479,59 @@ abstract public class AsyncMethodTransformer {
                     }
                 }
             }
+            if (instruction instanceof InvokeDynamicInsnNode) {
+                Object[] result = findOwnerInvokeDynamic(instruction, methods);
+                if (null != result) {
+                    MethodNode method = (MethodNode)result[1];
+                    createAccessLambda((InvokeDynamicInsnNode)instruction, (Handle)result[0], (method.access & ACC_STATIC) != 0, methods);
+                }
+            }            
         }
     }
+    
+    
+    protected MethodNode createAccessLambda(InvokeDynamicInsnNode dynNode,
+                                            Handle                h,
+                                            boolean               isStatic,
+                                            List<MethodNode>      methods) {
+        
+        MethodNode accessMethodNode = 
+                getAccessMethod(h.getOwner(), h.getName(), h.getDesc(), "L");
+            
+        if (null != accessMethodNode) {
+            return accessMethodNode;
+        }
 
+        String name = createAccessMethodName(methods);
+        Type[] originalArgTypes = Type.getArgumentTypes(dynNode.desc);
+        // Need to check why is it so!
+        Type[] argTypes = true /* was: isStatic*/ ? originalArgTypes : prependArray(originalArgTypes, Type.getObjectType(classNode.name));
+        Type returnType = Type.getReturnType(dynNode.desc);
+        String desc = Type.getMethodDescriptor(returnType, argTypes);
+
+        accessMethodNode = new MethodNode(ACC_STATIC + ACC_SYNTHETIC, name, desc, null, null);
+        accessMethodNode.visitCode();
+
+        // load all method arguments into stack
+        int arity = argTypes.length;
+        for (int i = 0; i < arity; i++) {
+            int opcode = argTypes[i].getOpcode(ILOAD);
+            log.debug("Using opcode " + opcode + " for loading " + argTypes[i]);
+            accessMethodNode.visitVarInsn(opcode, i);
+        }
+        accessMethodNode.visitInvokeDynamicInsn(
+            dynNode.name, dynNode.desc, dynNode.bsm, dynNode.bsmArgs
+        );
+        accessMethodNode.visitInsn(returnType.getOpcode(IRETURN));
+        accessMethodNode.visitMaxs(argTypes.length, argTypes.length);
+        accessMethodNode.visitEnd();
+
+        // Register mapping
+        registerAccessMethod(h.getOwner(), h.getName(), h.getDesc(), "L", accessMethodNode);
+        methods.add(accessMethodNode);
+        return accessMethodNode;
+    }
+    
     protected MethodNode createAccessMethod(MethodInsnNode   targetMethodNode, 
                                             boolean          isStatic,
                                             List<MethodNode> methods) {

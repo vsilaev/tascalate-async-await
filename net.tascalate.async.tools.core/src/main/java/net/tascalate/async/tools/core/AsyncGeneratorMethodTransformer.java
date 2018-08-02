@@ -1,5 +1,5 @@
 /**
- * ﻿Copyright 2015-2017 Valery Silaev (http://vsilaev.com)
+ * ﻿Copyright 2015-2018 Valery Silaev (http://vsilaev.com)
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
@@ -27,6 +27,7 @@ package net.tascalate.async.tools.core;
 import static net.tascalate.async.tools.core.BytecodeIntrospection.createOuterClassMethodArgFieldName;
 import static net.tascalate.async.tools.core.BytecodeIntrospection.invisibleTypeAnnotationsOf;
 import static net.tascalate.async.tools.core.BytecodeIntrospection.isLoadOpcode;
+import static net.tascalate.async.tools.core.BytecodeIntrospection.methodsOf;
 import static net.tascalate.async.tools.core.BytecodeIntrospection.visibleTypeAnnotationsOf;
 import static org.objectweb.asm.Opcodes.*;
 
@@ -36,6 +37,7 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 
+import org.objectweb.asm.Handle;
 import org.objectweb.asm.Opcodes;
 import org.objectweb.asm.Type;
 import org.objectweb.asm.tree.AbstractInsnNode;
@@ -46,6 +48,7 @@ import org.objectweb.asm.tree.IincInsnNode;
 import org.objectweb.asm.tree.InsnList;
 import org.objectweb.asm.tree.InsnNode;
 import org.objectweb.asm.tree.IntInsnNode;
+import org.objectweb.asm.tree.InvokeDynamicInsnNode;
 import org.objectweb.asm.tree.JumpInsnNode;
 import org.objectweb.asm.tree.LabelNode;
 import org.objectweb.asm.tree.MethodInsnNode;
@@ -75,6 +78,8 @@ public class AsyncGeneratorMethodTransformer extends AsyncMethodTransformer {
    
     @Override
     protected MethodNode addAnonymousClassRunMethod(ClassNode asyncRunnableClass, FieldNode outerClassField) {
+        List<MethodNode> ownerMethods = methodsOf(classNode);
+        
         boolean isStatic = (originalAsyncMethod.access & Opcodes.ACC_STATIC) != 0;
         int thisWasInOriginal = isStatic ? 0 : 1;
         int thisShiftNecessary = isStatic ? 1 : 0;
@@ -270,6 +275,16 @@ public class AsyncGeneratorMethodTransformer extends AsyncMethodTransformer {
                         case "async":
                             throw new IllegalStateException("Async result must be used only inside non-generator methods");
                     }
+                }
+            } else if (insn instanceof InvokeDynamicInsnNode) {
+                Object[] opts = findOwnerInvokeDynamic(insn, ownerMethods);
+                if (null != opts) {
+                    Handle h = (Handle)opts[0];
+                    MethodNode lambdaAccess = getAccessMethod(h.getOwner(), h.getName(), h.getDesc(), "L");
+                    newInstructions.add(
+                        new MethodInsnNode(INVOKESTATIC, classNode.name, lambdaAccess.name, lambdaAccess.desc, false)
+                    );
+                    continue;
                 }
             } else if (insn.getOpcode() == ARETURN) {
                 // GOTO methodEnd instead of returning value

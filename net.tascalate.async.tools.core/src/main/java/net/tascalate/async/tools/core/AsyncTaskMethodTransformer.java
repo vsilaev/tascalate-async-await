@@ -1,5 +1,5 @@
 /**
- * ﻿Copyright 2015-2017 Valery Silaev (http://vsilaev.com)
+ * ﻿Copyright 2015-2018 Valery Silaev (http://vsilaev.com)
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
@@ -26,18 +26,18 @@ package net.tascalate.async.tools.core;
 
 import static net.tascalate.async.tools.core.BytecodeIntrospection.createOuterClassMethodArgFieldName;
 import static net.tascalate.async.tools.core.BytecodeIntrospection.isLoadOpcode;
+import static net.tascalate.async.tools.core.BytecodeIntrospection.methodsOf;
 import static net.tascalate.async.tools.core.BytecodeIntrospection.visibleTypeAnnotationsOf;
 import static net.tascalate.async.tools.core.BytecodeIntrospection.invisibleTypeAnnotationsOf;
 import static org.objectweb.asm.Opcodes.*;
 
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.IdentityHashMap;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
-import java.util.stream.Collectors;
 
+import org.objectweb.asm.Handle;
 import org.objectweb.asm.Opcodes;
 import org.objectweb.asm.Type;
 import org.objectweb.asm.tree.AbstractInsnNode;
@@ -78,6 +78,8 @@ public class AsyncTaskMethodTransformer extends AsyncMethodTransformer {
     
     @Override
     protected MethodNode addAnonymousClassRunMethod(ClassNode asyncRunnableClass, FieldNode outerClassField) {
+        List<MethodNode> ownerMethods = methodsOf(classNode);
+        
         boolean isStatic = (originalAsyncMethod.access & Opcodes.ACC_STATIC) != 0;
         int thisWasInOriginal = isStatic ? 0 : 1;
         int thisShiftNecessary = isStatic ? 1 : 0;
@@ -287,6 +289,16 @@ public class AsyncTaskMethodTransformer extends AsyncMethodTransformer {
                             throw new IllegalStateException("Yield must be used only inside generator methods");
                     }
                 }
+            } else if (insn instanceof InvokeDynamicInsnNode) {
+                Object[] opts = findOwnerInvokeDynamic(insn, ownerMethods);
+                if (null != opts) {
+                    Handle h = (Handle)opts[0];
+                    MethodNode lambdaAccess = getAccessMethod(h.getOwner(), h.getName(), h.getDesc(), "L");
+                    newInstructions.add(
+                        new MethodInsnNode(INVOKESTATIC, classNode.name, lambdaAccess.name, lambdaAccess.desc, false)
+                    );
+                    continue;
+                }
             } else if (insn.getOpcode() == ARETURN || insn.getOpcode() == RETURN) {
                 // GOTO methodEnd instead of returning value
                 newInstructions.add(new JumpInsnNode(GOTO, methodEnd));
@@ -294,14 +306,7 @@ public class AsyncTaskMethodTransformer extends AsyncMethodTransformer {
             } else if (insn instanceof LabelNode) {
                 newInstructions.add(labelsMap.get(insn));
                 continue;
-            } else if (insn instanceof InvokeDynamicInsnNode) {
-                InvokeDynamicInsnNode d = (InvokeDynamicInsnNode)insn;
-                System.out.println(d.bsm + "\n\t*** " + 
-                Arrays.asList(d.bsmArgs).stream().map(v -> v.getClass().getName() + "=" + v.toString()).collect(Collectors.joining("\n"))
-                );
-                //throw new RuntimeException(d.bsm + " *** " + Arrays.asList(d.bsmArgs));
             }
-            
 
             // do not make changes
             newInstructions.add(insn.clone(labelsMap));

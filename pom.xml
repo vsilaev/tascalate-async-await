@@ -49,8 +49,8 @@
 
 	<properties>
 		<project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
-		<tascalate.concurrent.version>0.5.4</tascalate.concurrent.version>
-		<tascalate.javaflow.version>2.2</tascalate.javaflow.version>
+		<tascalate.concurrent.version>0.6.5</tascalate.concurrent.version>
+		<tascalate.javaflow.version>2.2.2</tascalate.javaflow.version>
 	</properties>
 
 	<dependencyManagement>

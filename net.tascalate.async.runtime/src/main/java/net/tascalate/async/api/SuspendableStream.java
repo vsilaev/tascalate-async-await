@@ -31,6 +31,7 @@ import java.util.function.BinaryOperator;
 import java.util.function.Consumer;
 import java.util.function.Function;
 import java.util.function.Predicate;
+import java.util.function.Supplier;
 
 import net.tascalate.async.function.SuspendableConsumer;
 import net.tascalate.async.function.SuspendableFunction;
@@ -59,6 +60,10 @@ public class SuspendableStream<T> {
                 SuspendableStream.this.close();
             }
         });
+    }
+    
+    public <R> SuspendableStream<R> map(Supplier<SuspendableFunction<? super T, ? extends R>> mapper) {
+        return mapWithSuspendable(mapper.get());
     }
     
     public <R> SuspendableStream<R> mapWithSuspendable(SuspendableFunction<? super T, ? extends R> mapper) {

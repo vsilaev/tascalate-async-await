@@ -38,6 +38,7 @@ import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 import org.objectweb.asm.ClassReader;
 import org.objectweb.asm.ClassWriter;
+import org.objectweb.asm.Opcodes;
 import org.objectweb.asm.Type;
 import org.objectweb.asm.tree.ClassNode;
 import org.objectweb.asm.tree.MethodNode;
@@ -128,8 +129,16 @@ public class AsyncAwaitClassFileGenerator {
                         transformed = true;
                     }
                 }
+            } else if (isSyntheticLambda(methodNode)) {
+                // Make it package-private to be accessible from inner class
+                methodNode.access &= ~Opcodes.ACC_PRIVATE;
             }
         }
         return transformed;
+    }
+    
+    private static boolean isSyntheticLambda(MethodNode mn) {
+        int privateAndSynthetic = Opcodes.ACC_PRIVATE + Opcodes.ACC_SYNTHETIC;
+        return mn.name.startsWith("lambda$") && (mn.access & privateAndSynthetic) == privateAndSynthetic;
     }
 }

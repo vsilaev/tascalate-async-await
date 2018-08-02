@@ -31,10 +31,12 @@ import static net.tascalate.async.tools.core.BytecodeIntrospection.invisibleType
 import static org.objectweb.asm.Opcodes.*;
 
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.IdentityHashMap;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
+import java.util.stream.Collectors;
 
 import org.objectweb.asm.Opcodes;
 import org.objectweb.asm.Type;
@@ -46,6 +48,7 @@ import org.objectweb.asm.tree.IincInsnNode;
 import org.objectweb.asm.tree.InsnList;
 import org.objectweb.asm.tree.InsnNode;
 import org.objectweb.asm.tree.IntInsnNode;
+import org.objectweb.asm.tree.InvokeDynamicInsnNode;
 import org.objectweb.asm.tree.JumpInsnNode;
 import org.objectweb.asm.tree.LabelNode;
 import org.objectweb.asm.tree.MethodInsnNode;
@@ -291,7 +294,14 @@ public class AsyncTaskMethodTransformer extends AsyncMethodTransformer {
             } else if (insn instanceof LabelNode) {
                 newInstructions.add(labelsMap.get(insn));
                 continue;
+            } else if (insn instanceof InvokeDynamicInsnNode) {
+                InvokeDynamicInsnNode d = (InvokeDynamicInsnNode)insn;
+                System.out.println(d.bsm + "\n\t*** " + 
+                Arrays.asList(d.bsmArgs).stream().map(v -> v.getClass().getName() + "=" + v.toString()).collect(Collectors.joining("\n"))
+                );
+                //throw new RuntimeException(d.bsm + " *** " + Arrays.asList(d.bsmArgs));
             }
+            
 
             // do not make changes
             newInstructions.add(insn.clone(labelsMap));

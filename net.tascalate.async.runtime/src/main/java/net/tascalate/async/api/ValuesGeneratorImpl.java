@@ -77,7 +77,7 @@ final class ValuesGeneratorImpl<T> implements ValuesGenerator<T> {
         return delegate.stream().mapWithSuspendable(
            new SuspendableFunction<CompletionStage<T>, T>() {
                @Override
-               public T apply(CompletionStage<T> future) {
+               public @suspendable T apply(CompletionStage<T> future) {
                    return AsyncMethodExecutor.await(future);
                }
            }

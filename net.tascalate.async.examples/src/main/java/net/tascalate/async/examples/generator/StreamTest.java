@@ -92,15 +92,15 @@ public class StreamTest {
         SuspendableStream<CompletionStage<String>> alphas = 
             produceAlphaStrings()
                 .stream()
-                .map(p -> (CompletionStage<String>)p.thenApply(v -> v + " VALUE"));
+                .map(p -> p.thenApply(v -> v + " VALUE"));
         
         Generator<String> merged =         
             produceNumericStrings()
                 .stream()
-                .map(Promises::from)
-                .map(p -> p.orTimeout(Duration.ofMillis(500)))
-                .zip(alphas, (a, b) -> a.thenCombine(b, (av, bv) -> av + " - " + bv))
-                .as(SuspendableStream::generator);
+                .map( Promises::from )
+                .map( p -> p.orTimeout(Duration.ofMillis(500)) )
+                .zip( alphas, (a, b) -> a.thenCombine(b, (av, bv) -> av + " - " + bv) )
+                .as( SuspendableStream::generator );
         
         yield(merged);
         return yield();

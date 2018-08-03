@@ -72,12 +72,12 @@ public class StreamTest {
     public CompletionStage<Void> asyncOperation(int outerDiv) {
         produceMergedStrings()
             .stream()  
-            //.mapAwaitable(f -> await(f))    // -- worked, static
-            //.mapAwaitable(this::waitFuture) // -- worked, instance ref
+            //.mapAwaitable(f -> await(f))      // -- worked, static
+            //.mapAwaitable(this::waitFuture)   // -- worked, instance ref
             //.mapAwaitable(f -> waitFuture(f)) // -- worked, instance
             .mapAwaitable(f -> await(f))
             .filter(v -> Integer.parseInt(v.substring(0, 3)) % div == 0) 
-            //.filter(this::isEven)
+            .filter(this::isEven)
             .map(v -> "000" + v) 
             .forEach(System.out::println)
             ; 
@@ -87,7 +87,7 @@ public class StreamTest {
     
     @async Generator<String> produceMergedStrings() {
         // Need 2 vars because Eclipse compiler is a way too dumb to resolve types here
-        // It's possible to yield without vars with regula Java compiler
+        // It's possible to yield without vars with regular Java compiler
         
         SuspendableStream<CompletionStage<String>> alphas = 
             produceAlphaStrings()
@@ -108,7 +108,7 @@ public class StreamTest {
     
     // Private to ensure that generated accessor methods work 
     @async
-    Generator<String> produceNumericStrings() {
+    private Generator<String> produceNumericStrings() {
         yield(Generator.empty());
         yield(waitString("111"));
         yield(waitString("222"));
@@ -121,7 +121,7 @@ public class StreamTest {
     @async
     Generator<String> produceAlphaStrings() {
         for (String s : Arrays.asList("AAA", "BBB", "CCC", "DDD")) {
-            yield(waitString(s));
+            yield(waitString(s, 400));
         }
         System.out.println("::produceAlphaStrings FINALLY CALLED::");
         return yield();

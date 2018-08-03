@@ -28,15 +28,19 @@ import static net.tascalate.async.api.AsyncCall.await;
 import static net.tascalate.async.api.AsyncCall.async;
 import static net.tascalate.async.api.AsyncCall.yield;
 
+import java.time.Duration;
+import java.util.Arrays;
 import java.util.concurrent.CompletionException;
 import java.util.concurrent.CompletionStage;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
 import net.tascalate.async.api.Generator;
+import net.tascalate.async.api.SuspendableStream;
 import net.tascalate.async.api.async;
 import net.tascalate.async.api.suspendable;
 import net.tascalate.concurrent.CompletableTask;
+import net.tascalate.concurrent.Promises;
 
 public class StreamTest {
 
@@ -52,7 +56,7 @@ public class StreamTest {
     int div;
     
     boolean isEven(String v) {
-        return Integer.parseInt(v) % 2 == 0;
+        return Integer.parseInt(v.substring(0, 3)) % 2 == 0;
     }
 
     public @suspendable String waitFuture(CompletionStage<String> f) {
@@ -66,14 +70,14 @@ public class StreamTest {
 
     @async
     public CompletionStage<Void> asyncOperation(int outerDiv) {
-        produceStrings()
+        produceMergedStrings()
             .stream()  
-            //.mapWithSuspendable(f -> await(f))    // -- worked, static
-            //.mapWithSuspendable(this::waitFuture) // -- worked, instance ref
-            //.mapWithSuspendable(f -> waitFuture(f)) // -- worked, instance
-            .map(() -> f -> await(f))
-            .filter(v -> Integer.parseInt(v) % div == 0) 
-            .filter(this::isEven)
+            //.mapAwaitable(f -> await(f))    // -- worked, static
+            //.mapAwaitable(this::waitFuture) // -- worked, instance ref
+            //.mapAwaitable(f -> waitFuture(f)) // -- worked, instance
+            .mapAwaitable(f -> await(f))
+            .filter(v -> Integer.parseInt(v.substring(0, 3)) % div == 0) 
+            //.filter(this::isEven)
             .map(v -> "000" + v) 
             .forEach(System.out::println)
             ; 
@@ -81,14 +85,45 @@ public class StreamTest {
         return async(null); 
     }
     
+    @async Generator<String> produceMergedStrings() {
+        // Need 2 vars because Eclipse compiler is a way too dumb to resolve types here
+        // It's possible to yield without vars with regula Java compiler
+        
+        SuspendableStream<CompletionStage<String>> alphas = 
+            produceAlphaStrings()
+                .stream()
+                .map(p -> (CompletionStage<String>)p.thenApply(v -> v + " VALUE"));
+        
+        Generator<String> merged =         
+            produceNumericStrings()
+                .stream()
+                .map(Promises::from)
+                .map(p -> p.orTimeout(Duration.ofMillis(500)))
+                .zip(alphas, (a, b) -> a.thenCombine(b, (av, bv) -> av + " - " + bv))
+                .as(SuspendableStream::generator);
+        
+        yield(merged);
+        return yield();
+    }
+    
     // Private to ensure that generated accessor methods work 
     @async
-    Generator<String> produceStrings() {
+    Generator<String> produceNumericStrings() {
+        yield(Generator.empty());
         yield(waitString("111"));
         yield(waitString("222"));
         yield("333");
         yield(waitString("444"));
-        System.out.println("::moreStrings FINALLY CALLED::");
+        System.out.println("::produceNumericStrings FINALLY CALLED::");
+        return yield();
+    }
+    
+    @async
+    Generator<String> produceAlphaStrings() {
+        for (String s : Arrays.asList("AAA", "BBB", "CCC", "DDD")) {
+            yield(waitString(s));
+        }
+        System.out.println("::produceAlphaStrings FINALLY CALLED::");
         return yield();
     }
     

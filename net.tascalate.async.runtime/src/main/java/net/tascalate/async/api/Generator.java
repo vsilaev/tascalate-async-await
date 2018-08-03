@@ -60,7 +60,7 @@ public interface Generator<T> extends GeneratorDecorator<T>, AutoCloseable {
     
     default
     SuspendableStream<? extends CompletionStage<T>> stream() {
-        return new SuspendableStream<>(new SuspendableProducer<CompletionStage<T>>() {
+        return new SuspendableStream<>(new SuspendableStream.Producer<CompletionStage<T>>() {
             @Override
             public CompletionStage<T> produce(Object param) {
                 CompletionStage<T> result = Generator.this.next(param);

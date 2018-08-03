@@ -28,8 +28,9 @@ import java.util.NoSuchElementException;
 import java.util.concurrent.CompletionStage;
 import java.util.function.Function;
 
+import org.apache.commons.javaflow.extras.ContinuableFunction;
+
 import net.tascalate.async.core.AsyncMethodExecutor;
-import net.tascalate.async.function.SuspendableFunction;
 
 final class ValuesGeneratorImpl<T> implements ValuesGenerator<T> {
     private final Generator<T> delegate;
@@ -74,10 +75,10 @@ final class ValuesGeneratorImpl<T> implements ValuesGenerator<T> {
     
     @Override
     public SuspendableStream<T> stream() {
-        return delegate.stream().mapWithSuspendable(
-           new SuspendableFunction<CompletionStage<T>, T>() {
+        return delegate.stream().mapAwaitable(
+           new ContinuableFunction<CompletionStage<T>, T>() {
                @Override
-               public @suspendable T apply(CompletionStage<T> future) {
+               public T apply(CompletionStage<T> future) {
                    return AsyncMethodExecutor.await(future);
                }
            }

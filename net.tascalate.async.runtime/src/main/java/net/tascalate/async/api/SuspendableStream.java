@@ -26,21 +26,47 @@ package net.tascalate.async.api;
 
 import java.util.NoSuchElementException;
 import java.util.Optional;
+import java.util.concurrent.CompletionStage;
 import java.util.function.BiFunction;
 import java.util.function.BinaryOperator;
 import java.util.function.Consumer;
 import java.util.function.Function;
 import java.util.function.Predicate;
-import java.util.function.Supplier;
 
-import net.tascalate.async.function.SuspendableConsumer;
-import net.tascalate.async.function.SuspendableFunction;
-import net.tascalate.async.function.SuspendablePredicate;
+import org.apache.commons.javaflow.extras.ContinuableBiFunction;
+import org.apache.commons.javaflow.extras.ContinuableBinaryOperator;
+import org.apache.commons.javaflow.extras.ContinuableConsumer;
+import org.apache.commons.javaflow.extras.ContinuableFunction;
+import org.apache.commons.javaflow.extras.ContinuablePredicate;
 
 public class SuspendableStream<T> {
-    private final SuspendableProducer<T> delegate;
     
-    public SuspendableStream(SuspendableProducer<T> delegate) {
+    public static interface Producer<T> extends AutoCloseable {
+        @suspendable T produce(Object param) throws NoSuchElementException;
+        void close();
+        
+        @SuppressWarnings("serial")
+        public static final NoSuchElementException STOP = new NoSuchElementException() {
+            @Override
+            public synchronized Throwable fillInStackTrace() {
+                return this;
+            }
+
+            @Override
+            public synchronized Throwable initCause(Throwable ignore) {
+                return this;
+            }
+
+            @Override
+            public void setStackTrace(StackTraceElement[] ignore) {
+            }
+        };
+        
+    }
+    
+    private final Producer<T> delegate;
+    
+    public SuspendableStream(Producer<T> delegate) {
         this.delegate = delegate;
     }
     
@@ -48,8 +74,12 @@ public class SuspendableStream<T> {
         delegate.close();
     }
     
+    protected <U> SuspendableStream<U> nextStage(Producer<U> producer) {
+        return new SuspendableStream<>(producer);
+    }
+    
     public <R> SuspendableStream<R> map(Function<? super T, ? extends R> mapper) {
-        return new SuspendableStream<>(new SuspendableProducer<R>() {
+        return nextStage(new Producer<R>() {
             @Override
             public R produce(Object param) {
                 return mapper.apply(delegate.produce(param));
@@ -62,12 +92,8 @@ public class SuspendableStream<T> {
         });
     }
     
-    public <R> SuspendableStream<R> map(Supplier<SuspendableFunction<? super T, ? extends R>> mapper) {
-        return mapWithSuspendable(mapper.get());
-    }
-    
-    public <R> SuspendableStream<R> mapWithSuspendable(SuspendableFunction<? super T, ? extends R> mapper) {
-        return new SuspendableStream<>(new SuspendableProducer<R>() {
+    public <R> SuspendableStream<R> mapAwaitable(ContinuableFunction<? super T, ? extends R> mapper) {
+        return nextStage(new Producer<R>() {
             @Override
             public R produce(Object param) {
                 return mapper.apply(delegate.produce(param));
@@ -82,7 +108,7 @@ public class SuspendableStream<T> {
 
     
     public SuspendableStream<T> filter(Predicate<? super T> predicate) {
-        return new SuspendableStream<>(new SuspendableProducer<T>() {
+        return nextStage(new Producer<T>() {
             @Override
             public T produce(Object param) {
                 while (true) {
@@ -100,8 +126,8 @@ public class SuspendableStream<T> {
         });
     }
     
-    public SuspendableStream<T> filterWithSuspendable(SuspendablePredicate<? super T> predicate) {
-        return new SuspendableStream<>(new SuspendableProducer<T>() {
+    public SuspendableStream<T> filterAwaitable(ContinuablePredicate<? super T> predicate) {
+        return nextStage(new Producer<T>() {
             @Override
             public T produce(Object param) {
                 while (true) {
@@ -121,7 +147,7 @@ public class SuspendableStream<T> {
     
     
     public <R> SuspendableStream<R> flatMap(Function<? super T, ? extends SuspendableStream<? extends R>> mapper) {
-        SuspendableProducer<R> producer = new SuspendableProducer<R>() {
+        return nextStage(new Producer<R>() {
             SuspendableStream<? extends R> current = null;
             
             @Override
@@ -158,12 +184,11 @@ public class SuspendableStream<T> {
                     SuspendableStream.this.close();
                 }
             }
-        };
-        return new SuspendableStream<>(producer);
+        });
     }
     
-    public <R> SuspendableStream<R> flatMapWithSuspendable(SuspendableFunction<? super T, ? extends SuspendableStream<? extends R>> mapper) {
-        SuspendableProducer<R> producer = new SuspendableProducer<R>() {
+    public <R> SuspendableStream<R> flatMapAwaitable(ContinuableFunction<? super T, ? extends SuspendableStream<? extends R>> mapper) {
+        return nextStage(new Producer<R>() {
             SuspendableStream<? extends R> current = null;
             
             @Override
@@ -200,12 +225,91 @@ public class SuspendableStream<T> {
                     SuspendableStream.this.close();
                 }
             }
-        };
-        return new SuspendableStream<>(producer);
+        });
+    }
+    
+    public <U, R> SuspendableStream<R> zip(SuspendableStream<U> other, BiFunction<? super T, ? super U, ? extends R> zipper) {
+        return nextStage(new Producer<R>() {
+            @Override
+            public R produce(Object param) {
+                T a;
+                boolean aFailed = false;
+                try {
+                    a = delegate.produce(param);
+                } catch (NoSuchElementException ex) {
+                    a = null;
+                    aFailed = true;
+                }
+                
+                U b;
+                boolean bFailed = false;
+                try {
+                    b = other.delegate.produce(param);
+                } catch (NoSuchElementException ex) {
+                    b = null;
+                    bFailed = true;
+                }
+
+                if (aFailed && bFailed) {
+                    throw STOP;
+                } else {
+                    return zipper.apply(a, b);
+                }
+            }
+
+            @Override
+            public void close() {
+                try {
+                    other.close();
+                } finally {
+                    SuspendableStream.this.close();
+                }
+            }
+        });        
+    }
+    
+    public <U, R> SuspendableStream<R> zipAwaitable(SuspendableStream<U> other, ContinuableBiFunction<? super T, ? super U, ? extends R> zipper) {
+        return nextStage(new Producer<R>() {
+            @Override
+            public R produce(Object param) {
+                T a;
+                boolean aFailed = false;
+                try {
+                    a = delegate.produce(param);
+                } catch (NoSuchElementException ex) {
+                    a = null;
+                    aFailed = true;
+                }
+                
+                U b;
+                boolean bFailed = false;
+                try {
+                    b = other.delegate.produce(param);
+                } catch (NoSuchElementException ex) {
+                    b = null;
+                    bFailed = true;
+                }
+
+                if (aFailed && bFailed) {
+                    throw STOP;
+                } else {
+                    return zipper.apply(a, b);
+                }
+            }
+
+            @Override
+            public void close() {
+                try {
+                    other.close();
+                } finally {
+                    SuspendableStream.this.close();
+                }
+            }
+        });        
     }
     
     public SuspendableStream<T> skip(long count) {
-        return new SuspendableStream<T>(new SuspendableProducer<T>() {
+        return nextStage(new Producer<T>() {
             long idx = 0;
             
             @Override
@@ -225,7 +329,7 @@ public class SuspendableStream<T> {
     }
     
     public SuspendableStream<T> limit(long maxSize) {
-        return new SuspendableStream<T>(new SuspendableProducer<T>() {
+        return nextStage(new Producer<T>() {
             long idx = 0;
             
             @Override
@@ -257,7 +361,7 @@ public class SuspendableStream<T> {
         }
     }
     
-    public @suspendable void forEachWithSuspendable(SuspendableConsumer<? super T> consumer) {
+    public @suspendable void forEachAwaitable(ContinuableConsumer<? super T> consumer) {
         while (true) {
             T element;
             try {
@@ -292,6 +396,29 @@ public class SuspendableStream<T> {
         return foundAny ? Optional.of(result) : Optional.empty();
     }
     
+    public @suspendable Optional<T> reduceAwaitable(ContinuableBinaryOperator<T> accumulator) {
+        boolean foundAny = false;
+        T result = null;
+        while (true) {
+            T element;
+            try {
+                element = delegate.produce(null);
+            } catch (NoSuchElementException ex) {
+                break;
+            }
+            
+            if (!foundAny) {
+                foundAny = true;
+                result = element;
+            }
+            else {
+                result = accumulator.apply(result, element);
+            }
+
+        }
+        return foundAny ? Optional.of(result) : Optional.empty();
+    }
+    
     public @suspendable <U> U reduce(U identity, BiFunction<U, ? super T, U> accumulator, BinaryOperator<U> combiner) {
         U result = identity;
         while (true) {
@@ -304,5 +431,25 @@ public class SuspendableStream<T> {
             result = accumulator.apply(result, element);
         }
         return result;
+    }
+    
+    public <R> R as(Function<? super SuspendableStream<T>, R> converter) {
+        return converter.apply(this);
+    }
+    
+    public static <T> Generator<T> generator(SuspendableStream<? extends CompletionStage<T>> stream) {
+        return new Generator<T>() {
+
+            @Override
+            public CompletionStage<T> next(Object producerParam) {
+                return stream.delegate.produce(producerParam);
+            }
+
+            @Override
+            public void close() {
+                stream.close();
+            }
+            
+        };
     }
 }

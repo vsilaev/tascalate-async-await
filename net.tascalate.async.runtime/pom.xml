@@ -23,6 +23,10 @@
 			<groupId>net.tascalate.javaflow</groupId>
 			<artifactId>net.tascalate.javaflow.api</artifactId>
 		</dependency>
+		<dependency>
+			<groupId>net.tascalate.javaflow</groupId>
+			<artifactId>net.tascalate.javaflow.extras</artifactId>
+		</dependency>
 
 		<dependency>
 			<groupId>commons-logging</groupId>

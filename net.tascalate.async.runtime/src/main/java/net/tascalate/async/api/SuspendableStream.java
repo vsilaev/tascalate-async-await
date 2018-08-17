@@ -32,41 +32,59 @@ import java.util.function.BinaryOperator;
 import java.util.function.Consumer;
 import java.util.function.Function;
 import java.util.function.Predicate;
+import java.util.function.Supplier;
 
 import org.apache.commons.javaflow.extras.ContinuableBiFunction;
 import org.apache.commons.javaflow.extras.ContinuableBinaryOperator;
 import org.apache.commons.javaflow.extras.ContinuableConsumer;
 import org.apache.commons.javaflow.extras.ContinuableFunction;
 import org.apache.commons.javaflow.extras.ContinuablePredicate;
+import org.apache.commons.javaflow.extras.ContinuableSupplier;
 
 public class SuspendableStream<T> {
     
     public static interface Producer<T> extends AutoCloseable {
-        @suspendable T produce(Object param) throws ProducerExhaustedException;
+        @suspendable T produce() throws ProducerExhaustedException;
         void close();
         
         public static final ProducerExhaustedException STOP = ProducerExhaustedException.INSTANCE;
     }
     
-    private final Producer<T> delegate;
+    protected final Producer<T> producer;
     
-    public SuspendableStream(Producer<T> delegate) {
-        this.delegate = delegate;
+    public SuspendableStream(Producer<T> producer) {
+        this.producer = producer;
     }
     
     public void close() {
-        delegate.close();
+        producer.close();
     }
     
     protected <U> SuspendableStream<U> nextStage(Producer<U> producer) {
         return new SuspendableStream<>(producer);
     }
     
+    public static <T> SuspendableStream<T> repeat(T value) {
+        return repeat( () -> value );
+    }
+    
+    public static <T> SuspendableStream<T> repeat(Supplier<? extends T> supplier) {
+        return new SuspendableStream<>(new Producer<T>() {
+            @Override
+            public T produce() {
+                return supplier.get();
+            }
+            
+            @Override
+            public void close() {}
+        });
+    }
+    
     public <R> SuspendableStream<R> map(Function<? super T, ? extends R> mapper) {
         return nextStage(new InnerProducer<R>() {
             @Override
-            public R produce(Object param) {
-                return mapper.apply(delegate.produce(param));
+            public R produce() {
+                return mapper.apply(producer.produce());
             }
         });
     }
@@ -74,8 +92,8 @@ public class SuspendableStream<T> {
     public <R> SuspendableStream<R> mapAwaitable(ContinuableFunction<? super T, ? extends R> mapper) {
         return nextStage(new InnerProducer<R>() {
             @Override
-            public R produce(Object param) {
-                return mapper.apply(delegate.produce(param));
+            public R produce() {
+                return mapper.apply(producer.produce());
             }
         });
     }
@@ -84,9 +102,9 @@ public class SuspendableStream<T> {
     public SuspendableStream<T> filter(Predicate<? super T> predicate) {
         return nextStage(new InnerProducer<T>() {
             @Override
-            public T produce(Object param) {
+            public T produce() {
                 while (true) {
-                    T original = delegate.produce(param);
+                    T original = producer.produce();
                     if (predicate.test(original)) {
                         return original;
                     }
@@ -98,9 +116,9 @@ public class SuspendableStream<T> {
     public SuspendableStream<T> filterAwaitable(ContinuablePredicate<? super T> predicate) {
         return nextStage(new InnerProducer<T>() {
             @Override
-            public T produce(Object param) {
+            public T produce() {
                 while (true) {
-                    T original = delegate.produce(param);
+                    T original = producer.produce();
                     if (predicate.test(original)) {
                         return original;
                     }
@@ -115,10 +133,10 @@ public class SuspendableStream<T> {
             SuspendableStream<? extends R> current = null;
             
             @Override
-            public R produce(Object param) {
+            public R produce() {
                 if (null != current) {
                     try {
-                        return current.delegate.produce(param);
+                        return current.producer.produce();
                     } catch (ProducerExhaustedException ex) {
                         current.close();
                         current = null;
@@ -127,9 +145,9 @@ public class SuspendableStream<T> {
 
                 while (null == current) {
                     // If ProducerExhaustedException is thrown then delegate is over
-                    current = mapper.apply(delegate.produce(param));
+                    current = mapper.apply(producer.produce());
                     try {
-                        return current.delegate.produce(param);
+                        return current.producer.produce();
                     } catch (ProducerExhaustedException ex) {
                         current.close();
                         current = null;
@@ -156,10 +174,10 @@ public class SuspendableStream<T> {
             SuspendableStream<? extends R> current = null;
             
             @Override
-            public R produce(Object param) {
+            public R produce() {
                 if (null != current) {
                     try {
-                        return current.delegate.produce(param);
+                        return current.producer.produce();
                     } catch (ProducerExhaustedException ex) {
                         current.close();
                         current = null;
@@ -167,10 +185,10 @@ public class SuspendableStream<T> {
                 }
 
                 while (null == current) {
-                    // If NoSuchElementException is thrown then delegate is over
-                    current = mapper.apply(delegate.produce(param));
+                    // If ProducerExhaustedException is thrown then delegate is over
+                    current = mapper.apply(producer.produce());
                     try {
-                        return current.delegate.produce(param);
+                        return current.producer.produce();
                     } catch (ProducerExhaustedException ex) {
                         current.close();
                         current = null;
@@ -179,7 +197,7 @@ public class SuspendableStream<T> {
                 throw STOP;
             }
 
-            @Override
+            @Override   
             public void close() {
                 try {
                     if (null != current) {
@@ -191,32 +209,55 @@ public class SuspendableStream<T> {
             }
         });
     }
-    
+
     public <U, R> SuspendableStream<R> zip(SuspendableStream<U> other, BiFunction<? super T, ? super U, ? extends R> zipper) {
+        return zip(other, zipper, null, null);
+    }
+    
+    public <U, R> SuspendableStream<R> zip(SuspendableStream<U> other, 
+                                           BiFunction<? super T, ? super U, ? extends R> zipper,
+                                           Supplier<? extends T> provideMissingLeft, 
+                                           Supplier<? extends U> provideMissingRight) {
         return nextStage(new InnerProducer<R>() {
             @Override
-            public R produce(Object param) {
+            public R produce() {
                 T a;
-                boolean aFailed = false;
+                boolean aMissing = false;
                 try {
-                    a = delegate.produce(param);
+                    a = producer.produce();
                 } catch (ProducerExhaustedException ex) {
                     a = null;
-                    aFailed = true;
+                    aMissing = true;
                 }
                 
                 U b;
-                boolean bFailed = false;
+                boolean bMissing = false;
                 try {
-                    b = other.delegate.produce(param);
+                    b = other.producer.produce();
                 } catch (ProducerExhaustedException ex) {
                     b = null;
-                    bFailed = true;
+                    bMissing = true;
                 }
 
-                if (aFailed && bFailed) {
+                if (aMissing && bMissing) {
+                    // Both streams are over
                     throw STOP;
                 } else {
+                    if (aMissing) {
+                        if (null != provideMissingLeft) {
+                            a = provideMissingLeft.get();
+                        } else {
+                            throw STOP;
+                        }
+                    }
+                    if (bMissing) {
+                        if (null != provideMissingRight) {
+                            b = provideMissingRight.get();
+                        } else {
+                            throw STOP;
+                        }
+                    }
+                    
                     return zipper.apply(a, b);
                 }
             }
@@ -233,30 +274,53 @@ public class SuspendableStream<T> {
     }
     
     public <U, R> SuspendableStream<R> zipAwaitable(SuspendableStream<U> other, ContinuableBiFunction<? super T, ? super U, ? extends R> zipper) {
+        return zipAwaitable(other, zipper, null, null);
+    }
+    
+    public <U, R> SuspendableStream<R> zipAwaitable(SuspendableStream<U> other, 
+                                                    ContinuableBiFunction<? super T, ? super U, ? extends R> zipper,
+                                                    ContinuableSupplier<? extends T> provideMissingLeft,
+                                                    ContinuableSupplier<? extends U> provideMissingRight) {
         return nextStage(new InnerProducer<R>() {
             @Override
-            public R produce(Object param) {
+            public R produce() {
                 T a;
-                boolean aFailed = false;
+                boolean aMissing = false;
                 try {
-                    a = delegate.produce(param);
+                    a = producer.produce();
                 } catch (ProducerExhaustedException ex) {
                     a = null;
-                    aFailed = true;
+                    aMissing = true;
                 }
                 
                 U b;
-                boolean bFailed = false;
+                boolean bMissing = false;
                 try {
-                    b = other.delegate.produce(param);
+                    b = other.producer.produce();
                 } catch (ProducerExhaustedException ex) {
                     b = null;
-                    bFailed = true;
+                    bMissing = true;
                 }
 
-                if (aFailed && bFailed) {
+                if (aMissing && bMissing) {
+                    // Both streams are over
                     throw STOP;
                 } else {
+                    if (aMissing) {
+                        if (null != provideMissingLeft) {
+                            a = provideMissingLeft.get();
+                        } else {
+                            throw STOP;
+                        }
+                    }
+                    if (bMissing) {
+                        if (null != provideMissingRight) {
+                            b = provideMissingRight.get();
+                        } else {
+                            throw STOP;
+                        }
+                    }
+                    
                     return zipper.apply(a, b);
                 }
             }
@@ -269,7 +333,99 @@ public class SuspendableStream<T> {
                     super.close();
                 }
             }
-        });        
+        });     
+    }
+    
+    public SuspendableStream<T> peek(Consumer<? super T> action) {
+        return nextStage(new InnerProducer<T>() {
+            @Override
+            public T produce() {
+                T result = producer.produce();
+                action.accept(result);
+                return result;
+            }
+        });
+    }
+    
+    public SuspendableStream<T> peekAwaitable(ContinuableConsumer<? super T> action) {
+        return nextStage(new InnerProducer<T>() {
+            @Override
+            public T produce() {
+                T result = producer.produce();
+                action.accept(result);
+                return result;
+            }
+        });
+    }
+    
+    public SuspendableStream<T> ignoreErrors() {
+        return nextStage(new InnerProducer<T>() {
+            @Override
+            public T produce() {
+                while (true) {
+                    try {
+                        return producer.produce();
+                    } catch (ProducerExhaustedException | Error ex) {
+                        // Propagate Producer.STOP + JVM errors
+                        throw ex;
+                    } catch (Throwable ex) {
+                        // Ignore other exceptions
+                    }
+                }
+            }
+        });
+    }
+    
+    public SuspendableStream<T> stopOnError() {
+        return nextStage(new InnerProducer<T>() {
+            @Override
+            public T produce() {
+                while (true) {
+                    try {
+                        return producer.produce();
+                    } catch (Error ex) {
+                        // Propagate JVM errors
+                        throw ex;
+                    } catch (Throwable ex) {
+                        throw STOP;
+                    }
+                }
+            }
+        });
+    }    
+    
+    public SuspendableStream<T> recover(T value) {
+        return recover(ex -> value);
+    }    
+    
+    public SuspendableStream<T> recover(Function<? super Throwable, ? extends T> recover) {
+        return nextStage(new InnerProducer<T>() {
+            @Override
+            public T produce() {
+                try {
+                    return producer.produce();
+                } catch (ProducerExhaustedException | Error ex) {
+                    throw ex;
+                } catch (Throwable ex) {
+                    return recover.apply(ex);
+                }
+            }
+        });
+    }
+    
+    public SuspendableStream<T> recoverAwaitable(ContinuableFunction<? super Throwable, ? extends T> recover) {
+        return nextStage(new InnerProducer<T>() {
+            @Override
+            public T produce() {
+                try {
+                    return producer.produce();
+                } catch (ProducerExhaustedException | Error ex) {
+                    throw ex;
+                } catch (Throwable ex) {
+                    return recover.apply(ex);
+                }
+            }
+        });
     }
     
     public SuspendableStream<T> skip(long count) {
@@ -277,12 +433,12 @@ public class SuspendableStream<T> {
             long idx = 0;
             
             @Override
-            public T produce(Object param) {
+            public T produce() {
                 for (; idx < count; idx++) {
                     // Forward
-                    delegate.produce(param);
+                    producer.produce();
                 }
-                return delegate.produce(param);
+                return producer.produce();
             }
         });
     }
@@ -292,10 +448,10 @@ public class SuspendableStream<T> {
             long idx = 0;
             
             @Override
-            public T produce(Object param) {
+            public T produce() {
                 if (idx < maxSize) {
                     idx++;
-                    return delegate.produce(param);                    
+                    return producer.produce();                    
                 } else {
                     throw STOP;
                 }
@@ -307,7 +463,7 @@ public class SuspendableStream<T> {
         while (true) {
             T element;
             try {
-                element = delegate.produce(null);
+                element = producer.produce();
             } catch (ProducerExhaustedException ex) {
                 break;
             }
@@ -319,7 +475,7 @@ public class SuspendableStream<T> {
         while (true) {
             T element;
             try {
-                element = delegate.produce(null);
+                element = producer.produce();
             } catch (ProducerExhaustedException ex) {
                 break;
             }
@@ -333,7 +489,7 @@ public class SuspendableStream<T> {
         while (true) {
             T element;
             try {
-                element = delegate.produce(null);
+                element = producer.produce();
             } catch (ProducerExhaustedException ex) {
                 break;
             }
@@ -356,7 +512,7 @@ public class SuspendableStream<T> {
         while (true) {
             T element;
             try {
-                element = delegate.produce(null);
+                element = producer.produce();
             } catch (ProducerExhaustedException ex) {
                 break;
             }
@@ -378,7 +534,7 @@ public class SuspendableStream<T> {
         while (true) {
             T element;
             try {
-                element = delegate.produce(null);
+                element = producer.produce();
             } catch (ProducerExhaustedException ex) {
                 break;
             }
@@ -387,21 +543,28 @@ public class SuspendableStream<T> {
         return result;
     }
     
-    public <R> R as(Function<? super SuspendableStream<T>, R> converter) {
+    public <R> R apply(Function<? super SuspendableStream<T>, R> converter) {
         return converter.apply(this);
     }
     
-    public static <T> Generator<T> generator(SuspendableStream<? extends CompletionStage<T>> stream) {
-        return new Generator<T>() {
+    public <R> R as(Function<? super Producer<T>, R> converter) {
+        return converter.apply(producer);
+    }
 
+    
+    public static <T> Generator<T> generator(Producer<? extends CompletionStage<T>> producer) {
+        return new Generator<T>() {
             @Override
             public CompletionStage<T> next(Object producerParam) {
-                return stream.delegate.produce(producerParam);
+                if (producerParam != null) {
+                    throw new UnsupportedOperationException("Converted generators do not support parameters");
+                }
+                return producer.produce();
             }
 
             @Override
             public void close() {
-                stream.close();
+                producer.close();
             }
             
         };
@@ -435,4 +598,6 @@ public class SuspendableStream<T> {
             SuspendableStream.this.close();
         }
     }
+    
+    static final Object IGNORE_PARAM = new Object();
 }

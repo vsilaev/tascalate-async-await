@@ -39,7 +39,7 @@ Second, add the following build plugins in the specified order:
     <plugin>
       <groupId>net.tascalate.javaflow</groupId>
       <artifactId>net.tascalate.javaflow.tools.maven</artifactId>
-      <version>2.1</version>
+      <version>2.2.3</version>
       <executions>
         <execution>
 	  <phase>process-classes</phase>

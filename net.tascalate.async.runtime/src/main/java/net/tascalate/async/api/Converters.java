@@ -36,7 +36,7 @@ public final class Converters {
                 if (producerParam != null) {
                     throw new UnsupportedOperationException("Converted generators do not support parameters");
                 }
-                return producer.produce();
+                return producer.produce().get();
             }
 
             @Override

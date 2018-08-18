@@ -25,7 +25,6 @@
 package net.tascalate.async.api;
 
 import java.util.Iterator;
-import java.util.NoSuchElementException;
 import java.util.Optional;
 import java.util.function.BiFunction;
 import java.util.function.BinaryOperator;
@@ -45,39 +44,14 @@ import org.apache.commons.javaflow.extras.ContinuableSupplier;
 public class SuspendableStream<T> implements AutoCloseable {
     
     public static interface Producer<T> extends AutoCloseable {
-        @suspendable T produce() throws ProducerExhaustedException;
+        @suspendable Value<T> produce();
         void close();
-        
-        public static final ProducerExhaustedException STOP = ProducerExhaustedException.INSTANCE;
     }
-    
-    public static class ProducerExhaustedException extends NoSuchElementException {
-        private static final long serialVersionUID = 1L;
-
-        private ProducerExhaustedException() {}
-        
-        @Override
-        public synchronized Throwable fillInStackTrace() {
-            return this;
-        }
-
-        @Override
-        public synchronized Throwable initCause(Throwable ignore) {
-            return this;
-        }
-
-        @Override
-        public void setStackTrace(StackTraceElement[] ignore) {
-        }
-        
-        static final ProducerExhaustedException INSTANCE = new ProducerExhaustedException();
-    }
-    
     protected static final SuspendableStream<Object> EMPTY = new SuspendableStream<>(new Producer<Object>() {
         
         @Override
-        public Object produce() throws ProducerExhaustedException {
-            throw STOP;
+        public Value<Object> produce() {
+            return Value.none();
         }
         
         @Override
@@ -123,11 +97,11 @@ public class SuspendableStream<T> implements AutoCloseable {
     private static <T> SuspendableStream<T> of(Iterator<? extends T> values) {
         return new SuspendableStream<>(new Producer<T>() {
             @Override
-            public T produce() {
+            public Value<T> produce() {
                 if (values.hasNext()) {
-                    return values.next();
+                    return Value.some(values.next());
                 } else {
-                    throw STOP;
+                    return Value.none();
                 }
             }
             
@@ -139,8 +113,8 @@ public class SuspendableStream<T> implements AutoCloseable {
     public static <T> SuspendableStream<T> repeat(T value) {
         return new SuspendableStream<>(new Producer<T>() {
             @Override
-            public T produce() {
-                return value;
+            public Value<T> produce() {
+                return Value.some(value);
             }
             
             @Override
@@ -151,8 +125,8 @@ public class SuspendableStream<T> implements AutoCloseable {
     public static <T> SuspendableStream<T> generate(Supplier<? extends T> supplier) {
         return new SuspendableStream<>(new Producer<T>() {
             @Override
-            public T produce() {
-                return supplier.get();
+            public Value<T> produce() {
+                return Value.some(supplier.get());
             }
             
             @Override
@@ -163,8 +137,8 @@ public class SuspendableStream<T> implements AutoCloseable {
     public static <T> SuspendableStream<T> generateAwaitable(ContinuableSupplier<? extends T> supplier) {
         return new SuspendableStream<>(new Producer<T>() {
             @Override
-            public T produce() {
-                return supplier.get();
+            public Value<T> produce() {
+                return Value.some(supplier.get());
             }
             
             @Override
@@ -175,8 +149,8 @@ public class SuspendableStream<T> implements AutoCloseable {
     public <R> SuspendableStream<R> map(Function<? super T, ? extends R> mapper) {
         return nextStage(new InnerProducer<R>() {
             @Override
-            public R produce() {
-                return mapper.apply(producer.produce());
+            public Value<R> produce() {
+                return producer.produce().map(mapper);
             }
         });
     }
@@ -184,8 +158,8 @@ public class SuspendableStream<T> implements AutoCloseable {
     public <R> SuspendableStream<R> mapAwaitable(ContinuableFunction<? super T, ? extends R> mapper) {
         return nextStage(new InnerProducer<R>() {
             @Override
-            public R produce() {
-                return mapper.apply(producer.produce());
+            public Value<R> produce() {
+                return producer.produce().map(mapper);
             }
         });
     }
@@ -194,11 +168,15 @@ public class SuspendableStream<T> implements AutoCloseable {
     public SuspendableStream<T> filter(Predicate<? super T> predicate) {
         return nextStage(new InnerProducer<T>() {
             @Override
-            public T produce() {
+            public Value<T> produce() {
                 while (true) {
-                    T original = producer.produce();
-                    if (predicate.test(original)) {
-                        return original;
+                    Value<T> v = producer.produce();
+                    if (v.isNone()) {
+                        return v;
+                    }
+                    v = v.filter(predicate);
+                    if (!v.isNone()) {
+                        return v;
                     }
                 }
             }
@@ -208,11 +186,15 @@ public class SuspendableStream<T> implements AutoCloseable {
     public SuspendableStream<T> filterAwaitable(ContinuablePredicate<? super T> predicate) {
         return nextStage(new InnerProducer<T>() {
             @Override
-            public T produce() {
+            public Value<T> produce() {
                 while (true) {
-                    T original = producer.produce();
-                    if (predicate.test(original)) {
-                        return original;
+                    Value<T> v = producer.produce();
+                    if (v.isNone()) {
+                        return v;
+                    }
+                    v = v.filter(predicate);
+                    if (!v.isNone()) {
+                        return v;
                     }
                 }
             }
@@ -220,40 +202,26 @@ public class SuspendableStream<T> implements AutoCloseable {
     }
     
     
-    public <R> SuspendableStream<R> flatMap(Function<? super T, ? extends SuspendableStream<? extends R>> mapper) {
+    public <R> SuspendableStream<R> flatMap(Function<? super T, ? extends SuspendableStream<R>> mapper) {
         return nextStage(new InnerProducer<R>() {
-            SuspendableStream<? extends R> current = null;
+            Value<? extends SuspendableStream<R>> current = Value.none();
             
             @Override
-            public R produce() {
-                if (null != current) {
-                    try {
-                        return current.producer.produce();
-                    } catch (ProducerExhaustedException ex) {
-                        current.close();
-                        current = null;
-                    }
+            public Value<R> produce() {
+                Value<R> v = current.flatMap(s -> s.producer.produce());
+                if (v.isNone()) {
+                    current.accept_(SuspendableStream::close);
+                    current = producer.produce().map(mapper);
+                    return current.flatMap(s -> s.producer.produce());
+                } else {
+                    return v;
                 }
-
-                while (null == current) {
-                    // If ProducerExhaustedException is thrown then delegate is over
-                    current = mapper.apply(producer.produce());
-                    try {
-                        return current.producer.produce();
-                    } catch (ProducerExhaustedException ex) {
-                        current.close();
-                        current = null;
-                    }
-                }
-                throw STOP;
             }
 
             @Override
             public void close() {
                 try {
-                    if (null != current) {
-                        current.close();
-                    }
+                    current.accept_(SuspendableStream::close);
                 } finally {
                     super.close();
                 }
@@ -261,40 +229,26 @@ public class SuspendableStream<T> implements AutoCloseable {
         });
     }
     
-    public <R> SuspendableStream<R> flatMapAwaitable(ContinuableFunction<? super T, ? extends SuspendableStream<? extends R>> mapper) {
+    public <R> SuspendableStream<R> flatMapAwaitable(ContinuableFunction<? super T, ? extends SuspendableStream<R>> mapper) {
         return nextStage(new InnerProducer<R>() {
-            SuspendableStream<? extends R> current = null;
+            Value<? extends SuspendableStream<R>> current = Value.none();
             
             @Override
-            public R produce() {
-                if (null != current) {
-                    try {
-                        return current.producer.produce();
-                    } catch (ProducerExhaustedException ex) {
-                        current.close();
-                        current = null;
-                    }
+            public Value<R> produce() {
+                Value<R> v = current.flatMap(s -> s.producer.produce());
+                if (v.isNone()) {
+                    current.accept_(SuspendableStream::close);
+                    current = producer.produce().map(mapper);
+                    return current.flatMap(s -> s.producer.produce());
+                } else {
+                    return v;
                 }
-
-                while (null == current) {
-                    // If ProducerExhaustedException is thrown then delegate is over
-                    current = mapper.apply(producer.produce());
-                    try {
-                        return current.producer.produce();
-                    } catch (ProducerExhaustedException ex) {
-                        current.close();
-                        current = null;
-                    }
-                }
-                throw STOP;
             }
 
-            @Override   
+            @Override
             public void close() {
                 try {
-                    if (null != current) {
-                        current.close();
-                    }
+                    current.accept_(SuspendableStream::close);
                 } finally {
                     super.close();
                 }
@@ -308,50 +262,20 @@ public class SuspendableStream<T> implements AutoCloseable {
     
     public <U, R> SuspendableStream<R> zip(SuspendableStream<U> other, 
                                            BiFunction<? super T, ? super U, ? extends R> zipper,
-                                           Supplier<? extends T> provideMissingLeft, 
-                                           Supplier<? extends U> provideMissingRight) {
+                                           Supplier<? extends T> onLeftMissing, 
+                                           Supplier<? extends U> onRightMissing) {
+        
+        Supplier<Value<T>> aMissing = toValueSupplier(onLeftMissing); 
+        Supplier<Value<U>> bMissing = toValueSupplier(onRightMissing);
         return nextStage(new InnerProducer<R>() {
             @Override
-            public R produce() {
-                T a;
-                boolean aMissing = false;
-                try {
-                    a = producer.produce();
-                } catch (ProducerExhaustedException ex) {
-                    a = null;
-                    aMissing = true;
+            public Value<R> produce() {
+                Value<T> a = producer.produce();
+                Value<U> b = other.producer.produce();
+                if (a.isNone() && b.isNone()) {
+                    return Value.none();
                 }
-                
-                U b;
-                boolean bMissing = false;
-                try {
-                    b = other.producer.produce();
-                } catch (ProducerExhaustedException ex) {
-                    b = null;
-                    bMissing = true;
-                }
-
-                if (aMissing && bMissing) {
-                    // Both streams are over
-                    throw STOP;
-                } else {
-                    if (aMissing) {
-                        if (null != provideMissingLeft) {
-                            a = provideMissingLeft.get();
-                        } else {
-                            throw STOP;
-                        }
-                    }
-                    if (bMissing) {
-                        if (null != provideMissingRight) {
-                            b = provideMissingRight.get();
-                        } else {
-                            throw STOP;
-                        }
-                    }
-                    
-                    return zipper.apply(a, b);
-                }
+                return a.orElse(aMissing).combine(b.orElse(bMissing), zipper);
             }
 
             @Override
@@ -371,50 +295,19 @@ public class SuspendableStream<T> implements AutoCloseable {
     
     public <U, R> SuspendableStream<R> zipAwaitable(SuspendableStream<U> other, 
                                                     ContinuableBiFunction<? super T, ? super U, ? extends R> zipper,
-                                                    ContinuableSupplier<? extends T> provideMissingLeft,
-                                                    ContinuableSupplier<? extends U> provideMissingRight) {
+                                                    ContinuableSupplier<? extends T> onLeftMissing,
+                                                    ContinuableSupplier<? extends U> onRightMissing) {
+        ContinuableSupplier<Value<T>> aMissing = toValueSupplier(onLeftMissing); 
+        ContinuableSupplier<Value<U>> bMissing = toValueSupplier(onRightMissing);
         return nextStage(new InnerProducer<R>() {
             @Override
-            public R produce() {
-                T a;
-                boolean aMissing = false;
-                try {
-                    a = producer.produce();
-                } catch (ProducerExhaustedException ex) {
-                    a = null;
-                    aMissing = true;
+            public Value<R> produce() {
+                Value<T> a = producer.produce();
+                Value<U> b = other.producer.produce();
+                if (a.isNone() && b.isNone()) {
+                    return Value.none();
                 }
-                
-                U b;
-                boolean bMissing = false;
-                try {
-                    b = other.producer.produce();
-                } catch (ProducerExhaustedException ex) {
-                    b = null;
-                    bMissing = true;
-                }
-
-                if (aMissing && bMissing) {
-                    // Both streams are over
-                    throw STOP;
-                } else {
-                    if (aMissing) {
-                        if (null != provideMissingLeft) {
-                            a = provideMissingLeft.get();
-                        } else {
-                            throw STOP;
-                        }
-                    }
-                    if (bMissing) {
-                        if (null != provideMissingRight) {
-                            b = provideMissingRight.get();
-                        } else {
-                            throw STOP;
-                        }
-                    }
-                    
-                    return zipper.apply(a, b);
-                }
+                return a.orElse(aMissing).combine(b.orElse(bMissing), zipper);
             }
 
             @Override
@@ -431,9 +324,9 @@ public class SuspendableStream<T> implements AutoCloseable {
     public SuspendableStream<T> peek(Consumer<? super T> action) {
         return nextStage(new InnerProducer<T>() {
             @Override
-            public T produce() {
-                T result = producer.produce();
-                action.accept(result);
+            public Value<T> produce() {
+                Value<T> result = producer.produce();
+                result.accept(action);
                 return result;
             }
         });
@@ -442,9 +335,9 @@ public class SuspendableStream<T> implements AutoCloseable {
     public SuspendableStream<T> peekAwaitable(ContinuableConsumer<? super T> action) {
         return nextStage(new InnerProducer<T>() {
             @Override
-            public T produce() {
-                T result = producer.produce();
-                action.accept(result);
+            public Value<T> produce() {
+                Value<T> result = producer.produce();
+                result.accept(action);
                 return result;
             }
         });
@@ -453,12 +346,12 @@ public class SuspendableStream<T> implements AutoCloseable {
     public SuspendableStream<T> ignoreErrors() {
         return nextStage(new InnerProducer<T>() {
             @Override
-            public T produce() {
+            public Value<T> produce() {
                 while (true) {
                     try {
                         return producer.produce();
-                    } catch (ProducerExhaustedException | Error ex) {
-                        // Propagate Producer.STOP + JVM errors
+                    } catch (Error ex) {
+                        // JVM errors
                         throw ex;
                     } catch (Throwable ex) {
                         // Ignore other exceptions
@@ -471,7 +364,7 @@ public class SuspendableStream<T> implements AutoCloseable {
     public SuspendableStream<T> stopOnError() {
         return nextStage(new InnerProducer<T>() {
             @Override
-            public T produce() {
+            public Value<T> produce() {
                 while (true) {
                     try {
                         return producer.produce();
@@ -479,7 +372,7 @@ public class SuspendableStream<T> implements AutoCloseable {
                         // Propagate JVM errors
                         throw ex;
                     } catch (Throwable ex) {
-                        throw STOP;
+                        return Value.none();
                     }
                 }
             }
@@ -493,13 +386,13 @@ public class SuspendableStream<T> implements AutoCloseable {
     public SuspendableStream<T> recover(Function<? super Throwable, ? extends T> recover) {
         return nextStage(new InnerProducer<T>() {
             @Override
-            public T produce() {
+            public Value<T> produce() {
                 try {
                     return producer.produce();
-                } catch (ProducerExhaustedException | Error ex) {
+                } catch (Error ex) {
                     throw ex;
                 } catch (Throwable ex) {
-                    return recover.apply(ex);
+                    return Value.some(recover.apply(ex));
                 }
             }
         });
@@ -508,13 +401,13 @@ public class SuspendableStream<T> implements AutoCloseable {
     public SuspendableStream<T> recoverAwaitable(ContinuableFunction<? super Throwable, ? extends T> recover) {
         return nextStage(new InnerProducer<T>() {
             @Override
-            public T produce() {
+            public Value<T> produce() {
                 try {
                     return producer.produce();
-                } catch (ProducerExhaustedException | Error ex) {
+                } catch (Error ex) {
                     throw ex;
                 } catch (Throwable ex) {
-                    return recover.apply(ex);
+                    return Value.some(recover.apply(ex));
                 }
             }
         });
@@ -525,10 +418,13 @@ public class SuspendableStream<T> implements AutoCloseable {
             long idx = 0;
             
             @Override
-            public T produce() {
+            public Value<T> produce() {
                 for (; idx < count; idx++) {
                     // Forward
-                    producer.produce();
+                    Value<T> v = producer.produce();
+                    if (v.isNone()) {
+                        return v;
+                    }
                 }
                 return producer.produce();
             }
@@ -540,113 +436,93 @@ public class SuspendableStream<T> implements AutoCloseable {
             long idx = 0;
             
             @Override
-            public T produce() {
+            public Value<T> produce() {
                 if (idx < maxSize) {
                     idx++;
                     return producer.produce();                    
                 } else {
-                    throw STOP;
+                    return Value.none();
                 }
             }
         });
     }
     
-    public @suspendable void forEach(Consumer<? super T> consumer) {
+    public @suspendable void forEach(Consumer<? super T> action) {
         while (true) {
-            T element;
-            try {
-                element = producer.produce();
-            } catch (ProducerExhaustedException ex) {
+            Value<T> v = producer.produce();
+            if (v.isNone()) {
                 break;
             }
-            consumer.accept(element);
+            v.accept(action);
         }
     }
     
-    public @suspendable void forEachAwaitable(ContinuableConsumer<? super T> consumer) {
+    public @suspendable void forEachAwaitable(ContinuableConsumer<? super T> action) {
         while (true) {
-            T element;
-            try {
-                element = producer.produce();
-            } catch (ProducerExhaustedException ex) {
+            Value<T> v = producer.produce();
+            if (v.isNone()) {
                 break;
             }
-            consumer.accept(element);
+            v.accept(action);
         }
     }
     
     public @suspendable Optional<T> reduce(BinaryOperator<T> accumulator) {
-        boolean foundAny = false;
-        T result = null;
+        Value<T> result = Value.none();
         while (true) {
-            T element;
-            try {
-                element = producer.produce();
-            } catch (ProducerExhaustedException ex) {
+            Value<T> v = producer.produce();
+            if (v.isNone()) {
                 break;
             }
-            
-            if (!foundAny) {
-                foundAny = true;
-                result = element;
-            }
-            else {
-                result = accumulator.apply(result, element);
+            if (result.isNone()) {
+                result = v;
+            } else {
+                result = result.combine(v, accumulator);
             }
 
         }
-        return foundAny ? Optional.of(result) : Optional.empty();
+        return result.toOptional();
     }
     
     public @suspendable Optional<T> reduceAwaitable(ContinuableBinaryOperator<T> accumulator) {
-        boolean foundAny = false;
-        T result = null;
+        Value<T> result = Value.none();
         while (true) {
-            T element;
-            try {
-                element = producer.produce();
-            } catch (ProducerExhaustedException ex) {
+            Value<T> v = producer.produce();
+            if (v.isNone()) {
                 break;
             }
-            
-            if (!foundAny) {
-                foundAny = true;
-                result = element;
-            }
-            else {
-                result = accumulator.apply(result, element);
+            if (result.isNone()) {
+                result = v;
+            } else {
+                result = result.combine(v, accumulator);
             }
 
         }
-        return foundAny ? Optional.of(result) : Optional.empty();
+        return result.toOptional();
     }
     
     public @suspendable <U> U fold(U identity, BiFunction<U, ? super T, U> accumulator) {
-        U result = identity;
+        Value<U> result = Value.some(identity);
         while (true) {
-            T element;
-            try {
-                element = producer.produce();
-            } catch (ProducerExhaustedException ex) {
+            Value<T> v = producer.produce();
+            if (v.isNone()) {
                 break;
             }
-            result = accumulator.apply(result, element);
+            result = result.combine(v, accumulator);
         }
-        return result;
+        return result.get();
     }
     
     public @suspendable <U> U foldAwaitable(U identity, ContinuableBiFunction<U, ? super T, U> accumulator) {
-        U result = identity;
+        Value<U> result = Value.some(identity);
         while (true) {
-            T element;
-            try {
-                element = producer.produce();
-            } catch (ProducerExhaustedException ex) {
+            Value<T> v = producer.produce();
+            if (v.isNone()) {
                 break;
             }
-            result = accumulator.apply(result, element);
+            result = result.combine(v, accumulator);
         }
-        return result;
+        return result.get();
     }
     
     public <R> R apply(Function<? super SuspendableStream<T>, R> converter) {
@@ -664,5 +540,16 @@ public class SuspendableStream<T> implements AutoCloseable {
         }
     }
     
-    static final Object IGNORE_PARAM = new Object();
+    @SuppressWarnings("unchecked")
+    static <T> Supplier<Value<T>> toValueSupplier(Supplier<? extends T> s) {
+        return s != null ? () -> Value.some(s.get()) : (Supplier<Value<T>>)(Object)NONE_SUPPLIER_R;
+    }
+    
+    @SuppressWarnings("unchecked")
+    static <T> ContinuableSupplier<Value<T>> toValueSupplier(ContinuableSupplier<? extends T> s) {
+        return s != null ? () -> Value.some(s.get()) : (ContinuableSupplier<Value<T>>)(Object)NONE_SUPPLIER_C;
+    }
+    
+    private static final Supplier<Value<Object>> NONE_SUPPLIER_R = () -> Value.none();
+    private static final ContinuableSupplier<Value<Object>> NONE_SUPPLIER_C = () -> Value.none();
 }

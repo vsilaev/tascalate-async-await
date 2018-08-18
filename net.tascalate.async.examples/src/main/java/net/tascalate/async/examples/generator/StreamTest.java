@@ -50,7 +50,8 @@ public class StreamTest {
     public static void main(String[] args) {
         final StreamTest example = new StreamTest();
         example.div = 2;
-        example.asyncOperation(2).toCompletableFuture().join();
+        String v = example.asyncOperation(2).toCompletableFuture().join();
+        System.out.println(v);
         executor.shutdown();
     }
     
@@ -70,7 +71,7 @@ public class StreamTest {
     }*/
 
     @async
-    public CompletionStage<Void> asyncOperation(int outerDiv) {
+    public CompletionStage<String> asyncOperation(int outerDiv) {
         produceMergedStrings()
             .stream()  
             //.mapAwaitable(f -> await(f))      // -- worked, static
@@ -83,7 +84,14 @@ public class StreamTest {
             .forEach(System.out::println)
             ; 
         System.out.println("Return after for each"); 
-        return async(null); 
+       
+        return async( 
+            produceNumericStrings()
+            .stream()
+            .mapAwaitable(Converters.readyValues())
+            .reduce((t, s) -> t + "\n" + s)
+            .orElse("<error-reduce")
+        ); 
     }
     
     @async Generator<String> produceMergedStrings() {

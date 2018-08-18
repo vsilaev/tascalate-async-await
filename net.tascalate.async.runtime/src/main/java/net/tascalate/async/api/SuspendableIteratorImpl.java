@@ -30,9 +30,7 @@ final class SuspendableIteratorImpl<T> implements SuspendableIterator<T> {
     private final SuspendableStream.Producer<T> delegate;
     
     private boolean advance  = true;
-    private boolean iterated = false;
-    
-    private T current;
+    private Value<T> current;
     
     public SuspendableIteratorImpl(SuspendableStream.Producer<T> delegate) {
         this.delegate = delegate;
@@ -41,22 +39,20 @@ final class SuspendableIteratorImpl<T> implements SuspendableIterator<T> {
     
     @Override
     public boolean hasNext() {
-        if (iterated) {
-            return false;
-        }
         advanceIfNecessary();
-        return !iterated;
+        return !current.isNone();
     }
 
     @Override
     public T next() {
         advanceIfNecessary();
 
-        if (iterated)
+        if (current.isNone()) {
             throw new NoSuchElementException();
-
-        advance = true;
-        return current;
+        } else {
+            advance = true;
+            return current.get();
+        }
     }
 
     @Override
@@ -75,11 +71,7 @@ final class SuspendableIteratorImpl<T> implements SuspendableIterator<T> {
     
     protected @suspendable void advanceIfNecessary() {
         if (advance) {
-            try {
-                current = delegate.produce();
-            } catch (SuspendableStream.ProducerExhaustedException ex) {
-                iterated = true;
-            }
+            current = delegate.produce();
         }
         advance = false;
     }

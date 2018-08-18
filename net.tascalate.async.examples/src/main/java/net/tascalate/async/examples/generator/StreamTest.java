@@ -27,6 +27,8 @@ package net.tascalate.async.examples.generator;
 import static net.tascalate.async.api.AsyncCall.await;
 import static net.tascalate.async.api.AsyncCall.async;
 import static net.tascalate.async.api.AsyncCall.yield;
+import static net.tascalate.async.api.Converters.readyValues;
+import static net.tascalate.async.api.Converters.generator;
 
 import java.time.Duration;
 import java.util.Arrays;
@@ -35,7 +37,6 @@ import java.util.concurrent.CompletionStage;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
-import net.tascalate.async.api.Converters;
 import net.tascalate.async.api.Generator;
 import net.tascalate.async.api.SuspendableStream;
 import net.tascalate.async.api.async;
@@ -88,7 +89,7 @@ public class StreamTest {
         return async( 
             produceNumericStrings()
             .stream()
-            .mapAwaitable(Converters.readyValues())
+            .mapAwaitable(readyValues())
             .reduce((t, s) -> t + "\n" + s)
             .orElse("<error-reduce")
         ); 
@@ -106,10 +107,9 @@ public class StreamTest {
                 .map( Promises::from )
                 .map( p -> p.orTimeout(Duration.ofMillis(500)) );
 
-        yield(
-            numerics
-            .zip( alphas, (a, b) -> a.thenCombine(b, (av, bv) -> av + " - " + bv) )
-            .as( Converters.generator() )
+        yield(numerics
+                .zip( alphas, (a, b) -> a.thenCombine(b, (av, bv) -> av + " - " + bv) )
+                .as( generator() )
         );
         return yield();
     }

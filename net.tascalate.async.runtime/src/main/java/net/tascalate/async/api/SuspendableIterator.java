@@ -24,6 +24,9 @@
  */
 package net.tascalate.async.api;
 
+import static net.tascalate.async.api.Converters.readyValues;
+import static net.tascalate.async.api.Converters.suspendableIterator;
+
 public interface SuspendableIterator<T> extends AutoCloseable {
     @suspendable T next();
     @suspendable boolean hasNext();
@@ -35,11 +38,7 @@ public interface SuspendableIterator<T> extends AutoCloseable {
     public static <T> SuspendableIterator<T> fromGenerator(Generator<T> generator) {
         return generator
             .stream()
-            .mapAwaitable(Converters.readyValues())
-            .as(Converters.iterator());
-    }
-    
-    public static <T> SuspendableIterator<T> fromStreamProducer(SuspendableStream.Producer<T> producer) {
-        return new SuspendableIteratorImpl<>(producer);
+            .mapAwaitable(readyValues())
+            .as(suspendableIterator());
     }
 }

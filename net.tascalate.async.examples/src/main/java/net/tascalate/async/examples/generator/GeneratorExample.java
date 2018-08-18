@@ -28,6 +28,8 @@ import static net.tascalate.async.api.AsyncCall.async;
 import static net.tascalate.async.api.AsyncCall.yield;
 import static net.tascalate.async.api.AsyncCall.await;
 import static net.tascalate.async.api.AsyncCall.interrupted;
+import static net.tascalate.async.api.Converters.readyValues;
+import static net.tascalate.async.api.Converters.suspendableIterator;
 
 import java.io.FileNotFoundException;
 import java.util.Date;
@@ -38,7 +40,6 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 
-import net.tascalate.async.api.Converters;
 import net.tascalate.async.api.Generator;
 import net.tascalate.async.api.SuspendableIterator;
 import net.tascalate.async.api.YieldReply;
@@ -97,8 +98,9 @@ public class GeneratorExample {
         try (SuspendableIterator<String> values = 
                 moreStringsEx()
                 .stream()
-                .mapAwaitable( Converters.readyValues() )
-                .as( Converters.iterator() )) {
+                .mapAwaitable( readyValues() )
+                .as(  suspendableIterator() )) {
+            
             while (values.hasNext()) {
                 String v = values.next();
                 System.out.println("+++Received: " + v);

@@ -3,10 +3,13 @@ package net.tascalate.async.examples.generator;
 import static net.tascalate.async.api.AsyncCall.async;
 import static net.tascalate.async.api.AsyncCall.yield;
 
+import java.util.function.Consumer;
+
 import org.apache.commons.javaflow.core.StackRecorder;
 
+import net.tascalate.async.api.Converters;
 import net.tascalate.async.api.Generator;
-import net.tascalate.async.api.ValuesGenerator;
+import net.tascalate.async.api.SuspendableStream;
 import net.tascalate.async.api.async;
 import net.tascalate.concurrent.Promise;
 
@@ -22,11 +25,8 @@ public class RecursionTest {
     
     @async static Promise<String> consumer() {
         System.out.println( StackRecorder.get().getRunnable().toString() );
-        try (ValuesGenerator<Object> g = producer().values()) {
-            while (g.hasNext()) {
-                @SuppressWarnings("unused")
-                Object v = g.next();
-            }
+        try (SuspendableStream<Object> g = producer().stream().mapAwaitable(Converters.readyValues())) {
+            g.forEach(NOP);
         }
         return async("Done");
     }
@@ -42,4 +42,5 @@ public class RecursionTest {
         return yield();
     }
 
+    private static final Consumer<Object> NOP = v -> {};
 }

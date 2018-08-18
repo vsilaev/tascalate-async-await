@@ -33,7 +33,7 @@ import java.util.stream.StreamSupport;
 import net.tascalate.async.generator.ReadyFirstFuturesGenerator;
 import net.tascalate.async.generator.OrderedFuturesGenerator;
 
-public interface Generator<T> extends GeneratorDecorator<T>, AutoCloseable {
+public interface Generator<T> extends AutoCloseable /*, GeneratorDecorator<T>*/  {
     
     @suspendable CompletionStage<T> next(Object producerParam);
     
@@ -44,18 +44,15 @@ public interface Generator<T> extends GeneratorDecorator<T>, AutoCloseable {
     
     void close();
     
+    /*
     default
     Generator<T> raw() {
         return this;
     }
+    */
     
-    default <D extends GeneratorDecorator<T>> D as(Function<Generator<T>, D> decoratorFactory) {
+    default <D /*extends GeneratorDecorator<T>*/> D as(Function<Generator<T>, D> decoratorFactory) {
         return decoratorFactory.apply(this);
-    }
-    
-    default
-    ValuesGenerator<T> values() {
-        return as(ValuesGenerator.values());
     }
     
     default
@@ -111,7 +108,7 @@ public interface Generator<T> extends GeneratorDecorator<T>, AutoCloseable {
     }
     
     public static <T> Generator<T> ordered(Iterable<T> readyValues) {
-        return of(StreamSupport.stream(readyValues.spliterator(), false).map(CompletableFuture::completedFuture));
+        return ordered(StreamSupport.stream(readyValues.spliterator(), false));
     }
     
     public static <T> Generator<T> ordered(Stream<T> readyValues) {
@@ -130,4 +127,5 @@ public interface Generator<T> extends GeneratorDecorator<T>, AutoCloseable {
     public static <T> Generator<T> readyFirst(Stream<? extends CompletionStage<T>> pendingValues) {
         return ReadyFirstFuturesGenerator.create(pendingValues);
     }
+                                                                                 
 }

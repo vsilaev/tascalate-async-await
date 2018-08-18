@@ -35,6 +35,7 @@ import java.util.concurrent.CompletionStage;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
+import net.tascalate.async.api.Converters;
 import net.tascalate.async.api.Generator;
 import net.tascalate.async.api.SuspendableStream;
 import net.tascalate.async.api.async;
@@ -86,23 +87,22 @@ public class StreamTest {
     }
     
     @async Generator<String> produceMergedStrings() {
-        // Need 2 vars because Eclipse compiler is a way too dumb to resolve types here
-        // It's possible to yield without vars with regular Java compiler
-        
         SuspendableStream<CompletionStage<String>> alphas = 
             produceAlphaStrings()
                 .stream()
                 .map(p -> p.thenApply(v -> v + " VALUE"));
         
-        Generator<String> merged =         
+        SuspendableStream<CompletionStage<String>> numerics =         
             produceNumericStrings()
                 .stream()
                 .map( Promises::from )
-                .map( p -> p.orTimeout(Duration.ofMillis(500)) )
-                .zip( alphas, (a, b) -> a.thenCombine(b, (av, bv) -> av + " - " + bv) )
-                .as( SuspendableStream::generator );
-        
-        yield(merged);
+                .map( p -> p.orTimeout(Duration.ofMillis(500)) );
+
+        yield(
+            numerics
+            .zip( alphas, (a, b) -> a.thenCombine(b, (av, bv) -> av + " - " + bv) )
+            .as( Converters.generator() )
+        );
         return yield();
     }
     

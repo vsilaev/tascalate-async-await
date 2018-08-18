@@ -25,45 +25,38 @@
 package net.tascalate.async.api;
 
 import java.util.NoSuchElementException;
-import java.util.concurrent.CompletionStage;
-import java.util.function.Function;
 
-import org.apache.commons.javaflow.extras.ContinuableFunction;
-
-import net.tascalate.async.core.AsyncMethodExecutor;
-
-final class ValuesGeneratorImpl<T> implements ValuesGenerator<T> {
-    private final Generator<T> delegate;
-    private boolean advance;
-    private CompletionStage<T> current;
+final class SuspendableIteratorImpl<T> implements SuspendableIterator<T> {
+    private final SuspendableStream.Producer<T> delegate;
     
-    public ValuesGeneratorImpl(Generator<T> delegate) {
+    private boolean advance  = true;
+    private boolean iterated = false;
+    
+    private T current;
+    
+    public SuspendableIteratorImpl(SuspendableStream.Producer<T> delegate) {
         this.delegate = delegate;
         advance = true;
     }
     
     @Override
-    public Generator<T> raw() {
-        return delegate.raw();
-    }
-    
-    @Override
     public boolean hasNext() {
+        if (iterated) {
+            return false;
+        }
         advanceIfNecessary();
-        return current != null;
+        return !iterated;
     }
 
     @Override
     public T next() {
         advanceIfNecessary();
 
-        if (current == null)
+        if (iterated)
             throw new NoSuchElementException();
 
-        final T result = AsyncMethodExecutor.await(current);
         advance = true;
-
-        return result;
+        return current;
     }
 
     @Override
@@ -73,34 +66,26 @@ final class ValuesGeneratorImpl<T> implements ValuesGenerator<T> {
         delegate.close();
     }
     
+    /*
     @Override
     public SuspendableStream<T> stream() {
-        return delegate.stream().mapAwaitable(
-           new ContinuableFunction<CompletionStage<T>, T>() {
-               @Override
-               public T apply(CompletionStage<T> future) {
-                   return AsyncMethodExecutor.await(future);
-               }
-           }
-        );
+        return new SuspendableStream<>(delegate);
     }
+    */
     
     protected @suspendable void advanceIfNecessary() {
-        if (advance)
-            current = delegate.next();
+        if (advance) {
+            try {
+                current = delegate.produce();
+            } catch (SuspendableStream.ProducerExhaustedException ex) {
+                iterated = true;
+            }
+        }
         advance = false;
     }
 
     @Override
     public String toString() {
-        return String.format("<generator-decorator{%s}>[delegate=%s, current=%s]", ValuesGenerator.class.getSimpleName(), delegate, current);
-    }
-    
-    private static final Function<Generator<Object>, ValuesGenerator<Object>> CONVERTER = ValuesGeneratorImpl::new;
-    
-    static <T> Function<Generator<T>, ValuesGenerator<T>> toValuesGenerator() {
-        @SuppressWarnings("unchecked")
-        Function<Generator<T>, ValuesGenerator<T>> result = (Function<Generator<T>, ValuesGenerator<T>>)(Object)CONVERTER;
-        return result;
+        return String.format("<generator-decorator{%s}>[delegate=%s, current=%s]", SuspendableIterator.class.getSimpleName(), delegate, current);
     }
 }

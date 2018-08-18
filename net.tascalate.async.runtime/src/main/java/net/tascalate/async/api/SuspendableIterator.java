@@ -24,15 +24,22 @@
  */
 package net.tascalate.async.api;
 
-import java.util.function.Function;
-
-public interface ValuesGenerator<T> extends GeneratorDecorator<T>, AutoCloseable {
+public interface SuspendableIterator<T> extends AutoCloseable {
     @suspendable T next();
     @suspendable boolean hasNext();
+    /*
     SuspendableStream<T> stream();
+    */
     void close();
     
-    public static <T> Function<Generator<T>, ValuesGenerator<T>> values() {
-        return ValuesGeneratorImpl.toValuesGenerator();
+    public static <T> SuspendableIterator<T> fromGenerator(Generator<T> generator) {
+        return generator
+            .stream()
+            .mapAwaitable(Converters.readyValues())
+            .as(Converters.iterator());
+    }
+    
+    public static <T> SuspendableIterator<T> fromStreamProducer(SuspendableStream.Producer<T> producer) {
+        return new SuspendableIteratorImpl<>(producer);
     }
 }

@@ -38,12 +38,12 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 
+import net.tascalate.async.api.Converters;
 import net.tascalate.async.api.Generator;
-import net.tascalate.async.api.ValuesGenerator;
+import net.tascalate.async.api.SuspendableIterator;
 import net.tascalate.async.api.YieldReply;
 import net.tascalate.async.api.async;
 import net.tascalate.async.api.suspendable;
-
 import net.tascalate.concurrent.CompletableTask;
 
 public class GeneratorExample {
@@ -94,9 +94,13 @@ public class GeneratorExample {
     
     @async
     CompletionStage<String> iterateStringsEx() {
-        try (ValuesGenerator<String> generator = moreStringsEx().values()) {
-            while (generator.hasNext()) {
-            	String v = generator.next();
+        try (SuspendableIterator<String> values = 
+                moreStringsEx()
+                .stream()
+                .mapAwaitable( Converters.readyValues() )
+                .as( Converters.iterator() )) {
+            while (values.hasNext()) {
+                String v = values.next();
                 System.out.println("+++Received: " + v);
             }
         } catch (FileNotFoundException | IllegalArgumentException ex) {

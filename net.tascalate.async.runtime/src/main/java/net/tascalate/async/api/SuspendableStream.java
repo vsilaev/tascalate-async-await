@@ -24,15 +24,16 @@
  */
 package net.tascalate.async.api;
 
+import java.util.Iterator;
 import java.util.NoSuchElementException;
 import java.util.Optional;
-import java.util.concurrent.CompletionStage;
 import java.util.function.BiFunction;
 import java.util.function.BinaryOperator;
 import java.util.function.Consumer;
 import java.util.function.Function;
 import java.util.function.Predicate;
 import java.util.function.Supplier;
+import java.util.stream.Stream;
 
 import org.apache.commons.javaflow.extras.ContinuableBiFunction;
 import org.apache.commons.javaflow.extras.ContinuableBinaryOperator;
@@ -41,7 +42,7 @@ import org.apache.commons.javaflow.extras.ContinuableFunction;
 import org.apache.commons.javaflow.extras.ContinuablePredicate;
 import org.apache.commons.javaflow.extras.ContinuableSupplier;
 
-public class SuspendableStream<T> {
+public class SuspendableStream<T> implements AutoCloseable {
     
     public static interface Producer<T> extends AutoCloseable {
         @suspendable T produce() throws ProducerExhaustedException;
@@ -49,6 +50,39 @@ public class SuspendableStream<T> {
         
         public static final ProducerExhaustedException STOP = ProducerExhaustedException.INSTANCE;
     }
+    
+    public static class ProducerExhaustedException extends NoSuchElementException {
+        private static final long serialVersionUID = 1L;
+
+        private ProducerExhaustedException() {}
+        
+        @Override
+        public synchronized Throwable fillInStackTrace() {
+            return this;
+        }
+
+        @Override
+        public synchronized Throwable initCause(Throwable ignore) {
+            return this;
+        }
+
+        @Override
+        public void setStackTrace(StackTraceElement[] ignore) {
+        }
+        
+        static final ProducerExhaustedException INSTANCE = new ProducerExhaustedException();
+    }
+    
+    protected static final SuspendableStream<Object> EMPTY = new SuspendableStream<>(new Producer<Object>() {
+        
+        @Override
+        public Object produce() throws ProducerExhaustedException {
+            throw STOP;
+        }
+        
+        @Override
+        public void close() {}
+    });
     
     protected final Producer<T> producer;
     
@@ -64,11 +98,69 @@ public class SuspendableStream<T> {
         return new SuspendableStream<>(producer);
     }
     
-    public static <T> SuspendableStream<T> repeat(T value) {
-        return repeat( () -> value );
+    @SuppressWarnings("unchecked")
+    public static <T> SuspendableStream<T> empty() {
+        return (SuspendableStream<T>)EMPTY;
     }
     
-    public static <T> SuspendableStream<T> repeat(Supplier<? extends T> supplier) {
+    public static <T> SuspendableStream<T> of(T value) {
+        return SuspendableStream.repeat(value).take(1);
+    }
+    
+    @SafeVarargs
+    public static <T> SuspendableStream<T> of(T... values) {
+        return of(Stream.of(values));
+    }
+    
+    public static <T> SuspendableStream<T> of(Iterable<? extends T> values) {
+        return of(values.iterator());
+    }
+    
+    public static <T> SuspendableStream<T> of(Stream<? extends T> values) {
+        return of(values.iterator());
+    }
+    
+    private static <T> SuspendableStream<T> of(Iterator<? extends T> values) {
+        return new SuspendableStream<>(new Producer<T>() {
+            @Override
+            public T produce() {
+                if (values.hasNext()) {
+                    return values.next();
+                } else {
+                    throw STOP;
+                }
+            }
+            
+            @Override
+            public void close() {}
+        });
+    }
+    
+    public static <T> SuspendableStream<T> repeat(T value) {
+        return new SuspendableStream<>(new Producer<T>() {
+            @Override
+            public T produce() {
+                return value;
+            }
+            
+            @Override
+            public void close() {}
+        });
+    }
+    
+    public static <T> SuspendableStream<T> generate(Supplier<? extends T> supplier) {
+        return new SuspendableStream<>(new Producer<T>() {
+            @Override
+            public T produce() {
+                return supplier.get();
+            }
+            
+            @Override
+            public void close() {}
+        });
+    }
+    
+    public static <T> SuspendableStream<T> generateAwaitable(ContinuableSupplier<? extends T> supplier) {
         return new SuspendableStream<>(new Producer<T>() {
             @Override
             public T produce() {
@@ -428,7 +520,7 @@ public class SuspendableStream<T> {
         });
     }
     
-    public SuspendableStream<T> skip(long count) {
+    public SuspendableStream<T> drop(long count) {
         return nextStage(new InnerProducer<T>() {
             long idx = 0;
             
@@ -443,7 +535,7 @@ public class SuspendableStream<T> {
         });
     }
     
-    public SuspendableStream<T> limit(long maxSize) {
+    public SuspendableStream<T> take(long maxSize) {
         return nextStage(new InnerProducer<T>() {
             long idx = 0;
             
@@ -529,7 +621,21 @@ public class SuspendableStream<T> {
         return foundAny ? Optional.of(result) : Optional.empty();
     }
     
-    public @suspendable <U> U reduce(U identity, BiFunction<U, ? super T, U> accumulator, BinaryOperator<U> combiner) {
+    public @suspendable <U> U fold(U identity, BiFunction<U, ? super T, U> accumulator) {
+        U result = identity;
+        while (true) {
+            T element;
+            try {
+                element = producer.produce();
+            } catch (ProducerExhaustedException ex) {
+                break;
+            }
+            result = accumulator.apply(result, element);
+        }
+        return result;
+    }
+    
+    public @suspendable <U> U foldAwaitable(U identity, ContinuableBiFunction<U, ? super T, U> accumulator) {
         U result = identity;
         while (true) {
             T element;
@@ -551,47 +657,6 @@ public class SuspendableStream<T> {
         return converter.apply(producer);
     }
 
-    
-    public static <T> Generator<T> generator(Producer<? extends CompletionStage<T>> producer) {
-        return new Generator<T>() {
-            @Override
-            public CompletionStage<T> next(Object producerParam) {
-                if (producerParam != null) {
-                    throw new UnsupportedOperationException("Converted generators do not support parameters");
-                }
-                return producer.produce();
-            }
-
-            @Override
-            public void close() {
-                producer.close();
-            }
-            
-        };
-    }
-    
-    protected static class ProducerExhaustedException extends NoSuchElementException {
-        private static final long serialVersionUID = 1L;
-
-        private ProducerExhaustedException() {}
-        
-        @Override
-        public synchronized Throwable fillInStackTrace() {
-            return this;
-        }
-
-        @Override
-        public synchronized Throwable initCause(Throwable ignore) {
-            return this;
-        }
-
-        @Override
-        public void setStackTrace(StackTraceElement[] ignore) {
-        }
-        
-        static final ProducerExhaustedException INSTANCE = new ProducerExhaustedException();
-    }
-    
     abstract class InnerProducer<U> implements Producer<U> {
         @Override
         public void close() {

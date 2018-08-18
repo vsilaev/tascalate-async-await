@@ -27,8 +27,9 @@ package net.tascalate.async.xpi;
 import java.util.concurrent.CompletionStage;
 import java.util.function.Function;
 
+import org.apache.commons.javaflow.extras.ContinuableStream;
+
 import net.tascalate.async.api.Generator;
-import net.tascalate.async.api.SuspendableStream;
 import net.tascalate.concurrent.Promise;
 import net.tascalate.concurrent.Promises;
 
@@ -59,7 +60,7 @@ class PromisesGeneratorImpl <T> implements PromisesGenerator<T> {
     }
 
     @Override
-    public SuspendableStream<Promise<T>> stream() {
+    public ContinuableStream<Promise<T>> stream() {
         return delegate.stream().map(Promises::from);
     }
     

@@ -30,8 +30,12 @@ import java.util.function.Function;
 import java.util.stream.Stream;
 import java.util.stream.StreamSupport;
 
-import net.tascalate.async.generator.ReadyFirstFuturesGenerator;
+import org.apache.commons.javaflow.extras.ContinuableProducer;
+import org.apache.commons.javaflow.extras.ContinuableStream;
+import org.apache.commons.javaflow.extras.Option;
+
 import net.tascalate.async.generator.OrderedFuturesGenerator;
+import net.tascalate.async.generator.ReadyFirstFuturesGenerator;
 
 public interface Generator<T> extends AutoCloseable  {
     
@@ -49,12 +53,12 @@ public interface Generator<T> extends AutoCloseable  {
     }
     
     default
-    SuspendableStream<? extends CompletionStage<T>> stream() {
-        return new SuspendableStream<>(new SuspendableStream.Producer<CompletionStage<T>>() {
+    ContinuableStream<? extends CompletionStage<T>> stream() {
+        return new ContinuableStream<>(new ContinuableProducer<CompletionStage<T>>() {
             @Override
-            public Value<CompletionStage<T>> produce() {
+            public Option<CompletionStage<T>> produce() {
                 CompletionStage<T> result = Generator.this.next();
-                return null != result ? Value.some(result) : Value.none();
+                return null != result ? Option.some(result) : Option.none();
             }
 
             @Override

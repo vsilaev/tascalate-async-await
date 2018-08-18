@@ -25,13 +25,13 @@
 package net.tascalate.async.examples.generator;
 
 import static net.tascalate.async.api.AsyncCall.async;
-import static net.tascalate.async.api.AsyncCall.yield;
 import static net.tascalate.async.api.AsyncCall.await;
 import static net.tascalate.async.api.AsyncCall.interrupted;
+import static net.tascalate.async.api.AsyncCall.yield;
 import static net.tascalate.async.api.StandardOperations.readyValues;
-import static net.tascalate.async.api.StandardOperations.suspendableIterator;
 
 import java.io.FileNotFoundException;
+
 import java.util.Date;
 import java.util.StringJoiner;
 import java.util.concurrent.CompletionException;
@@ -40,11 +40,13 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 
+import org.apache.commons.javaflow.extras.ContinuableIterator;
+
 import net.tascalate.async.api.Generator;
-import net.tascalate.async.api.SuspendableIterator;
 import net.tascalate.async.api.YieldReply;
 import net.tascalate.async.api.async;
 import net.tascalate.async.api.suspendable;
+
 import net.tascalate.concurrent.CompletableTask;
 
 public class GeneratorExample {
@@ -95,11 +97,11 @@ public class GeneratorExample {
     
     @async
     CompletionStage<String> iterateStringsEx() {
-        try (SuspendableIterator<String> values = 
+        try (ContinuableIterator<String> values = 
                 moreStringsEx()
                 .stream()
-                .mapAwaitable( readyValues() )
-                .as(  suspendableIterator() )) {
+                .map$( readyValues() )
+                .iterator()) {
             
             while (values.hasNext()) {
                 String v = values.next();

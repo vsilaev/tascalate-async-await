@@ -24,11 +24,10 @@
  */
 package net.tascalate.async.examples.generator;
 
-import static net.tascalate.async.api.AsyncCall.await;
 import static net.tascalate.async.api.AsyncCall.async;
+import static net.tascalate.async.api.AsyncCall.await;
 import static net.tascalate.async.api.AsyncCall.yield;
 import static net.tascalate.async.api.StandardOperations.readyValues;
-import static net.tascalate.async.api.StandardOperations.generator;
 
 import java.time.Duration;
 import java.util.Arrays;
@@ -37,10 +36,13 @@ import java.util.concurrent.CompletionStage;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
+import org.apache.commons.javaflow.extras.ContinuableStream;
+
 import net.tascalate.async.api.Generator;
-import net.tascalate.async.api.SuspendableStream;
+import net.tascalate.async.api.StandardOperations.stream;
 import net.tascalate.async.api.async;
 import net.tascalate.async.api.suspendable;
+
 import net.tascalate.concurrent.CompletableTask;
 import net.tascalate.concurrent.Promises;
 
@@ -52,8 +54,8 @@ public class StreamTest {
         final StreamTest example = new StreamTest();
         example.div = 2;
         
-//        String v1 = example.asyncOperation(2).toCompletableFuture().join();
-//        System.out.println(v1);
+        String v1 = example.asyncOperation(2).toCompletableFuture().join();
+        System.out.println(v1);
         
         String v2 = example.asyncFlatMap().toCompletableFuture().join();
         System.out.println(v2);
@@ -84,7 +86,7 @@ public class StreamTest {
             .flatMap(px -> producePrefixedStrings(px).stream())
             .drop(2)
             .take(18)
-            .mapAwaitable(readyValues())
+            .map$(readyValues())
             .reduce((r, s) -> r + "\n" + s)
             .get()
         ;
@@ -98,7 +100,7 @@ public class StreamTest {
             //.mapAwaitable(f -> await(f))      // -- worked, static
             //.mapAwaitable(this::waitFuture)   // -- worked, instance ref
             //.mapAwaitable(f -> waitFuture(f)) // -- worked, instance
-            .mapAwaitable(f -> await(f))
+            .map$(f -> await(f))
             .filter(v -> Integer.parseInt(v.substring(0, 3)) % div == 0) 
             .filter(this::isEven)
             .map(v -> "000" + v) 
@@ -109,27 +111,28 @@ public class StreamTest {
         return async( 
             produceNumericStrings()
             .stream()
-            .mapAwaitable(readyValues())
+            .map$(readyValues())
             .reduce((t, s) -> t + "\n" + s)
             .orElse("<error-reduce")
         ); 
     }
     
     @async Generator<String> produceMergedStrings() {
-        SuspendableStream<CompletionStage<String>> alphas = 
+        ContinuableStream<CompletionStage<String>> alphas = 
             produceAlphaStrings()
                 .stream()
                 .map(p -> p.thenApply(v -> v + " VALUE"));
         
-        SuspendableStream<CompletionStage<String>> numerics =         
+        ContinuableStream<CompletionStage<String>> numerics =         
             produceNumericStrings()
                 .stream()
                 .map( Promises::from )
                 .map( p -> p.orTimeout(Duration.ofMillis(500)) );
 
-        yield(numerics
-                .zip( alphas, (a, b) -> a.thenCombine(b, (av, bv) -> av + " - " + bv) )
-                .as( generator() )
+        yield(
+            ContinuableStream
+                .zip(numerics, alphas, (a, b) -> a.thenCombine(b, (av, bv) -> av + " - " + bv) )
+                .as( stream.toGenerator() )
         );
         return yield();
     }

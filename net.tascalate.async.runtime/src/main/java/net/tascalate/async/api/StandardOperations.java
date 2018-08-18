@@ -28,6 +28,9 @@ import java.util.concurrent.CompletionStage;
 import java.util.function.Function;
 
 import org.apache.commons.javaflow.extras.ContinuableFunction;
+import org.apache.commons.javaflow.extras.ContinuableIterator;
+import org.apache.commons.javaflow.extras.ContinuableProducer;
+import org.apache.commons.javaflow.extras.Option;
 
 import net.tascalate.async.core.AsyncMethodExecutor;
 
@@ -43,18 +46,37 @@ public final class StandardOperations {
         };
     }
     
-    public static <T> Function<SuspendableStream.Producer<T>, SuspendableIterator<T>> suspendableIterator() {
-        return IteratorByProducer::new;
+    public static class generator {
+        public static <T> Function<Generator<T>, ContinuableIterator<CompletionStage<T>>> promises() {
+            return g -> g
+                .stream()
+                .map(f -> (CompletionStage<T>)f)
+                .as(stream.toIterator());
+        }
+        
+        public static <T> Function<Generator<T>, ContinuableIterator<T>> values() {
+            return g -> g
+                .stream()
+                .map$(readyValues())
+                .as(stream.toIterator());
+        } 
     }
     
-    public static <T> Function<SuspendableStream.Producer<? extends CompletionStage<T>>, Generator<T>> generator() {
-        return GeneratorByProducer::new;
+    public static class stream {
+        
+        public static <T> Function<ContinuableProducer<T>, ContinuableIterator<T>> toIterator() {
+            return IteratorByProducer::new;
+        }
+        
+        public static <T> Function<ContinuableProducer<? extends CompletionStage<T>>, Generator<T>> toGenerator() {
+            return GeneratorByProducer::new;
+        }        
     }
     
     private static final class GeneratorByProducer<T> implements Generator<T> {
-        private final SuspendableStream.Producer<? extends CompletionStage<T>> producer;
+        private final ContinuableProducer<? extends CompletionStage<T>> producer;
         
-        GeneratorByProducer(SuspendableStream.Producer<? extends CompletionStage<T>> producer) {
+        GeneratorByProducer(ContinuableProducer<? extends CompletionStage<T>> producer) {
             this.producer = producer;
         }
         
@@ -63,9 +85,7 @@ public final class StandardOperations {
             if (producerParam != null) {
                 throw new UnsupportedOperationException("Converted generators do not support parameters");
             }
-            return producer.produce()
-                       .orElse(Value.useNull())
-                       .get();
+            return producer.produce().orElseNull().get();
         }
 
         @Override
@@ -73,24 +93,29 @@ public final class StandardOperations {
             producer.close();
         }
         
+        @Override
+        public String toString() {
+            return String.format("%s[producer=%s]", getClass().getSimpleName(), producer);
+        }
+        
     };
     
-   private static final class IteratorByProducer<T> implements SuspendableIterator<T> {
-        private final SuspendableStream.Producer<T> delegate;
+   private static final class IteratorByProducer<T> implements ContinuableIterator<T> {
+        private final ContinuableProducer<T> delegate;
         
         private boolean advance  = true;
-        private Value<T> current;
+        private Option<T> current;
         
-        public IteratorByProducer(SuspendableStream.Producer<T> delegate) {
+        public IteratorByProducer(ContinuableProducer<T> delegate) {
             this.delegate = delegate;
-            current = Value.none();
+            current = Option.none();
             advance = true;
         }
         
         @Override
         public boolean hasNext() {
             advanceIfNecessary();
-            return current.exist();
+            return current.exists();
         }
 
         @Override
@@ -103,7 +128,7 @@ public final class StandardOperations {
 
         @Override
         public void close() {
-            current = Value.none();
+            current = Option.none();
             advance = false;
             delegate.close();
         }
@@ -124,7 +149,7 @@ public final class StandardOperations {
 
         @Override
         public String toString() {
-            return String.format("<generator-decorator{%s}>[delegate=%s, current=%s]", SuspendableIterator.class.getSimpleName(), delegate, current);
+            return String.format("%s[delegate=%s, current=%s]", getClass().getSimpleName(), delegate, current);
         }
     }
 

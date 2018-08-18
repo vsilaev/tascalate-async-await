@@ -31,8 +31,8 @@ import org.apache.commons.javaflow.extras.ContinuableFunction;
 
 import net.tascalate.async.core.AsyncMethodExecutor;
 
-public final class Converters {
-    private Converters() {}
+public final class StandardOperations {
+    private StandardOperations() {}
     
     public static <T> ContinuableFunction<CompletionStage<T>, T> readyValues() {
         return new ContinuableFunction<CompletionStage<T>, T>() {

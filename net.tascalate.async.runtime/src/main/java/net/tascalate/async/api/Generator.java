@@ -54,11 +54,7 @@ public interface Generator<T> extends AutoCloseable  {
             @Override
             public Value<CompletionStage<T>> produce() {
                 CompletionStage<T> result = Generator.this.next();
-                if (null != result) {
-                    return Value.some(result);
-                } else {
-                    return Value.none();
-                }
+                return null != result ? Value.some(result) : Value.none();
             }
 
             @Override

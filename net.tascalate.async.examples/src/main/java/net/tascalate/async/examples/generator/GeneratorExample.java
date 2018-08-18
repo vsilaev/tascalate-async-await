@@ -28,8 +28,8 @@ import static net.tascalate.async.api.AsyncCall.async;
 import static net.tascalate.async.api.AsyncCall.yield;
 import static net.tascalate.async.api.AsyncCall.await;
 import static net.tascalate.async.api.AsyncCall.interrupted;
-import static net.tascalate.async.api.Converters.readyValues;
-import static net.tascalate.async.api.Converters.suspendableIterator;
+import static net.tascalate.async.api.StandardOperations.readyValues;
+import static net.tascalate.async.api.StandardOperations.suspendableIterator;
 
 import java.io.FileNotFoundException;
 import java.util.Date;

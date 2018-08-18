@@ -200,12 +200,15 @@ public class SuspendableStream<T> implements AutoCloseable {
     
     
     public <R> SuspendableStream<R> flatMap(Function<? super T, ? extends SuspendableStream<R>> mapper) {
+        // Use suspendable version of inner mapper even in this case
+        // while producer.produce is suspendable
+        ContinuableFunction<SuspendableStream<R>, Value<R>> innerMapper = s -> s.producer.produce();
         return nextStage(new InnerProducer<R>() {
             Value<? extends SuspendableStream<R>> current = Value.none();
             
             @Override
             public Value<R> produce() {
-                Value<R> r = current.flatMap(s -> s.producer.produce());
+                Value<R> r = current.flatMap(innerMapper);
                 if (r.exist()) {
                     return r;
                 } else {
@@ -213,7 +216,7 @@ public class SuspendableStream<T> implements AutoCloseable {
                     Value<T> v;
                     while ((v = producer.produce()).exist()) {
                         current = v.map(mapper);
-                        r = current.flatMap(s -> s.producer.produce());
+                        r = current.flatMap(innerMapper);
                         if (r.exist()) {
                             return r;
                         }
@@ -234,12 +237,13 @@ public class SuspendableStream<T> implements AutoCloseable {
     }
     
     public <R> SuspendableStream<R> flatMapAwaitable(ContinuableFunction<? super T, ? extends SuspendableStream<R>> mapper) {
+        ContinuableFunction<SuspendableStream<R>, Value<R>> innerMapper = s -> s.producer.produce();
         return nextStage(new InnerProducer<R>() {
             Value<? extends SuspendableStream<R>> current = Value.none();
             
             @Override
             public Value<R> produce() {
-                Value<R> r = current.flatMap(s -> s.producer.produce());
+                Value<R> r = current.flatMap(innerMapper);
                 if (r.exist()) {
                     return r;
                 } else {
@@ -247,7 +251,7 @@ public class SuspendableStream<T> implements AutoCloseable {
                     Value<T> v;
                     while ((v = producer.produce()).exist()) {
                         current = v.map(mapper);
-                        r = current.flatMap(s -> s.producer.produce());
+                        r = current.flatMap(innerMapper);
                         if (r.exist()) {
                             return r;
                         }
@@ -451,6 +455,8 @@ public class SuspendableStream<T> implements AutoCloseable {
                         return v;
                     }
                 } else {
+                    // Close as long as we potentially terminating preliminary
+                    close();
                     return Value.none();
                 }
             }

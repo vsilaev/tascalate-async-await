@@ -27,7 +27,7 @@ package net.tascalate.async.xpi;
 import java.util.concurrent.CompletionStage;
 import java.util.function.Function;
 
-import net.tascalate.async.api.Converters;
+import net.tascalate.async.api.StandardOperations;
 import net.tascalate.async.api.Generator;
 import net.tascalate.async.api.SuspendableStream;
 import net.tascalate.async.api.suspendable;
@@ -52,7 +52,7 @@ public interface PromisesGenerator<T> extends Generator<T>, AutoCloseable {
     
     public static <T> PromisesGenerator<T> fromStreamProducer(SuspendableStream.Producer<? extends CompletionStage<T>> producer) {
         return new PromisesGeneratorImpl<>(
-            Converters.<T>generator().apply(producer)
+            StandardOperations.<T>generator().apply(producer)
         );
     }
 }

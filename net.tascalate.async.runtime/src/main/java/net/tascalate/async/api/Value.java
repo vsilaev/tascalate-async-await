@@ -55,6 +55,7 @@ public abstract class Value<T> {
     abstract public @suspendable <R> Value<R> map(ContinuableFunction<? super T, ? extends R> mapper);
     
     abstract public <R> Value<R> flatMap(Function<? super T, ? extends Value<R>> mapper);
+    abstract public @suspendable <R> Value<R> flatMap(ContinuableFunction<? super T, ? extends Value<R>> mapper);
     
     abstract public Value<T> filter(Predicate<? super T> predicate);
     abstract public @suspendable Value<T> filter(ContinuablePredicate<? super T> predicate);
@@ -117,22 +118,27 @@ public abstract class Value<T> {
         }
         
         @Override
+        public <R> Value<R> flatMap(ContinuableFunction<? super T, ? extends Value<R>> mapper) {
+            return mapper.apply(value);
+        }
+        
+        @Override
         public <U, R> Value<R> combine(Value<U> other, BiFunction<? super T, ? super U, ? extends R> zipper) {
-            if (!other.exist()) {
-                return none();
-            } else {
+            if (other.exist()) {
                 Some<U> someOther = (Some<U>)other;
                 return some(zipper.apply(value, someOther.value));
+            } else {
+                return none();
             }
         }
         
         @Override
         public <U, R> Value<R> combine(Value<U> other, ContinuableBiFunction<? super T, ? super U, ? extends R> zipper) {
-            if (!other.exist()) {
-                return none();
-            } else {
+            if (other.exist()) {
                 Some<U> someOther = (Some<U>)other;
                 return some(zipper.apply(value, someOther.value));
+            } else {
+                return none();
             }            
         }
         
@@ -190,9 +196,14 @@ public abstract class Value<T> {
         public Value<T> filter(ContinuablePredicate<? super T> predicate) {
             return this;
         }
-        
+
         @Override
         public <R> Value<R> flatMap(Function<? super T, ? extends Value<R>> mapper) {
+            return none();
+        }
+        
+        @Override
+        public <R> Value<R> flatMap(ContinuableFunction<? super T, ? extends Value<R>> mapper) {
             return none();
         }
         

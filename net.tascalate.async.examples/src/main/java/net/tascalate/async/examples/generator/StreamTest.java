@@ -27,8 +27,8 @@ package net.tascalate.async.examples.generator;
 import static net.tascalate.async.api.AsyncCall.await;
 import static net.tascalate.async.api.AsyncCall.async;
 import static net.tascalate.async.api.AsyncCall.yield;
-import static net.tascalate.async.api.Converters.readyValues;
-import static net.tascalate.async.api.Converters.generator;
+import static net.tascalate.async.api.StandardOperations.readyValues;
+import static net.tascalate.async.api.StandardOperations.generator;
 
 import java.time.Duration;
 import java.util.Arrays;
@@ -51,8 +51,13 @@ public class StreamTest {
     public static void main(String[] args) {
         final StreamTest example = new StreamTest();
         example.div = 2;
-        String v = example.asyncOperation(2).toCompletableFuture().join();
-        System.out.println(v);
+        
+//        String v1 = example.asyncOperation(2).toCompletableFuture().join();
+//        System.out.println(v1);
+        
+        String v2 = example.asyncFlatMap().toCompletableFuture().join();
+        System.out.println(v2);
+        
         executor.shutdown();
     }
     
@@ -70,6 +75,21 @@ public class StreamTest {
     void print(Object v) {
         System.out.println(v);
     }*/
+    
+    @async
+    public CompletionStage<String> asyncFlatMap() {
+        String result = 
+        produceAlphaStrings()
+            .stream()
+            .flatMap(px -> producePrefixedStrings(px).stream())
+            .drop(2)
+            .take(18)
+            .mapAwaitable(readyValues())
+            .reduce((r, s) -> r + "\n" + s)
+            .get()
+        ;
+        return async(result);
+    }
 
     @async
     public CompletionStage<String> asyncOperation(int outerDiv) {
@@ -117,21 +137,39 @@ public class StreamTest {
     // Private to ensure that generated accessor methods work 
     @async
     private Generator<String> produceNumericStrings() {
-        yield(Generator.empty());
-        yield(waitString("111"));
-        yield(waitString("222"));
-        yield("333");
-        yield(waitString("444"));
-        System.out.println("::produceNumericStrings FINALLY CALLED::");
+        try {
+            yield(Generator.empty());
+            yield(waitString("111"));
+            yield(waitString("222"));
+            yield("333");
+            yield(waitString("444"));
+        } finally {
+            System.out.println("::produceNumericStrings FINALLY CALLED::");
+        }
         return yield();
     }
     
     @async
     Generator<String> produceAlphaStrings() {
-        for (String s : Arrays.asList("AAA", "BBB", "CCC", "DDD")) {
-            yield(waitString(s, 400));
+        try {
+            for (String s : Arrays.asList("AAA", "BBB", "CCC", "DDD")) {
+                yield(waitString(s, 400));
+            }
+        } finally {
+            System.out.println("::produceAlphaStrings FINALLY CALLED::");
         }
-        System.out.println("::produceAlphaStrings FINALLY CALLED::");
+        return yield();
+    }
+    
+    @async
+    Generator<String> producePrefixedStrings(CompletionStage<String> prefix) {
+        try {
+            for (int i = 1; i <= 9; i++) {
+                yield( prefix.thenCombine(waitString(String.valueOf(i)), (px,v) -> px + v) );
+            }
+        } finally {
+            System.out.println("::producePrefixedStrings " + prefix + " FINALLY CALLED::");
+        }
         return yield();
     }
     

@@ -24,8 +24,8 @@
  */
 package net.tascalate.async.api;
 
-import static net.tascalate.async.api.Converters.readyValues;
-import static net.tascalate.async.api.Converters.suspendableIterator;
+import static net.tascalate.async.api.StandardOperations.readyValues;
+import static net.tascalate.async.api.StandardOperations.suspendableIterator;
 
 public interface SuspendableIterator<T> extends AutoCloseable {
     @suspendable T next();

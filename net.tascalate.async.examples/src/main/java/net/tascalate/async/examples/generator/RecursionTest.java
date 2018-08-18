@@ -2,7 +2,7 @@ package net.tascalate.async.examples.generator;
 
 import static net.tascalate.async.api.AsyncCall.async;
 import static net.tascalate.async.api.AsyncCall.yield;
-import static net.tascalate.async.api.Converters.readyValues;
+import static net.tascalate.async.api.StandardOperations.readyValues;
 
 import java.util.function.Consumer;
 

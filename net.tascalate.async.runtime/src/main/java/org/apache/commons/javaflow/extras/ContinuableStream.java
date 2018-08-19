@@ -30,8 +30,6 @@ import java.util.stream.Stream;
 
 import org.apache.commons.javaflow.api.continuable;
 
-import net.tascalate.async.api.suspendable;
-
 public class ContinuableStream<T> implements AutoCloseable {
     
     protected static final ContinuableStream<Object> EMPTY = new ContinuableStream<>(new ContinuableProducer<Object>() {
@@ -607,7 +605,7 @@ public class ContinuableStream<T> implements AutoCloseable {
             ContinuableStream.this.close();
         }
         
-        protected @suspendable void advanceIfNecessary() {
+        protected @continuable void advanceIfNecessary() {
             if (advance) {
                 current = producer.produce();
             }

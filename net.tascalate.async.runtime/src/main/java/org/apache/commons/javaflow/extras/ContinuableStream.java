@@ -15,7 +15,6 @@
  */
 package org.apache.commons.javaflow.extras;
 
-import java.util.Arrays;
 import java.util.Collection;
 import java.util.Iterator;
 import java.util.Optional;
@@ -143,11 +142,15 @@ public class ContinuableStream<T> implements AutoCloseable {
     
     @SafeVarargs
     public static <T> ContinuableStream<T> union(ContinuableStream<? extends T>... streams) {
-        return union(Arrays.asList(streams));
+        return union(Stream.of(streams));
     }
     
     public static <T> ContinuableStream<T> union(Collection<? extends ContinuableStream<? extends T>> streams) {
-        return ContinuableStream.of(streams.stream()).flatMap(Function.identity());
+        return union(streams.stream());
+    }
+    
+    public static <T> ContinuableStream<T> union(Stream<? extends ContinuableStream<? extends T>> streams) {
+        return ContinuableStream.of(streams).flatMap(Function.identity());
     }
     
     public static <T, U, R> ContinuableStream<R> zip(ContinuableStream<T> a, 
@@ -417,7 +420,7 @@ public class ContinuableStream<T> implements AutoCloseable {
             public Option<T> produce() {
                 try {
                     return producer.produce();
-                } catch (Throwable ex) {
+                } catch (Exception ex) {
                     return Option.none();
                 }
             }
@@ -434,7 +437,7 @@ public class ContinuableStream<T> implements AutoCloseable {
             public Option<T> produce() {
                 try {
                     return producer.produce();
-                } catch (Throwable ex) {
+                } catch (Exception ex) {
                     return Option.some(recover.apply(ex));
                 }
             }
@@ -447,7 +450,7 @@ public class ContinuableStream<T> implements AutoCloseable {
             public Option<T> produce() {
                 try {
                     return producer.produce();
-                } catch (Throwable ex) {
+                } catch (Exception ex) {
                     return Option.some(recover.apply(ex));
                 }
             }

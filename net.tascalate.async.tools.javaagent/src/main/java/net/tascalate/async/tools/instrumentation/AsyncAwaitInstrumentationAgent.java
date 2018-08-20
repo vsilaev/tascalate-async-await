@@ -41,6 +41,8 @@ public class AsyncAwaitInstrumentationAgent {
 	 */
 	public static void premain(final String args, final Instrumentation instrumentation) throws Exception {
 		setupInstrumentation(instrumentation);
+		System.setProperty(AsyncAwaitInstrumentationAgent.class.getName(), "true");
+		System.setProperty("org.apache.commons.javaflow.instrumentation.JavaFlowInstrumentationAgent", "true");
 	}
 
 	/**
@@ -55,6 +57,18 @@ public class AsyncAwaitInstrumentationAgent {
 	 */
 	public static void agentmain(final String args, final Instrumentation instrumentation) throws Exception {
 		setupInstrumentation(instrumentation);
+        for (Class<?> clazz : instrumentation.getAllLoadedClasses()) {
+            if (instrumentation.isModifiableClass(clazz) && 
+                !AsyncAwaitClassFileTransformer.skipClassByName(clazz.getName())) {
+                try {
+                    instrumentation.retransformClasses(clazz);
+                } catch (Throwable e) {
+                    e.printStackTrace();
+                }
+            }
+        }
+        System.setProperty(AsyncAwaitInstrumentationAgent.class.getName(), "true");
+        System.setProperty("org.apache.commons.javaflow.instrumentation.JavaFlowInstrumentationAgent", "true");
 	}
 
 	private static void setupInstrumentation(final Instrumentation instrumentation) {

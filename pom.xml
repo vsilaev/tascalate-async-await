@@ -50,7 +50,7 @@
 	<properties>
 		<project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
 		<tascalate.concurrent.version>0.6.6</tascalate.concurrent.version>
-		<tascalate.javaflow.version>2.2.3</tascalate.javaflow.version>
+		<tascalate.javaflow.version>2.3.0</tascalate.javaflow.version>
 	</properties>
 
 	<dependencyManagement>
@@ -62,11 +62,6 @@
 			</dependency>
 			<dependency>
 				<groupId>net.tascalate.javaflow</groupId>
-				<artifactId>net.tascalate.javaflow.extras</artifactId>
-				<version>${tascalate.javaflow.version}</version>
-			</dependency>
-			<dependency>
-				<groupId>net.tascalate.javaflow</groupId>
 				<artifactId>net.tascalate.javaflow.spi</artifactId>
 				<version>${tascalate.javaflow.version}</version>
 			</dependency>
@@ -74,6 +69,11 @@
 				<groupId>net.tascalate.javaflow</groupId>
 				<artifactId>net.tascalate.javaflow.tools.javaagent</artifactId>
 				<version>${tascalate.javaflow.version}</version>
+			</dependency>
+			<dependency>
+				<groupId>net.tascalate.javaflow.util</groupId>
+				<artifactId>net.tascalate.javaflow.util.lib</artifactId>
+				<version>1.0.0</version>
 			</dependency>
 			<dependency>
 				<groupId>org.kohsuke.metainf-services</groupId>

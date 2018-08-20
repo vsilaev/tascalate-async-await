@@ -28,6 +28,7 @@ import static net.tascalate.async.api.AsyncCall.async;
 import static net.tascalate.async.api.AsyncCall.await;
 import static net.tascalate.async.api.AsyncCall.yield;
 import static net.tascalate.async.api.StandardOperations.readyValues;
+import static net.tascalate.async.api.StandardOperations.stream;
 
 import java.time.Duration;
 import java.util.Arrays;
@@ -36,16 +37,15 @@ import java.util.concurrent.CompletionStage;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
-import org.apache.commons.javaflow.extras.ContinuableStream;
-
 import net.tascalate.async.api.Generator;
-import net.tascalate.async.api.StandardOperations.stream;
 import net.tascalate.async.api.YieldReply;
 import net.tascalate.async.api.async;
 import net.tascalate.async.api.suspendable;
 
 import net.tascalate.concurrent.CompletableTask;
 import net.tascalate.concurrent.Promises;
+
+import net.tascalate.javaflow.util.SuspendableStream;
 
 public class StreamTest {
 
@@ -118,21 +118,21 @@ public class StreamTest {
     }
     
     @async Generator<String> produceMergedStrings() {
-        ContinuableStream<CompletionStage<String>> alphas = 
+        SuspendableStream<CompletionStage<String>> alphas = 
             produceAlphaStrings()
                 .stream()
                 .map(p -> p.thenApply(v -> v + " VALUE"));
         
-        ContinuableStream<CompletionStage<String>> numerics =         
+        SuspendableStream<CompletionStage<String>> numerics =         
             produceNumericStrings()
                 .stream()
                 .map( Promises::from )
                 .map( p -> p.orTimeout(Duration.ofMillis(500)) );
 
         yield(
-            ContinuableStream
+            SuspendableStream
                 .zip(numerics, alphas, (a, b) -> a.thenCombine(b, (av, bv) -> av + " - " + bv) )
-                .as( stream.toGenerator() )
+                .convert( stream.toGenerator() )
         );
         return yield();
     }

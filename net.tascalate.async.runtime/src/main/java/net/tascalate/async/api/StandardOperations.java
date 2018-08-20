@@ -27,18 +27,18 @@ package net.tascalate.async.api;
 import java.util.concurrent.CompletionStage;
 import java.util.function.Function;
 
-import org.apache.commons.javaflow.extras.ContinuableFunction;
-import org.apache.commons.javaflow.extras.ContinuableIterator;
-import org.apache.commons.javaflow.extras.ContinuableProducer;
-import org.apache.commons.javaflow.extras.Option;
-
 import net.tascalate.async.core.AsyncMethodExecutor;
+
+import net.tascalate.javaflow.util.Option;
+import net.tascalate.javaflow.util.SuspendableIterator;
+import net.tascalate.javaflow.util.SuspendableProducer;
+import net.tascalate.javaflow.util.function.SuspendableFunction;
 
 public final class StandardOperations {
     private StandardOperations() {}
     
-    public static <T> ContinuableFunction<CompletionStage<T>, T> readyValues() {
-        return new ContinuableFunction<CompletionStage<T>, T>() {
+    public static <T> SuspendableFunction<CompletionStage<T>, T> readyValues() {
+        return new SuspendableFunction<CompletionStage<T>, T>() {
             @Override
             public T apply(CompletionStage<T> future) {
                 return AsyncMethodExecutor.await(future);
@@ -47,36 +47,36 @@ public final class StandardOperations {
     }
     
     public static class generator {
-        public static <T> Function<Generator<T>, ContinuableIterator<CompletionStage<T>>> promises() {
+        public static <T> Function<Generator<T>, SuspendableIterator<CompletionStage<T>>> promises() {
             return g -> g
                 .stream()
                 .map(f -> (CompletionStage<T>)f)
-                .as(stream.toIterator());
+                .convert(stream.toIterator());
         }
         
-        public static <T> Function<Generator<T>, ContinuableIterator<T>> values() {
+        public static <T> Function<Generator<T>, SuspendableIterator<T>> values() {
             return g -> g
                 .stream()
                 .map$(readyValues())
-                .as(stream.toIterator());
+                .convert(stream.toIterator());
         } 
     }
     
     public static class stream {
         
-        public static <T> Function<ContinuableProducer<T>, ContinuableIterator<T>> toIterator() {
+        public static <T> Function<SuspendableProducer<? extends T>, SuspendableIterator<T>> toIterator() {
             return IteratorByProducer::new;
         }
         
-        public static <T> Function<ContinuableProducer<? extends CompletionStage<T>>, Generator<T>> toGenerator() {
+        public static <T> Function<SuspendableProducer<? extends CompletionStage<T>>, Generator<T>> toGenerator() {
             return GeneratorByProducer::new;
         }        
     }
     
     private static final class GeneratorByProducer<T> implements Generator<T> {
-        private final ContinuableProducer<? extends CompletionStage<T>> producer;
+        private final SuspendableProducer<? extends CompletionStage<T>> producer;
         
-        GeneratorByProducer(ContinuableProducer<? extends CompletionStage<T>> producer) {
+        GeneratorByProducer(SuspendableProducer<? extends CompletionStage<T>> producer) {
             this.producer = producer;
         }
         
@@ -100,13 +100,13 @@ public final class StandardOperations {
         
     };
     
-   private static final class IteratorByProducer<T> implements ContinuableIterator<T> {
-        private final ContinuableProducer<T> delegate;
+   private static final class IteratorByProducer<T> implements SuspendableIterator<T> {
+        private final SuspendableProducer<? extends T> delegate;
         
         private boolean advance  = true;
-        private Option<T> current;
+        private Option<? extends T> current;
         
-        public IteratorByProducer(ContinuableProducer<T> delegate) {
+        IteratorByProducer(SuspendableProducer<? extends T> delegate) {
             this.delegate = delegate;
             current = Option.none();
             advance = true;

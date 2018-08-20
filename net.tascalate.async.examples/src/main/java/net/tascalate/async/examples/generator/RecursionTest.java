@@ -7,11 +7,11 @@ import static net.tascalate.async.api.StandardOperations.readyValues;
 import java.util.function.Consumer;
 
 import org.apache.commons.javaflow.core.StackRecorder;
-import org.apache.commons.javaflow.extras.ContinuableStream;
 
 import net.tascalate.async.api.Generator;
 import net.tascalate.async.api.async;
 import net.tascalate.concurrent.Promise;
+import net.tascalate.javaflow.util.SuspendableStream;
 
 public class RecursionTest {
 
@@ -25,7 +25,7 @@ public class RecursionTest {
     
     @async static Promise<String> consumer() {
         System.out.println( StackRecorder.get().getRunnable().toString() );
-        try (ContinuableStream<Object> g = producer().stream().map$(readyValues())) {
+        try (SuspendableStream<Object> g = producer().stream().map$(readyValues())) {
             g.forEach(NOP);
         }
         return async("Done");

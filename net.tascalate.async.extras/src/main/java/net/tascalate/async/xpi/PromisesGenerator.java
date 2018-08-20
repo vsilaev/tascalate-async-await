@@ -29,12 +29,13 @@ import static net.tascalate.async.api.StandardOperations.stream;
 import java.util.concurrent.CompletionStage;
 import java.util.function.Function;
 
-import org.apache.commons.javaflow.extras.ContinuableProducer;
-import org.apache.commons.javaflow.extras.ContinuableStream;
-
 import net.tascalate.async.api.Generator;
 import net.tascalate.async.api.suspendable;
+
 import net.tascalate.concurrent.Promise;
+
+import net.tascalate.javaflow.util.SuspendableProducer;
+import net.tascalate.javaflow.util.SuspendableStream;
 
 public interface PromisesGenerator<T> extends Generator<T>, AutoCloseable {
     
@@ -45,7 +46,7 @@ public interface PromisesGenerator<T> extends Generator<T>, AutoCloseable {
         return next(null);
     }
     
-    ContinuableStream<Promise<T>> stream();
+    SuspendableStream<Promise<T>> stream();
     
     void close();
     
@@ -53,7 +54,7 @@ public interface PromisesGenerator<T> extends Generator<T>, AutoCloseable {
         return PromisesGeneratorImpl.toPromisesGenerator();
     }
     
-    public static <T> PromisesGenerator<T> fromStreamProducer(ContinuableProducer<? extends CompletionStage<T>> producer) {
+    public static <T> PromisesGenerator<T> fromStreamProducer(SuspendableProducer<? extends CompletionStage<T>> producer) {
         return new PromisesGeneratorImpl<>(
             stream.<T>toGenerator().apply(producer)
         );

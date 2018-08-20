@@ -40,14 +40,13 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 
-import org.apache.commons.javaflow.extras.ContinuableIterator;
-
 import net.tascalate.async.api.Generator;
 import net.tascalate.async.api.YieldReply;
 import net.tascalate.async.api.async;
 import net.tascalate.async.api.suspendable;
 
 import net.tascalate.concurrent.CompletableTask;
+import net.tascalate.javaflow.util.SuspendableIterator;
 
 public class GeneratorExample {
 
@@ -97,7 +96,7 @@ public class GeneratorExample {
     
     @async
     CompletionStage<String> iterateStringsEx() {
-        try (ContinuableIterator<String> values = 
+        try (SuspendableIterator<String> values = 
                 moreStringsEx()
                 .stream()
                 .map$( readyValues() )

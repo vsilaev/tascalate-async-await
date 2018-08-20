@@ -53,7 +53,7 @@ public abstract class AbstractScheduler implements Scheduler {
     @Override
     public String toString() {
         return String.format(
-            "<scheduler{%s}>[characteristics=%s, contextualizer=%s]",
+            "%s[characteristics=%s, contextualizer=%s]",
             getClass().getSimpleName(), 
             characteristics, 
             null == contextualizer || Function.identity().equals(contextualizer) ? "<none>" : contextualizer.toString()

@@ -21,8 +21,4 @@ public interface ContinuableIterator<T> extends AutoCloseable {
     @continuable T next();
     @continuable boolean hasNext();
     void close();
-    
-    /*
-    SuspendableStream<T> stream();
-    */
 }

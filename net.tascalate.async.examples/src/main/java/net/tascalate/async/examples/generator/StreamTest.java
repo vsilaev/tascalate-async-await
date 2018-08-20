@@ -40,6 +40,7 @@ import org.apache.commons.javaflow.extras.ContinuableStream;
 
 import net.tascalate.async.api.Generator;
 import net.tascalate.async.api.StandardOperations.stream;
+import net.tascalate.async.api.YieldReply;
 import net.tascalate.async.api.async;
 import net.tascalate.async.api.suspendable;
 
@@ -87,8 +88,7 @@ public class StreamTest {
             .drop(2)
             .take(18)
             .map$(readyValues())
-            .reduce((r, s) -> r + "\n" + s)
-            .get()
+            .fold("", (r, s) -> r + "\n" + s)
         ;
         return async(result);
     }
@@ -156,7 +156,7 @@ public class StreamTest {
     Generator<String> produceAlphaStrings() {
         try {
             for (String s : Arrays.asList("AAA", "BBB", "CCC", "DDD")) {
-                yield(waitString(s, 400));
+                yield( waitString(s, 400) );
             }
         } finally {
             System.out.println("::produceAlphaStrings FINALLY CALLED::");
@@ -168,10 +168,11 @@ public class StreamTest {
     Generator<String> producePrefixedStrings(CompletionStage<String> prefix) {
         try {
             for (int i = 1; i <= 9; i++) {
-                yield( prefix.thenCombine(waitString(String.valueOf(i)), (px,v) -> px + v) );
+                YieldReply<String> r = yield( prefix.thenCombine(waitString(String.valueOf(i)), (px,v) -> px + v) );
+                System.out.println(">> Yield " + r.value);
             }
         } finally {
-            System.out.println("::producePrefixedStrings " + prefix + " FINALLY CALLED::");
+            System.out.println("::producePrefixedStrings " + await(prefix) + " FINALLY CALLED::");
         }
         return yield();
     }

@@ -66,7 +66,7 @@ class PromisesGeneratorImpl <T> implements PromisesGenerator<T> {
     
     @Override
     public String toString() {
-        return String.format("<generator-decorator{%s}>[delegate=%s]", PromisesGenerator.class.getSimpleName(), delegate);
+        return String.format("%s[delegate=%s]", PromisesGenerator.class.getSimpleName(), delegate);
     }    
     
     private static final Function<Generator<Object>, PromisesGenerator<Object>> CONVERTER = PromisesGeneratorImpl::new;

@@ -51,7 +51,7 @@ public class ReadyFirstFuturesGenerator<T> implements Generator<T> {
         try {
             resolvedPromises.put(resolvedPromise);
         } catch (InterruptedException e) {
-            throw new RuntimeException(e); // Shouldn't happen for queue with unlimited size
+            throw new RuntimeException(e); // Shouldn't happen for the queue with an unlimited size
         }
 
         remaining.decrementAndGet();
@@ -106,7 +106,7 @@ public class ReadyFirstFuturesGenerator<T> implements Generator<T> {
     @Override
     public String toString() {
         return String.format(
-            "<generator{%s}>[current=%s, consumer-lock=%s, remaining=%s, resolved-promises=%s]",
+            "%s[current=%s, consumer-lock=%s, remaining=%s, resolved-promises=%s]",
             getClass().getSimpleName(), current, consumerLock, remaining, resolvedPromises
         );
     }
@@ -121,7 +121,7 @@ public class ReadyFirstFuturesGenerator<T> implements Generator<T> {
     
     private static <T> Generator<T> create(Iterator<? extends CompletionStage<T>> pendingPromises) {
         ReadyFirstFuturesGenerator<T> result = new ReadyFirstFuturesGenerator<>();
-        while(pendingPromises.hasNext()) {
+        while (pendingPromises.hasNext()) {
             // +1 before setting completion handler -- 
             // while stage may be completed already
             // we should increment step-by-step 

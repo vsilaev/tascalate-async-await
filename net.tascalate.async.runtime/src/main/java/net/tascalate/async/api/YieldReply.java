@@ -35,6 +35,6 @@ public class YieldReply<T> {
     
     @Override
     public String toString() {
-        return String.format("<yield-reply>[value=%s, param=%s]", value, param);
+        return String.format("%s[value=%s, param=%s]", getClass().getSimpleName(), value, param);
     }
 }

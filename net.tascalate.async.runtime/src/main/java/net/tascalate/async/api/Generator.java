@@ -37,7 +37,7 @@ import org.apache.commons.javaflow.extras.Option;
 import net.tascalate.async.generator.OrderedFuturesGenerator;
 import net.tascalate.async.generator.ReadyFirstFuturesGenerator;
 
-public interface Generator<T> extends AutoCloseable  {
+public interface Generator<T> extends AutoCloseable {
     
     @suspendable CompletionStage<T> next(Object producerParam);
     

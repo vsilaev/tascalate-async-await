@@ -82,7 +82,7 @@ public class OrderedFuturesGenerator<T> implements Generator<T> {
     
     @Override
     public String toString() {
-        return String.format("<generator{%s}>[delegate=%s]", getClass().getSimpleName(), delegate);
+        return String.format("%s[delegate=%s]", getClass().getSimpleName(), delegate);
     }
     
     private AutoCloseable asCloseable(Object source) {

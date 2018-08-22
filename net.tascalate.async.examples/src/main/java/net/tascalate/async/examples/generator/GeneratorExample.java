@@ -153,7 +153,7 @@ public class GeneratorExample {
         o = yield(Sequence.empty());
         System.out.println("AFTER EMPTY: " + o);
         
-        o = yield(Sequence.of("RV-1", "RV-2", "RV-3"));
+        o = yield(Sequence.from("RV-1", "RV-2", "RV-3"));
         System.out.println("AFTER LIST READY: " + o);
 
         System.out.println("Is generator interrupted: " + interrupted());

@@ -85,7 +85,7 @@ abstract public class AsyncGenerator<T> extends AsyncMethod {
     }
     
     protected @suspendable final YieldReply<T> yield(T readyValue) {
-        return generator.produce(Sequence.of(readyValue));
+        return generator.produce(Sequence.from(readyValue));
     }
 
     protected @suspendable final YieldReply<T> yield(CompletionStage<T> pendingValue) {

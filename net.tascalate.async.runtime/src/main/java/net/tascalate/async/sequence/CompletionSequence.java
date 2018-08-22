@@ -56,7 +56,7 @@ public class CompletionSequence<T, F extends CompletionStage<T>> implements Sequ
     public F next() {
         while (true) {
             // If we may return more without switching state...
-        	F resolvedValue = current.next(); 
+            F resolvedValue = current.next(); 
             if (null != resolvedValue) {
                 return resolvedValue;
             }
@@ -72,7 +72,7 @@ public class CompletionSequence<T, F extends CompletionStage<T>> implements Sequ
                 if (!readyValues.isEmpty()) {
                     // If we are consuming slower than producing 
                     // then use available results right away
-                    current = Sequence.ordered(readyValues);
+                    current = Sequence.of(readyValues);
                     // recursion via loop
                     continue; 
                 } else {

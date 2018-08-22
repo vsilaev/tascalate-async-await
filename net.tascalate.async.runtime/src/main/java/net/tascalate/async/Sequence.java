@@ -67,37 +67,37 @@ public interface Sequence<T, F extends CompletionStage<T>> extends AutoCloseable
         return (Sequence<T, F>)OrderedSequence.EMPTY_SEQUENCE;
     }
 
-    public static <T> Sequence<T, CompletionStage<T>> of(T readyValue) {
-        return of(Stream.of(readyValue));
+    public static <T> Sequence<T, CompletionStage<T>> from(T readyValue) {
+        return from(Stream.of(readyValue));
     }
     
     @SafeVarargs
-    public static <T> Sequence<T, CompletionStage<T>> of(T... readyValues) {
-        return of(Stream.of(readyValues));
+    public static <T> Sequence<T, CompletionStage<T>> from(T... readyValues) {
+        return from(Stream.of(readyValues));
     }
     
-    public static <T> Sequence<T, CompletionStage<T>> of(Iterable<T> readyValues) {
-        return of(StreamSupport.stream(readyValues.spliterator(), false));
+    public static <T> Sequence<T, CompletionStage<T>> from(Iterable<T> readyValues) {
+        return from(StreamSupport.stream(readyValues.spliterator(), false));
     }
     
-    public static <T> Sequence<T, CompletionStage<T>> of(Stream<T> readyValues) {
-        return ordered(readyValues.map(CompletableFuture::completedFuture));
+    public static <T> Sequence<T, CompletionStage<T>> from(Stream<T> readyValues) {
+        return of(readyValues.map(CompletableFuture::completedFuture));
     }
     
     public static <T, F extends CompletionStage<T>> Sequence<T, F> of(F pendingValue) {
-        return ordered(Stream.of(pendingValue));
+        return of(Stream.of(pendingValue));
     }
     
     @SafeVarargs
-    public static <T, F extends CompletionStage<T>> Sequence<T, F> ordered(F... pendingValues) {
-        return ordered(Stream.of(pendingValues));
+    public static <T, F extends CompletionStage<T>> Sequence<T, F> of(F... pendingValues) {
+        return of(Stream.of(pendingValues));
     }
 
-    public static <T, F extends CompletionStage<T>> Sequence<T, F> ordered(Iterable<? extends F> pendingValues) {
+    public static <T, F extends CompletionStage<T>> Sequence<T, F> of(Iterable<? extends F> pendingValues) {
         return OrderedSequence.create(pendingValues);
     }
     
-    public static <T, F extends CompletionStage<T>> Sequence<T, F> ordered(Stream<? extends F> pendingValues) {
+    public static <T, F extends CompletionStage<T>> Sequence<T, F> of(Stream<? extends F> pendingValues) {
         return OrderedSequence.create(pendingValues);
     }
 

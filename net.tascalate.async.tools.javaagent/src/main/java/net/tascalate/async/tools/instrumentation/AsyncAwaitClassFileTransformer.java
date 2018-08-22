@@ -141,18 +141,18 @@ public class AsyncAwaitClassFileTransformer implements ClassFileTransformer {
 		}
 	}
 	
-	   static boolean skipClassByName(String className) {
-	        return null != className && (
-	               className.startsWith("java.") ||
-	               className.startsWith("javax.") ||
-	               className.startsWith("sun.") ||
-	               className.startsWith("com.sun.") ||
-	               className.startsWith("oracle.") ||
-	               className.startsWith("com.oracle.") ||
-	               className.startsWith("ibm.") ||
-	               className.startsWith("com.ibm")
-	               );
-	    }
+   static boolean skipClassByName(String className) {
+        return null != className && (
+                className.startsWith("java/") ||
+                className.startsWith("javax/") ||
+                className.startsWith("sun/") ||
+                className.startsWith("com/sun/") ||
+                className.startsWith("oracle/") ||
+                className.startsWith("com/oracle/") ||
+                className.startsWith("ibm/") ||
+                className.startsWith("com/ibm/")
+               );
+    }
 	
 	private static ClassLoader getSafeClassLoader(final ClassLoader classLoader) {
 		return null != classLoader ? classLoader : ClassLoader.getSystemClassLoader(); 

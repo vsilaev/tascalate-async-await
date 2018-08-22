@@ -3,7 +3,7 @@ package net.tascalate.async.resolver.scoped;
 import java.util.concurrent.Callable;
 import java.util.function.Supplier;
 
-import net.tascalate.async.api.Scheduler;
+import net.tascalate.async.Scheduler;
 
 public enum SchedulerScope {
     DEFAULTS, DEFAULTS_OVERRIDE, PROVIDER_OVERRIDE;

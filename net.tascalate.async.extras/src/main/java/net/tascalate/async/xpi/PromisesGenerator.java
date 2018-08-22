@@ -24,39 +24,11 @@
  */
 package net.tascalate.async.xpi;
 
-import static net.tascalate.async.api.StandardOperations.stream;
-
-import java.util.concurrent.CompletionStage;
-import java.util.function.Function;
-
-import net.tascalate.async.api.Generator;
-import net.tascalate.async.api.suspendable;
-
+import net.tascalate.async.ControllableSequence;
 import net.tascalate.concurrent.Promise;
-
-import net.tascalate.javaflow.util.SuspendableProducer;
 import net.tascalate.javaflow.util.SuspendableStream;
 
-public interface PromisesGenerator<T> extends Generator<T>, AutoCloseable {
-    
-    @suspendable Promise<T> next(Object producerParam);
-    
-    default 
-    @suspendable Promise<T> next() {
-        return next(null);
-    }
-    
+public interface PromisesGenerator<T> extends ControllableSequence<T, Promise<T>> {
+    @Override
     SuspendableStream<Promise<T>> stream();
-    
-    void close();
-    
-    public static <T> Function<Generator<T>, PromisesGenerator<T>> promises() {
-        return PromisesGeneratorImpl.toPromisesGenerator();
-    }
-    
-    public static <T> PromisesGenerator<T> fromStreamProducer(SuspendableProducer<? extends CompletionStage<T>> producer) {
-        return new PromisesGeneratorImpl<>(
-            stream.<T>toGenerator().apply(producer)
-        );
-    }
 }

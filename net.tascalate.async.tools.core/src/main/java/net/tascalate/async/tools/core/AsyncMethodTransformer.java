@@ -68,9 +68,9 @@ import org.objectweb.asm.tree.TypeAnnotationNode;
 abstract public class AsyncMethodTransformer {
     protected final static Log log = LogFactory.getLog(AsyncAwaitClassFileGenerator.class);
     
-    protected final static String ASYNC_CALL_NAME = "net/tascalate/async/api/AsyncCall";
+    protected final static String CALL_CONTXT_NAME = "net/tascalate/async/CallContext";
     
-    protected final static Type SUSPENDABLE_ANNOTATION_TYPE = Type.getObjectType("net/tascalate/async/api/suspendable");
+    protected final static Type SUSPENDABLE_ANNOTATION_TYPE = Type.getObjectType("net/tascalate/async/suspendable");
     protected final static Type COMPLETION_STAGE_TYPE       = Type.getObjectType("java/util/concurrent/CompletionStage");
     protected final static Type OBJECT_TYPE                 = Type.getType(Object.class);
     protected final static Type STRING_TYPE                 = Type.getType(String.class);
@@ -80,8 +80,8 @@ abstract public class AsyncMethodTransformer {
     protected final static Type TASCALATE_PROMISES_TYPE     = Type.getObjectType("net/tascalate/concurrent/Promises");
     protected final static Type ASYNC_METHOD_TYPE           = Type.getObjectType("net/tascalate/async/core/AsyncMethod");
     
-    private final static Type SCHEDULER_TYPE             = Type.getObjectType("net/tascalate/async/api/Scheduler");
-    private final static Type SCHEDULER_PROVIDER_TYPE    = Type.getObjectType("net/tascalate/async/api/SchedulerProvider");
+    private final static Type SCHEDULER_TYPE             = Type.getObjectType("net/tascalate/async/Scheduler");
+    private final static Type SCHEDULER_PROVIDER_TYPE    = Type.getObjectType("net/tascalate/async/SchedulerProvider");
 
     protected final ClassNode classNode;
     protected final MethodNode originalAsyncMethod;

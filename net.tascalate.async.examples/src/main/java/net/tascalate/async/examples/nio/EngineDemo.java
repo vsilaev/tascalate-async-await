@@ -28,8 +28,8 @@ import java.io.Closeable;
 import java.io.IOException;
 import java.util.concurrent.CompletionStage;
 
-import net.tascalate.async.api.AsyncCall;
-import net.tascalate.async.api.async;
+import net.tascalate.async.CallContext;
+import net.tascalate.async.async;
 
 public class EngineDemo implements Closeable {
 
@@ -41,7 +41,7 @@ public class EngineDemo implements Closeable {
 			) {
 			String x = "" + other.hashCode();
 			System.out.println(x);
-			return AsyncCall.async("Done");
+			return CallContext.async("Done");
 		} catch (final IOException ex) {
 			throw ex;
 		}

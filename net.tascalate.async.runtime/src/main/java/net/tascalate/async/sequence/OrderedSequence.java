@@ -22,21 +22,17 @@
  * OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
-package net.tascalate.async.generator;
+package net.tascalate.async.sequence;
 
 import java.util.Iterator;
 import java.util.concurrent.CompletionStage;
+import java.util.stream.Stream;
 
-import net.tascalate.async.api.Generator;
+import net.tascalate.async.Sequence;
 
-public class OrderedFuturesGenerator<T> implements Generator<T> {
+public class OrderedSequence<T, R extends CompletionStage<T>> implements Sequence<T, R> {
     
-    public static final Generator<?> EMPTY_GENERATOR = new Generator<Object>() {
-
-        @Override
-        public CompletionStage<Object> next(Object producerParam) {
-            return null;
-        }
+    public static final Sequence<Object, CompletionStage<Object>> EMPTY_SEQUENCE = new Sequence<Object, CompletionStage<Object>>() {
 
         @Override
         public CompletionStage<Object> next() {
@@ -50,34 +46,24 @@ public class OrderedFuturesGenerator<T> implements Generator<T> {
         
         @Override
         public String toString() {
-            return "<empty-generator>";
+            return "<empty-sequence>";
         }
         
     };
 
-    private final Iterator<? extends CompletionStage<T>> delegate;
-    private final AutoCloseable closeable;
+    private final Iterator<? extends R> delegate;
     
-    public OrderedFuturesGenerator(Iterator<? extends CompletionStage<T>> delegate, Object closeable) {
+    protected OrderedSequence(Iterator<? extends R> delegate) {
         this.delegate  = delegate;
-        this.closeable = asCloseable(closeable);
     }
     
     @Override
-    public CompletionStage<T> next(Object producerParam) {
+    public R next() {
         return delegate.hasNext() ? delegate.next() : null;
     }
 
     @Override
     public void close() {
-        if (closeable == null) {
-            return;
-        }
-        try {
-            closeable.close();
-        } catch (Exception ex) {
-            throw new RuntimeException(ex);
-        }
     }    
     
     @Override
@@ -85,11 +71,15 @@ public class OrderedFuturesGenerator<T> implements Generator<T> {
         return String.format("%s[delegate=%s]", getClass().getSimpleName(), delegate);
     }
     
-    private AutoCloseable asCloseable(Object source) {
-        if (source instanceof AutoCloseable) {
-    	    return (AutoCloseable)source;
-        } else {
-            return null;
-        }
+    public static <T, F extends CompletionStage<T>> Sequence<T, F> create(Stream<? extends F> pendingPromises) {
+        return create(pendingPromises.iterator());
+    }
+
+    public static <T, F extends CompletionStage<T>> Sequence<T, F> create(Iterable<? extends F> pendingPromises) {
+        return create(pendingPromises.iterator());
+    }
+    
+    private static <T, F extends CompletionStage<T>> Sequence<T, F> create(Iterator<? extends F> pendingPromises) {
+        return new OrderedSequence<>(pendingPromises);
     }
 } 

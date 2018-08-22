@@ -24,7 +24,7 @@
  */
 package net.tascalate.async.spi;
 
-import net.tascalate.async.api.Scheduler;
+import net.tascalate.async.Scheduler;
 
 public interface SchedulerResolver extends Comparable<SchedulerResolver> {
     

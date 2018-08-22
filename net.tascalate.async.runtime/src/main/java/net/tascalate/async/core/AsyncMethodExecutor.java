@@ -34,9 +34,9 @@ import org.apache.commons.javaflow.api.Continuation;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 
-import net.tascalate.async.api.Scheduler;
-import net.tascalate.async.api.suspendable;
-import net.tascalate.async.api.NoActiveAsyncCallException;
+import net.tascalate.async.NoActiveAsyncCallException;
+import net.tascalate.async.Scheduler;
+import net.tascalate.async.suspendable;
 
 /**
  * 

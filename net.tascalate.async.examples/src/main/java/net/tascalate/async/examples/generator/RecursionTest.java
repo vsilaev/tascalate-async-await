@@ -1,15 +1,16 @@
 package net.tascalate.async.examples.generator;
 
-import static net.tascalate.async.api.AsyncCall.async;
-import static net.tascalate.async.api.AsyncCall.yield;
-import static net.tascalate.async.api.StandardOperations.readyValues;
+import static net.tascalate.async.CallContext.async;
+import static net.tascalate.async.CallContext.yield;
+import static net.tascalate.async.StandardOperations.readyValues;
 
 import java.util.function.Consumer;
 
 import org.apache.commons.javaflow.core.StackRecorder;
 
-import net.tascalate.async.api.Generator;
-import net.tascalate.async.api.async;
+import net.tascalate.async.Generator;
+import net.tascalate.async.Sequence;
+import net.tascalate.async.async;
 import net.tascalate.concurrent.Promise;
 import net.tascalate.javaflow.util.SuspendableStream;
 
@@ -37,7 +38,7 @@ public class RecursionTest {
             /*
             yield("");
             */
-            yield(Generator.empty());
+            yield(Sequence.empty());
         }
         return yield();
     }

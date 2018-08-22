@@ -27,8 +27,8 @@ package net.tascalate.async.core;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionStage;
 
-import net.tascalate.async.api.Scheduler;
-import net.tascalate.async.api.suspendable;
+import net.tascalate.async.Scheduler;
+import net.tascalate.async.suspendable;
 
 
 abstract public class AsyncTask<T> extends AsyncMethod {

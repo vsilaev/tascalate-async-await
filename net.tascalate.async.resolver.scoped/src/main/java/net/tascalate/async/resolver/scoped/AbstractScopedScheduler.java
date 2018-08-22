@@ -1,6 +1,6 @@
 package net.tascalate.async.resolver.scoped;
 
-import net.tascalate.async.api.Scheduler;
+import net.tascalate.async.Scheduler;
 import net.tascalate.async.spi.SchedulerResolver;
 
 public class AbstractScopedScheduler implements SchedulerResolver {

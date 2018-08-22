@@ -2,7 +2,7 @@ package net.tascalate.async.resolver.provided;
 
 import org.kohsuke.MetaInfServices;
 
-import net.tascalate.async.api.Scheduler;
+import net.tascalate.async.Scheduler;
 import net.tascalate.async.spi.SchedulerProviderLookup;
 import net.tascalate.async.spi.SchedulerResolver;
 

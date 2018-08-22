@@ -22,7 +22,7 @@
  * OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
-package net.tascalate.async.api;
+package net.tascalate.async;
 
 import java.util.concurrent.CancellationException;
 import java.util.concurrent.CompletionStage;
@@ -34,8 +34,10 @@ import net.tascalate.async.core.AsyncMethodExecutor;
  * @author Valery Silaev
  * 
  */
-public class AsyncCall {
+public class CallContext {
 
+    private CallContext() {}
+    
     /**
      * Wait for the {@link CompletionStage} within {@link async} method.
      * 
@@ -62,7 +64,7 @@ public class AsyncCall {
         throw new IllegalStateException("Method call must be replaced by bytecode enhancer");
     }
 
-    public static <T> YieldReply<T> yield(Generator<T> values) throws CancellationException, NoActiveAsyncCallException {
+    public static <T, R extends CompletionStage<T>> YieldReply<T> yield(Sequence<T, R> values) throws CancellationException, NoActiveAsyncCallException {
         throw new IllegalStateException("Method call must be replaced by bytecode enhancer");
     }
 

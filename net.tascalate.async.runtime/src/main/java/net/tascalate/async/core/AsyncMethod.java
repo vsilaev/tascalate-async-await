@@ -33,8 +33,8 @@ import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Function;
 
-import net.tascalate.async.api.Scheduler;
-import net.tascalate.async.api.suspendable;
+import net.tascalate.async.Scheduler;
+import net.tascalate.async.suspendable;
 
 abstract public class AsyncMethod implements Runnable {
     

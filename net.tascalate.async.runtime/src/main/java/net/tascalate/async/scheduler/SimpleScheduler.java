@@ -29,7 +29,7 @@ import java.util.concurrent.CompletionStage;
 import java.util.concurrent.Executor;
 import java.util.function.Function;
 
-import net.tascalate.async.api.Scheduler;
+import net.tascalate.async.Scheduler;
 
 public class SimpleScheduler extends AbstractExecutorScheduler<Executor> {
     public static final Scheduler SAME_THREAD_SCHEDULER = new SimpleScheduler(Runnable::run) {

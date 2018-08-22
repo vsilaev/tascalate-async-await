@@ -24,11 +24,11 @@
  */
 package net.tascalate.async.examples.generator;
 
-import static net.tascalate.async.api.AsyncCall.async;
-import static net.tascalate.async.api.AsyncCall.await;
-import static net.tascalate.async.api.AsyncCall.yield;
-import static net.tascalate.async.api.StandardOperations.readyValues;
-import static net.tascalate.async.api.StandardOperations.stream;
+import static net.tascalate.async.CallContext.async;
+import static net.tascalate.async.CallContext.await;
+import static net.tascalate.async.CallContext.yield;
+import static net.tascalate.async.StandardOperations.readyValues;
+import static net.tascalate.async.StandardOperations.stream;
 
 import java.time.Duration;
 import java.util.Arrays;
@@ -37,11 +37,11 @@ import java.util.concurrent.CompletionStage;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
-import net.tascalate.async.api.Generator;
-import net.tascalate.async.api.YieldReply;
-import net.tascalate.async.api.async;
-import net.tascalate.async.api.suspendable;
-
+import net.tascalate.async.Generator;
+import net.tascalate.async.Sequence;
+import net.tascalate.async.YieldReply;
+import net.tascalate.async.async;
+import net.tascalate.async.suspendable;
 import net.tascalate.concurrent.CompletableTask;
 import net.tascalate.concurrent.Promises;
 
@@ -132,7 +132,7 @@ public class StreamTest {
         yield(
             SuspendableStream
                 .zip(numerics, alphas, (a, b) -> a.thenCombine(b, (av, bv) -> av + " - " + bv) )
-                .convert( stream.toGenerator() )
+                .convert( stream.toSequence() )
         );
         return yield();
     }
@@ -141,7 +141,7 @@ public class StreamTest {
     @async
     private Generator<String> produceNumericStrings() {
         try {
-            yield(Generator.empty());
+            yield(Sequence.empty());
             yield(waitString("111"));
             yield(waitString("222"));
             yield("333");

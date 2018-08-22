@@ -24,11 +24,12 @@
  */
 package net.tascalate.async.examples.bank;
 
+import static net.tascalate.async.CallContext.*;
+
 import java.math.BigDecimal;
 import java.util.concurrent.CompletionStage;
 
-import net.tascalate.async.api.async;
-import static net.tascalate.async.api.AsyncCall.*;
+import net.tascalate.async.async;
 
 public class FraudDetectionService {
 	

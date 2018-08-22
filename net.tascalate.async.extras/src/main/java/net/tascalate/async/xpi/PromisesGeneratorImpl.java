@@ -25,10 +25,8 @@
 package net.tascalate.async.xpi;
 
 import java.util.concurrent.CompletionStage;
-import java.util.function.Function;
 
-import net.tascalate.async.api.Generator;
-
+import net.tascalate.async.Generator;
 import net.tascalate.concurrent.Promise;
 import net.tascalate.concurrent.Promises;
 
@@ -41,17 +39,16 @@ class PromisesGeneratorImpl <T> implements PromisesGenerator<T> {
     PromisesGeneratorImpl(Generator<T> delegate) {
         this.delegate = delegate;
     }
-
-    /*
+    
     @Override
-    public Generator<T> raw() {
-        return delegate;
+    public Promise<T> next() {
+        return next(NO_PARAM);
     }
-    */
     
     @Override
     public Promise<T> next(Object producerParam) {
-        CompletionStage<T> original = delegate.next(producerParam);
+        CompletionStage<T> original = NO_PARAM == producerParam ? 
+            delegate.next() : delegate.next(producerParam);
         return null == original ? null : Promises.from(original);
     }
 
@@ -69,13 +66,6 @@ class PromisesGeneratorImpl <T> implements PromisesGenerator<T> {
     public String toString() {
         return String.format("%s[delegate=%s]", PromisesGenerator.class.getSimpleName(), delegate);
     }    
-    
-    private static final Function<Generator<Object>, PromisesGenerator<Object>> CONVERTER = PromisesGeneratorImpl::new;
-    
-    static <T> Function<Generator<T>, PromisesGenerator<T>> toPromisesGenerator() {
-        @SuppressWarnings("unchecked")
-        Function<Generator<T>, PromisesGenerator<T>> result = (Function<Generator<T>, PromisesGenerator<T>>)(Object)CONVERTER;
-        return result;
-    }
-    
+   
+    private static final Object NO_PARAM = new Object();
 }

@@ -24,28 +24,32 @@
  */
 package net.tascalate.async.examples.generator;
 
-import static net.tascalate.async.api.AsyncCall.async;
-import static net.tascalate.async.api.AsyncCall.await;
-import static net.tascalate.async.api.AsyncCall.interrupted;
-import static net.tascalate.async.api.AsyncCall.yield;
-import static net.tascalate.async.api.StandardOperations.readyValues;
+import static net.tascalate.async.CallContext.async;
+import static net.tascalate.async.CallContext.await;
+import static net.tascalate.async.CallContext.interrupted;
+import static net.tascalate.async.CallContext.yield;
+import static net.tascalate.async.StandardOperations.readyValues;
 
 import java.io.FileNotFoundException;
 
 import java.util.Date;
 import java.util.StringJoiner;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
 import java.util.concurrent.CompletionStage;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
+import java.util.stream.Stream;
 
-import net.tascalate.async.api.Generator;
-import net.tascalate.async.api.YieldReply;
-import net.tascalate.async.api.async;
-import net.tascalate.async.api.suspendable;
+import net.tascalate.async.Generator;
+import net.tascalate.async.Sequence;
+import net.tascalate.async.YieldReply;
+import net.tascalate.async.async;
+import net.tascalate.async.suspendable;
 
 import net.tascalate.concurrent.CompletableTask;
+
 import net.tascalate.javaflow.util.SuspendableIterator;
 
 public class GeneratorExample {
@@ -72,7 +76,7 @@ public class GeneratorExample {
     }
 
     @async
-    CompletionStage<String> mergeStrings(String delimeter) {
+    CompletableFuture<String> mergeStrings(String delimeter) {
         StringJoiner joiner = new StringJoiner(", ");
         try (Generator<String> generator = produceStrings()) {
         	System.out.println("%%MergeStrings - before iterations");
@@ -134,22 +138,22 @@ public class GeneratorExample {
     	System.out.println("%%ProduceStrings - starting + ");
         YieldReply<String> o;
         
-        o = yield(Generator.empty());
+        o = yield(Sequence.empty());
         System.out.println("INITIAL PARAM: " + o.param);
         
         o = yield(waitString("ABC"));
         System.out.println("Processed: " + o + ", " + new Date());
         
-        o = yield(Generator.readyFirst(waitString("PV-1", 2000L), waitString("PV-2", 1500L), waitString("PV-3", 1000L)));
+        o = yield(Sequence.readyFirst(Stream.of(waitString("PV-1", 2000L), waitString("PV-2", 1500L), waitString("PV-3", 1000L)), 2));
         System.out.println("AFTER LIST PENDING: " + o);
 
         String s = await(waitString("InternalAsync"));
         System.out.println("INTERNALLY: " + s);
 
-        o = yield(Generator.empty());
+        o = yield(Sequence.empty());
         System.out.println("AFTER EMPTY: " + o);
         
-        o = yield(Generator.of("RV-1", "RV-2", "RV-3"));
+        o = yield(Sequence.of("RV-1", "RV-2", "RV-3"));
         System.out.println("AFTER LIST READY: " + o);
 
         System.out.println("Is generator interrupted: " + interrupted());

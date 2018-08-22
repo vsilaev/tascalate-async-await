@@ -28,7 +28,7 @@ import java.util.Collections;
 import java.util.Set;
 import java.util.function.Function;
 
-import net.tascalate.async.api.Scheduler;
+import net.tascalate.async.Scheduler;
 
 public abstract class AbstractScheduler implements Scheduler {
     private final Set<Characteristics> characteristics;

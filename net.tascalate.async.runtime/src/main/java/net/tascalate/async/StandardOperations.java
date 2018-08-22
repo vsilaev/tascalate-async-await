@@ -22,7 +22,7 @@
  * OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
-package net.tascalate.async.api;
+package net.tascalate.async;
 
 import java.util.concurrent.CompletionStage;
 import java.util.function.Function;
@@ -48,17 +48,14 @@ public final class StandardOperations {
     
     public static class generator {
         public static <T> Function<Generator<T>, SuspendableIterator<CompletionStage<T>>> promises() {
-            return g -> g
-                .stream()
-                .map(f -> (CompletionStage<T>)f)
-                .convert(stream.toIterator());
+            return g -> g.stream().iterator();
         }
         
         public static <T> Function<Generator<T>, SuspendableIterator<T>> values() {
             return g -> g
                 .stream()
                 .map$(readyValues())
-                .convert(stream.toIterator());
+                .iterator();
         } 
     }
     
@@ -68,23 +65,20 @@ public final class StandardOperations {
             return IteratorByProducer::new;
         }
         
-        public static <T> Function<SuspendableProducer<? extends CompletionStage<T>>, Generator<T>> toGenerator() {
-            return GeneratorByProducer::new;
+        public static <T, F extends CompletionStage<T>> Function<SuspendableProducer<? extends F>, Sequence<T, F>> toSequence() {
+            return SequenceByProducer::new;
         }        
     }
     
-    private static final class GeneratorByProducer<T> implements Generator<T> {
-        private final SuspendableProducer<? extends CompletionStage<T>> producer;
+    private static final class SequenceByProducer<T, F extends CompletionStage<T>> implements Sequence<T, F> {
+        private final SuspendableProducer<? extends F> producer;
         
-        GeneratorByProducer(SuspendableProducer<? extends CompletionStage<T>> producer) {
+        SequenceByProducer(SuspendableProducer<? extends F> producer) {
             this.producer = producer;
         }
         
         @Override
-        public CompletionStage<T> next(Object producerParam) {
-            if (producerParam != null) {
-                throw new UnsupportedOperationException("Converted generators do not support parameters");
-            }
+        public F next() {
             return producer.produce().orElseNull().get();
         }
 
@@ -97,7 +91,6 @@ public final class StandardOperations {
         public String toString() {
             return String.format("%s[producer=%s]", getClass().getSimpleName(), producer);
         }
-        
     };
     
    private static final class IteratorByProducer<T> implements SuspendableIterator<T> {

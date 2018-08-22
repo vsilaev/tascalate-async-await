@@ -28,10 +28,11 @@ import java.util.concurrent.CancellationException;
 import java.util.concurrent.CompletionException;
 import java.util.concurrent.CompletionStage;
 
-import net.tascalate.async.api.Scheduler;
-import net.tascalate.async.api.YieldReply;
-import net.tascalate.async.api.suspendable;
-import net.tascalate.async.api.Generator;
+import net.tascalate.async.Generator;
+import net.tascalate.async.Scheduler;
+import net.tascalate.async.Sequence;
+import net.tascalate.async.YieldReply;
+import net.tascalate.async.suspendable;
 
 abstract public class AsyncGenerator<T> extends AsyncMethod {
     public final LazyGenerator<T> generator;
@@ -84,14 +85,14 @@ abstract public class AsyncGenerator<T> extends AsyncMethod {
     }
     
     protected @suspendable final YieldReply<T> yield(T readyValue) {
-        return generator.produce(Generator.of(readyValue));
+        return generator.produce(Sequence.of(readyValue));
     }
 
     protected @suspendable final YieldReply<T> yield(CompletionStage<T> pendingValue) {
-        return generator.produce(Generator.of(pendingValue));
+        return generator.produce(Sequence.of(pendingValue));
     }
 
-    protected @suspendable final YieldReply<T> yield(Generator<T> values) {
+    protected @suspendable final <F extends CompletionStage<T>> YieldReply<T> yield(Sequence<T, F> values) {
         return generator.produce(values);
     }
     

@@ -22,15 +22,17 @@
  * OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
-package net.tascalate.async.spi;
+package net.tascalate.async;
 
-import net.tascalate.async.Scheduler;
-import net.tascalate.async.core.AsyncMethodAccessor;
+/**
+ * @author Valery Silaev
+ */
+public class NoActiveAsyncCallException extends IllegalStateException {
 
-final public class ActiveAsyncCall {
-    private ActiveAsyncCall() {}
-    
-    public static Scheduler scheduler() {
-        return AsyncMethodAccessor.currentScheduler(false);
+    private static final long serialVersionUID = 1L;
+
+    public NoActiveAsyncCallException(final String message) {
+        super(message);
     }
+
 }

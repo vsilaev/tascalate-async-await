@@ -1,9 +1,8 @@
 package net.tascalate.async.examples.generator;
 
-
-import static net.tascalate.async.api.AsyncCall.async;
-import static net.tascalate.async.api.AsyncCall.await;
-import static net.tascalate.async.xpi.PromisesGenerator.promises;
+import static net.tascalate.async.CallContext.async;
+import static net.tascalate.async.CallContext.await;
+import static net.tascalate.async.StandardOperations.stream;
 
 import java.util.Date;
 import java.util.StringJoiner;
@@ -13,13 +12,13 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.ThreadFactory;
 import java.util.concurrent.atomic.AtomicLong;
 
-import net.tascalate.async.api.Generator;
-import net.tascalate.async.api.Scheduler;
-import net.tascalate.async.api.SchedulerProvider;
-import net.tascalate.async.api.async;
-import net.tascalate.async.xpi.PromisesGenerator;
+import net.tascalate.async.Scheduler;
+import net.tascalate.async.SchedulerProvider;
+import net.tascalate.async.Sequence;
+import net.tascalate.async.async;
 import net.tascalate.async.xpi.TaskScheduler;
 import net.tascalate.concurrent.Promise;
+import net.tascalate.concurrent.Promises;
 
 public class SimpleArgs {
     final private static AtomicLong idx = new AtomicLong(0);
@@ -53,23 +52,14 @@ public class SimpleArgs {
     @async
     static Promise<String> mergeStrings(String delimeter, @SchedulerProvider Scheduler scheduler, int zz) {
         StringJoiner joiner = new StringJoiner(delimeter);
-        try (PromisesGenerator<String> generator = Generator.of("ABC", "XYZ").as(promises())) {
+        try (Sequence<String, Promise<String>> generator = Sequence.of("ABC", "XYZ").stream().map(Promises::from).convert(stream.toSequence())) {
             System.out.println("%%MergeStrings - before iterations");
-            String param = "GO!";
-            int i = 0;
             CompletionStage<String> singleResult; 
-            while (null != (singleResult = generator.next(param))) {
+            while (null != (singleResult = generator.next())) {
                 //System.out.println(">>Future is ready: " + Future.class.cast(singleResult).isDone());
                 String v = await(singleResult);
                 System.out.println(Thread.currentThread().getName());
-                System.out.println("Received: " + v + ", " + param);
-                ++i;
-                zz++;
-                if (i > 0) param = "VAL #" + i;
-                joiner.add(v);
-                if (i == 17) {
-                    break;
-                }
+                System.out.println("Received: " + v);
             }
         }
 

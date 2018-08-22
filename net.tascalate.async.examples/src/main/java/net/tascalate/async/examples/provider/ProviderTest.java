@@ -1,7 +1,7 @@
 package net.tascalate.async.examples.provider;
 
-import net.tascalate.async.api.Scheduler;
-import net.tascalate.async.api.SchedulerProvider;
+import net.tascalate.async.Scheduler;
+import net.tascalate.async.SchedulerProvider;
 import net.tascalate.async.spi.SchedulerProviderLookup;
 
 public class ProviderTest {

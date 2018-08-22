@@ -26,8 +26,8 @@ package net.tascalate.async.core;
 
 import org.apache.commons.javaflow.core.StackRecorder;
 
-import net.tascalate.async.api.Scheduler;
-import net.tascalate.async.api.NoActiveAsyncCallException;
+import net.tascalate.async.NoActiveAsyncCallException;
+import net.tascalate.async.Scheduler;
 
 public class AsyncMethodAccessor {
     private AsyncMethodAccessor() {}

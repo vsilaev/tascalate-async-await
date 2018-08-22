@@ -24,8 +24,8 @@
  */
 package net.tascalate.async.examples.nio;
 
-import static net.tascalate.async.api.AsyncCall.async;
-import static net.tascalate.async.api.AsyncCall.await;
+import static net.tascalate.async.CallContext.async;
+import static net.tascalate.async.CallContext.await;
 
 import java.io.File;
 import java.io.IOException;
@@ -39,8 +39,7 @@ import java.time.LocalTime;
 import java.util.Collections;
 import java.util.concurrent.CompletionStage;
 
-import net.tascalate.async.api.async;
-
+import net.tascalate.async.async;
 import net.tascalate.nio.channels.AsynchronousFileChannel;
 
 public class AsyncAwaitNioFileChannelDemo {

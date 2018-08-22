@@ -22,7 +22,7 @@
  * OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
-package net.tascalate.async.api;
+package net.tascalate.async;
 
 import java.lang.annotation.Documented;
 import java.lang.annotation.ElementType;
@@ -31,8 +31,8 @@ import java.lang.annotation.RetentionPolicy;
 import java.lang.annotation.Target;
 
 @Documented
-@Retention(RetentionPolicy.RUNTIME)
-@Target({ElementType.FIELD, ElementType.METHOD, ElementType.PARAMETER})
-public @interface SchedulerProvider {
+@Retention(RetentionPolicy.CLASS)
+@Target(ElementType.METHOD)
+public @interface async {
 
 }

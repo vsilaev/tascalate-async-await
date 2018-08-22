@@ -53,7 +53,7 @@ import org.objectweb.asm.tree.TryCatchBlockNode;
 import org.objectweb.asm.tree.TypeAnnotationNode;
 
 class BytecodeIntrospection {
-    private final static String ASYNC_ANNOTATION_DESCRIPTOR = "Lnet/tascalate/async/api/async;";
+    private final static String ASYNC_ANNOTATION_DESCRIPTOR = "Lnet/tascalate/async/async;";
     private final static Log log = LogFactory.getLog(BytecodeIntrospection.class);
 
     private BytecodeIntrospection() {

@@ -28,7 +28,7 @@ import java.util.Objects;
 import java.util.ServiceLoader;
 import java.util.stream.StreamSupport;
 
-import net.tascalate.async.api.Scheduler;
+import net.tascalate.async.Scheduler;
 import net.tascalate.async.spi.SchedulerResolver;
 import net.tascalate.async.util.Cache;
 

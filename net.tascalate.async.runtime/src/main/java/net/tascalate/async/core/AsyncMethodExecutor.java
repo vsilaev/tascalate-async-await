@@ -130,7 +130,7 @@ public class AsyncMethodExecutor {
             return earlyResult.done();
         }
         
-        AsyncMethod currentMethod = AsyncMethodAccessor.currentAsyncMethod();
+        AsyncMethod currentMethod = InternalCallContext.asyncMethod();
 
         // Register (and wrap) promise we are blocking on
         // to support cancellation from outside

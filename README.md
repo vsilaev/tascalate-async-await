@@ -39,7 +39,7 @@ Second, add the following build plugins in the specified order:
     <plugin>
       <groupId>net.tascalate.javaflow</groupId>
       <artifactId>net.tascalate.javaflow.tools.maven</artifactId>
-      <version>2.2.3</version>
+      <version>2.3.1</version>
       <executions>
         <execution>
 	  <phase>process-classes</phase>
@@ -56,9 +56,9 @@ You are ready to start coding!
 # Asynchronous tasks
 The first type of functions the library supports is asycnhronous task. Asynchronous task is a method (either instance or class method) that is annotated with `net.tascalate.async.api.async` annotation and returns `CompletionStage<T>` or `void`. In the later case it is a "fire-and-forget" task that is intended primarly to be used for event handlers inside UI framework (like JavaFX or Swing). Let us write a simple example:
 ```java
-import static net.tascalate.async.api.AsyncCall.async;
-import static net.tascalate.async.api.AsyncCall.await;
-import net.tascalate.async.api.async;
+import static net.tascalate.async.CallСontext.async;
+import static net.tascalate.async.CallСontext.await;
+import net.tascalate.async.async;
 
 import java.util.concurrent.CompletionStage;
 import java.util.concurrent.CompletableFuture;

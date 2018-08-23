@@ -27,7 +27,7 @@ package net.tascalate.async;
 import java.util.concurrent.CancellationException;
 import java.util.concurrent.CompletionStage;
 
-import net.tascalate.async.core.AsyncMethodAccessor;
+import net.tascalate.async.core.InternalCallContext;
 import net.tascalate.async.core.AsyncMethodExecutor;
 
 /**
@@ -49,10 +49,13 @@ public class CallContext {
     }
     
     public static boolean interrupted() throws NoActiveAsyncCallException {
-        return AsyncMethodAccessor.isCurrentCallInterrupted(true);
+        // Implementation is used only in @suspendable methods
+        // @async methods get this call replaced with optimized 
+        // version that invokes instance method on generated class
+        return InternalCallContext.interrupted(true);
     }
 
-    public static <T, R extends CompletionStage<T>> R async(final T value) {
+    public static <T, R extends CompletionStage<T>> R async(T value) {
         throw new IllegalStateException("Method call must be replaced by bytecode enhancer");
     }
 

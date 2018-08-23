@@ -25,12 +25,12 @@
 package net.tascalate.async.spi;
 
 import net.tascalate.async.Scheduler;
-import net.tascalate.async.core.AsyncMethodAccessor;
+import net.tascalate.async.core.InternalCallContext;
 
 final public class ActiveAsyncCall {
     private ActiveAsyncCall() {}
     
     public static Scheduler scheduler() {
-        return AsyncMethodAccessor.currentScheduler(false);
+        return InternalCallContext.scheduler(false);
     }
 }

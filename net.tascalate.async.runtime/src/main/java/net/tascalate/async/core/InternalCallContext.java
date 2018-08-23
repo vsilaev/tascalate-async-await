@@ -29,24 +29,24 @@ import org.apache.commons.javaflow.core.StackRecorder;
 import net.tascalate.async.NoActiveAsyncCallException;
 import net.tascalate.async.Scheduler;
 
-public class AsyncMethodAccessor {
-    private AsyncMethodAccessor() {}
+public class InternalCallContext {
+    private InternalCallContext() {}
     
-    public static Scheduler currentScheduler(boolean asyncCallMustBeAvailable) {
-        AsyncMethod asyncMethod = currentAsyncMethod(asyncCallMustBeAvailable);
+    public static Scheduler scheduler(boolean asyncCallMustBeAvailable) {
+        AsyncMethod asyncMethod = asyncMethod(asyncCallMustBeAvailable);
         return asyncMethod != null ? asyncMethod.scheduler() : null;
     }
     
-    public static boolean isCurrentCallInterrupted(boolean asyncCallMustBeAvailable) {
-        AsyncMethod asyncMethod = currentAsyncMethod(asyncCallMustBeAvailable);
+    public static boolean interrupted(boolean asyncCallMustBeAvailable) {
+        AsyncMethod asyncMethod = asyncMethod(asyncCallMustBeAvailable);
         return asyncMethod != null && asyncMethod.interrupted();
     }
     
-    static AsyncMethod currentAsyncMethod() {
-        return currentAsyncMethod(true);
+    static AsyncMethod asyncMethod() {
+        return asyncMethod(true);
     }
     
-    private static AsyncMethod currentAsyncMethod(boolean mustBeAvailable) {
+    private static AsyncMethod asyncMethod(boolean mustBeAvailable) {
         StackRecorder stackRecorder = StackRecorder.get();
         if (null == stackRecorder && mustBeAvailable) {
             throw new NoActiveAsyncCallException(

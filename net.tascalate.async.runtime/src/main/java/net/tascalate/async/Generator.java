@@ -26,4 +26,4 @@ package net.tascalate.async;
 
 import java.util.concurrent.CompletionStage;
 
-public interface Generator<T> extends ControllableSequence<T, CompletionStage<T>> { }
+public interface Generator<T> extends ReplySequence<T, CompletionStage<T>> { }

@@ -28,7 +28,7 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionStage;
 
 import net.tascalate.async.Generator;
-import net.tascalate.async.ControllableSequence;
+import net.tascalate.async.ReplySequence;
 import net.tascalate.async.Sequence;
 import net.tascalate.async.YieldReply;
 import net.tascalate.async.suspendable;
@@ -63,12 +63,15 @@ class LazyGenerator<T> implements Generator<T> {
             FutureResult<T> latestResult = FutureResult.of(latestFuture);
             
             // Could we advance further current delegate?
-            if (NO_PARAM == param || !(currentDelegate instanceof ControllableSequence)) {
+            if (NO_PARAM == param) {
                 latestFuture = currentDelegate.next();
-            } else {
-                ControllableSequence<T, ? extends CompletionStage<T>> typedDelegate 
-                    = (ControllableSequence<T, ? extends CompletionStage<T>>)currentDelegate;
+            } else if (currentDelegate instanceof ReplySequence) {
+                ReplySequence<T, ? extends CompletionStage<T>> typedDelegate 
+                    = (ReplySequence<T, ? extends CompletionStage<T>>)currentDelegate;
                 latestFuture = typedDelegate.next(param);
+            } else {
+                // TODO: does it make sense to throw an error here?
+                latestFuture = currentDelegate.next();
             }
                 
             if (null != latestFuture) {

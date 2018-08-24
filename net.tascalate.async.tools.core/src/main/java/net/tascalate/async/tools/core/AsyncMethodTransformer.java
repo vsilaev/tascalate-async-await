@@ -505,7 +505,10 @@ abstract public class AsyncMethodTransformer {
         String name = createAccessMethodName(methods);
         Type[] originalArgTypes = Type.getArgumentTypes(dynNode.desc);
         // Need to check why is it so!
-        Type[] argTypes = true /* was: isStatic*/ ? originalArgTypes : prependArray(originalArgTypes, Type.getObjectType(classNode.name));
+        /*
+        Type[] argTypes = isStatic ? originalArgTypes : prependArray(originalArgTypes, Type.getObjectType(classNode.name));
+        */
+        Type[] argTypes = originalArgTypes; // As isStatic == true always
         Type returnType = Type.getReturnType(dynNode.desc);
         String desc = Type.getMethodDescriptor(returnType, argTypes);
 

@@ -24,11 +24,11 @@
  */
 package net.tascalate.async.xpi;
 
-import net.tascalate.async.ControllableSequence;
+import net.tascalate.async.ReplySequence;
 import net.tascalate.concurrent.Promise;
 import net.tascalate.javaflow.util.SuspendableStream;
 
-public interface PromisesGenerator<T> extends ControllableSequence<T, Promise<T>> {
+public interface PromisesGenerator<T> extends ReplySequence<T, Promise<T>> {
     @Override
     SuspendableStream<Promise<T>> stream();
 }

@@ -66,20 +66,6 @@
 			<plugin>
 				<groupId>net.tascalate.javaflow</groupId>
 				<artifactId>net.tascalate.javaflow.tools.maven</artifactId>
-				<version>${tascalate.javaflow.version}</version>
-				<!--
-				<configuration>
-					<includeTestClasses>false</includeTestClasses>
-				</configuration>
-				-->
-				<executions>
-					<execution>
-						<phase>process-classes</phase>
-						<goals>
-							<goal>javaflow-enhance</goal>
-						</goals>
-					</execution>
-				</executions>
 			</plugin>
 		</plugins>
 	</build>

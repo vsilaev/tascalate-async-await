@@ -2,7 +2,6 @@ package net.tascalate.async.examples.generator;
 
 import static net.tascalate.async.CallContext.async;
 import static net.tascalate.async.CallContext.await;
-import static net.tascalate.async.StandardOperations.stream;
 
 import java.util.Date;
 import java.util.StringJoiner;
@@ -52,7 +51,7 @@ public class SimpleArgs {
     @async
     static Promise<String> mergeStrings(String delimeter, @SchedulerProvider Scheduler scheduler, int zz) {
         StringJoiner joiner = new StringJoiner(delimeter);
-        try (Sequence<String, Promise<String>> generator = Sequence.from("ABC", "XYZ").stream().map(Promises::from).convert(stream.toSequence())) {
+        try (Sequence<String, Promise<String>> generator = Sequence.from("ABC", "XYZ").stream().map(Promises::from).convert(Sequence.fromStream())) {
             System.out.println("%%MergeStrings - before iterations");
             CompletionStage<String> singleResult; 
             while (null != (singleResult = generator.next())) {

@@ -24,8 +24,47 @@
  */
 package net.tascalate.async.xpi;
 
-import net.tascalate.async.ReplySequence;
-import net.tascalate.concurrent.Promise;
+import java.util.concurrent.CompletionStage;
 
-public interface PromisesGenerator<T> extends PromisesSequence<T>, ReplySequence<T, Promise<T>> {
+import net.tascalate.async.Sequence;
+
+import net.tascalate.concurrent.Promise;
+import net.tascalate.concurrent.Promises;
+
+import net.tascalate.javaflow.SuspendableIterator;
+import net.tascalate.javaflow.SuspendableStream;
+
+public class DefaultPromisesSequence<T> implements PromisesSequence<T> {
+    
+    protected final Sequence<T, ? extends CompletionStage<T>> delegate;
+    
+    public DefaultPromisesSequence(Sequence<T, ? extends CompletionStage<T>> delegate) {
+        this.delegate = delegate;
+    }
+    
+    @Override
+    public Promise<T> next() {
+        CompletionStage<T> original = delegate.next();
+        return null == original ? null : Promises.from(original);
+    }
+
+    @Override
+    public void close() {
+        delegate.close();
+    }
+
+    @Override
+    public SuspendableStream<Promise<T>> stream() {
+        return delegate.stream().map(Promises::from);
+    }
+    
+    @Override
+    public SuspendableIterator<Promise<T>> iterator() {
+        return stream().iterator();
+    }
+    
+    @Override
+    public String toString() {
+        return String.format("%s[delegate=%s]", PromisesGenerator.class.getSimpleName(), delegate);
+    }    
 }

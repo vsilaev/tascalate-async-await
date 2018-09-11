@@ -55,9 +55,14 @@ public class Generators {
             CompletableTask.delay(timeout, timeUnit, executor);
         }
     }
+
     
-    public static <T> Function<Generator<T>, PromisesGenerator<T>> promises() {
-        return PromisesGeneratorImpl::new;
+    public static <T> Function<Sequence<T, ? extends CompletionStage<T>>, PromisesSequence<T>> promisesSequence() {
+        return DefaultPromisesSequence::new;
+    }
+
+    public static <T> Function<Generator<T>, PromisesGenerator<T>> promisesGenerator() {
+        return DefaultPromisesGenerator::new;
     }
     
     static class CurrentSchedulerExecutor implements Executor {

@@ -22,50 +22,17 @@
  * OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
-package net.tascalate.async.xpi;
+package net.tascalate.async;
 
-import java.util.concurrent.CompletionStage;
+/**
+ * @author Valery Silaev
+ */
+public class InvalidCallContextException extends IllegalStateException {
 
-import net.tascalate.async.Generator;
-import net.tascalate.concurrent.Promise;
-import net.tascalate.concurrent.Promises;
+    private static final long serialVersionUID = 1L;
 
-import net.tascalate.javaflow.util.SuspendableStream;
-
-class PromisesGeneratorImpl <T> implements PromisesGenerator<T> {
-    
-    private final Generator<T> delegate;
-    
-    PromisesGeneratorImpl(Generator<T> delegate) {
-        this.delegate = delegate;
-    }
-    
-    @Override
-    public Promise<T> next() {
-        return next(NO_PARAM);
-    }
-    
-    @Override
-    public Promise<T> next(Object producerParam) {
-        CompletionStage<T> original = NO_PARAM == producerParam ? 
-            delegate.next() : delegate.next(producerParam);
-        return null == original ? null : Promises.from(original);
+    public InvalidCallContextException(final String message) {
+        super(message);
     }
 
-    @Override
-    public void close() {
-        delegate.close();
-    }
-
-    @Override
-    public SuspendableStream<Promise<T>> stream() {
-        return delegate.stream().map(Promises::from);
-    }
-    
-    @Override
-    public String toString() {
-        return String.format("%s[delegate=%s]", PromisesGenerator.class.getSimpleName(), delegate);
-    }    
-   
-    private static final Object NO_PARAM = new Object();
 }

@@ -34,7 +34,7 @@ import org.apache.commons.javaflow.api.Continuation;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 
-import net.tascalate.async.NoActiveAsyncCallException;
+import net.tascalate.async.InvalidCallContextException;
 import net.tascalate.async.Scheduler;
 import net.tascalate.async.suspendable;
 
@@ -86,7 +86,7 @@ public class AsyncMethodExecutor {
 
         // Check if the Continuation was suspended in our way.
         if (!(newContinuation.value() instanceof SuspendParams)) {
-            throw new NoActiveAsyncCallException("Continuation was suspended incorrectly, use AsyncCall.await");
+            throw new InvalidCallContextException("Continuation was suspended incorrectly, use AsyncCall.await");
         }
 
         setupContinuation(newContinuation);
@@ -151,7 +151,7 @@ public class AsyncMethodExecutor {
             return either.done();
         } else {
             // Illegal wake-up
-            throw new NoActiveAsyncCallException(
+            throw new InvalidCallContextException(
                 "Continuation was suspended incorrectly - are your classes instrumented for javaflow?"
             );
         }

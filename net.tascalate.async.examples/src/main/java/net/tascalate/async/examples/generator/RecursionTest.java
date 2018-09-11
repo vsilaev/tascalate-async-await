@@ -2,7 +2,7 @@ package net.tascalate.async.examples.generator;
 
 import static net.tascalate.async.CallContext.async;
 import static net.tascalate.async.CallContext.yield;
-import static net.tascalate.async.StandardOperations.readyValues;
+import static net.tascalate.async.CallContext.awaitValue;
 
 import java.util.function.Consumer;
 
@@ -11,8 +11,9 @@ import org.apache.commons.javaflow.core.StackRecorder;
 import net.tascalate.async.Generator;
 import net.tascalate.async.Sequence;
 import net.tascalate.async.async;
+
 import net.tascalate.concurrent.Promise;
-import net.tascalate.javaflow.util.SuspendableStream;
+import net.tascalate.javaflow.SuspendableStream;
 
 public class RecursionTest {
 
@@ -26,7 +27,7 @@ public class RecursionTest {
     
     @async static Promise<String> consumer() {
         System.out.println( StackRecorder.get().getRunnable().toString() );
-        try (SuspendableStream<Object> g = producer().stream().map$(readyValues())) {
+        try (SuspendableStream<Object> g = producer().stream().map$(awaitValue())) {
             g.forEach(NOP);
         }
         return async("Done");

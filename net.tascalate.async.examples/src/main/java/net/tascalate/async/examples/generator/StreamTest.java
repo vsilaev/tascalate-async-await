@@ -27,8 +27,7 @@ package net.tascalate.async.examples.generator;
 import static net.tascalate.async.CallContext.async;
 import static net.tascalate.async.CallContext.await;
 import static net.tascalate.async.CallContext.yield;
-import static net.tascalate.async.StandardOperations.readyValues;
-import static net.tascalate.async.StandardOperations.stream;
+import static net.tascalate.async.CallContext.awaitValue;
 
 import java.time.Duration;
 import java.util.Arrays;
@@ -45,7 +44,7 @@ import net.tascalate.async.suspendable;
 import net.tascalate.concurrent.CompletableTask;
 import net.tascalate.concurrent.Promises;
 
-import net.tascalate.javaflow.util.SuspendableStream;
+import net.tascalate.javaflow.SuspendableStream;
 
 public class StreamTest {
 
@@ -87,7 +86,7 @@ public class StreamTest {
             .flatMap(px -> producePrefixedStrings(px).stream())
             .drop(2)
             .take(18)
-            .map$(readyValues())
+            .map$(awaitValue())
             .fold("", (r, s) -> r + "\n" + s)
         ;
         return async(result);
@@ -111,7 +110,7 @@ public class StreamTest {
         return async( 
             produceNumericStrings()
             .stream()
-            .map$(readyValues())
+            .map$(awaitValue())
             .reduce((t, s) -> t + "\n" + s)
             .orElse("<error-reduce")
         ); 
@@ -132,7 +131,7 @@ public class StreamTest {
         yield(
             SuspendableStream
                 .zip(numerics, alphas, (a, b) -> a.thenCombine(b, (av, bv) -> av + " - " + bv) )
-                .convert( stream.toSequence() )
+                .convert(Sequence.fromStream())
         );
         return yield();
     }

@@ -27,8 +27,9 @@ package net.tascalate.async;
 import java.util.concurrent.CancellationException;
 import java.util.concurrent.CompletionStage;
 
-import net.tascalate.async.core.InternalCallContext;
 import net.tascalate.async.core.AsyncMethodExecutor;
+import net.tascalate.async.core.InternalCallContext;
+import net.tascalate.javaflow.function.SuspendableFunction;
 
 /**
  * @author Valery Silaev
@@ -44,11 +45,11 @@ public class CallContext {
      * The {@link async} method will be suspended until {@link CompletionStage}
      * returns or throws the result.
      */
-    public @suspendable static <T> T await(CompletionStage<T> future) throws CancellationException, NoActiveAsyncCallException {
+    public @suspendable static <T> T await(CompletionStage<T> future) throws CancellationException, InvalidCallContextException {
         return AsyncMethodExecutor.await(future);
     }
     
-    public static boolean interrupted() throws NoActiveAsyncCallException {
+    public static boolean interrupted() throws InvalidCallContextException {
         // Implementation is used only in @suspendable methods
         // @async methods get this call replaced with optimized 
         // version that invokes instance method on generated class
@@ -59,15 +60,15 @@ public class CallContext {
         throw new IllegalStateException("Method call must be replaced by bytecode enhancer");
     }
 
-    public static <T> YieldReply<T> yield(T readyValue) throws NoActiveAsyncCallException {
+    public static <T> YieldReply<T> yield(T readyValue) throws InvalidCallContextException {
         throw new IllegalStateException("Method call must be replaced by bytecode enhancer");
     }
 
-    public static <T> YieldReply<T> yield(CompletionStage<T> pendingValue) throws CancellationException, NoActiveAsyncCallException {
+    public static <T> YieldReply<T> yield(CompletionStage<T> pendingValue) throws CancellationException, InvalidCallContextException {
         throw new IllegalStateException("Method call must be replaced by bytecode enhancer");
     }
 
-    public static <T, R extends CompletionStage<T>> YieldReply<T> yield(Sequence<T, R> values) throws CancellationException, NoActiveAsyncCallException {
+    public static <T, R extends CompletionStage<T>> YieldReply<T> yield(Sequence<T, R> values) throws CancellationException, InvalidCallContextException {
         throw new IllegalStateException("Method call must be replaced by bytecode enhancer");
     }
 
@@ -91,4 +92,12 @@ public class CallContext {
                    E4 extends Throwable,
                    E5 extends Throwable> void throwing(Class<E1> e1, Class<E2> e2, Class<E3> e3, Class<E4> e4, Class<E5> e5) throws E1, E2, E3, E4, E5 {}
     
+    public static <T> SuspendableFunction<CompletionStage<T>, T> awaitValue() {
+        return new SuspendableFunction<CompletionStage<T>, T>() {
+            @Override
+            public T apply(CompletionStage<T> future) {
+                return AsyncMethodExecutor.await(future);
+            }
+        };
+    }
 }

@@ -26,7 +26,7 @@ package net.tascalate.async.core;
 
 import org.apache.commons.javaflow.core.StackRecorder;
 
-import net.tascalate.async.NoActiveAsyncCallException;
+import net.tascalate.async.InvalidCallContextException;
 import net.tascalate.async.Scheduler;
 
 public class InternalCallContext {
@@ -49,7 +49,7 @@ public class InternalCallContext {
     private static AsyncMethod asyncMethod(boolean mustBeAvailable) {
         StackRecorder stackRecorder = StackRecorder.get();
         if (null == stackRecorder && mustBeAvailable) {
-            throw new NoActiveAsyncCallException(
+            throw new InvalidCallContextException(
                 "Continuation was continued incorrectly - are your classes instrumented for javaflow?"
             );
         }
@@ -57,7 +57,7 @@ public class InternalCallContext {
         if (result instanceof AsyncMethod) {
             return (AsyncMethod)result;
         } else if (mustBeAvailable) {
-            throw new NoActiveAsyncCallException(
+            throw new InvalidCallContextException(
                 "Current runnable is not " + AsyncMethod.class.getName() + " - are your classes instrumented for javaflow?"
             );
         } else {

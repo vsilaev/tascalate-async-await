@@ -28,7 +28,7 @@ import static net.tascalate.async.CallContext.async;
 import static net.tascalate.async.CallContext.await;
 import static net.tascalate.async.CallContext.interrupted;
 import static net.tascalate.async.CallContext.yield;
-import static net.tascalate.async.StandardOperations.readyValues;
+import static net.tascalate.async.CallContext.awaitValue;
 
 import java.io.FileNotFoundException;
 
@@ -50,7 +50,7 @@ import net.tascalate.async.suspendable;
 
 import net.tascalate.concurrent.CompletableTask;
 
-import net.tascalate.javaflow.util.SuspendableIterator;
+import net.tascalate.javaflow.SuspendableIterator;
 
 public class GeneratorExample {
 
@@ -100,11 +100,7 @@ public class GeneratorExample {
     
     @async
     CompletionStage<String> iterateStringsEx() {
-        try (SuspendableIterator<String> values = 
-                moreStringsEx()
-                .stream()
-                .map$( readyValues() )
-                .iterator()) {
+        try (SuspendableIterator<String> values = moreStringsEx().readyValues()) {
             
             while (values.hasNext()) {
                 String v = values.next();

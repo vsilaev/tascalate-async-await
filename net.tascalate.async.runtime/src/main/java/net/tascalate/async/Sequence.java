@@ -32,9 +32,11 @@ import java.util.stream.StreamSupport;
 
 import net.tascalate.async.sequence.CompletionSequence;
 import net.tascalate.async.sequence.OrderedSequence;
-import net.tascalate.javaflow.util.Option;
-import net.tascalate.javaflow.util.SuspendableProducer;
-import net.tascalate.javaflow.util.SuspendableStream;
+
+import net.tascalate.javaflow.Option;
+import net.tascalate.javaflow.SuspendableIterator;
+import net.tascalate.javaflow.SuspendableProducer;
+import net.tascalate.javaflow.SuspendableStream;
 
 public interface Sequence<T, F extends CompletionStage<T>> extends AutoCloseable {
     @suspendable F next();
@@ -61,6 +63,13 @@ public interface Sequence<T, F extends CompletionStage<T>> extends AutoCloseable
         });
     }
     
+    default SuspendableIterator<F> iterator() {
+        return stream().iterator();
+    }
+    
+    default SuspendableIterator<T> readyValues() {
+        return stream().map$(CallContext.awaitValue()).iterator();
+    }     
     
     @SuppressWarnings("unchecked")
     public static <T, F extends CompletionStage<T>> Sequence<T, F> empty() {
@@ -121,4 +130,30 @@ public interface Sequence<T, F extends CompletionStage<T>> extends AutoCloseable
     public static <T, F extends CompletionStage<T>> Sequence<T, F> readyFirst(Stream<? extends F> pendingValues, int chunkSize) {
         return CompletionSequence.create(pendingValues, chunkSize);
     }
+    
+    public static <T, F extends CompletionStage<T>> Function<SuspendableProducer<? extends F>, Sequence<T, F>> fromStream() {
+        final class SequenceByProducer implements Sequence<T, F> {
+            private final SuspendableProducer<? extends F> producer;
+            
+            SequenceByProducer(SuspendableProducer<? extends F> producer) {
+                this.producer = producer;
+            }
+            
+            @Override
+            public F next() {
+                return producer.produce().orElseNull().get();
+            }
+
+            @Override
+            public void close() {
+                producer.close();
+            }
+            
+            @Override
+            public String toString() {
+                return String.format("%s[producer=%s]", getClass().getSimpleName(), producer);
+            }
+        };
+        return SequenceByProducer::new;
+    }        
 }

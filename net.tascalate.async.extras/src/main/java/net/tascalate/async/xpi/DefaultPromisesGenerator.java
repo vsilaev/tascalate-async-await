@@ -22,17 +22,25 @@
  * OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
-package net.tascalate.async;
+package net.tascalate.async.xpi;
 
-/**
- * @author Valery Silaev
- */
-public class NoActiveAsyncCallException extends IllegalStateException {
+import java.util.concurrent.CompletionStage;
 
-    private static final long serialVersionUID = 1L;
+import net.tascalate.async.Generator;
+import net.tascalate.concurrent.Promise;
+import net.tascalate.concurrent.Promises;
 
-    public NoActiveAsyncCallException(final String message) {
-        super(message);
+public class DefaultPromisesGenerator<T> extends DefaultPromisesSequence<T> implements PromisesGenerator<T> {
+    
+    public DefaultPromisesGenerator(Generator<T> delegate) {
+        super(delegate);
     }
-
+    
+    @Override
+    public Promise<T> next(Object producerParam) {
+        @SuppressWarnings("unchecked")
+        Generator<T> _delegate = (Generator<T>)delegate;
+        CompletionStage<T> original = _delegate.next(producerParam);
+        return null == original ? null : Promises.from(original);
+    }
 }

@@ -28,7 +28,6 @@ import static net.tascalate.async.CallContext.async;
 import static net.tascalate.async.CallContext.await;
 import static net.tascalate.async.CallContext.interrupted;
 import static net.tascalate.async.CallContext.yield;
-import static net.tascalate.async.CallContext.awaitValue;
 
 import java.io.FileNotFoundException;
 
@@ -100,7 +99,7 @@ public class GeneratorExample {
     
     @async
     CompletionStage<String> iterateStringsEx() {
-        try (SuspendableIterator<String> values = moreStringsEx().readyValues()) {
+        try (SuspendableIterator<String> values = moreStringsEx().values()) {
             
             while (values.hasNext()) {
                 String v = values.next();

@@ -42,17 +42,17 @@ public class Generators {
         return yield();
     }
     
-    public @async Generator<Duration> delays(Duration duration) {
+    public static @async Generator<Duration> delays(Duration duration) {
         Executor executor = new CurrentSchedulerExecutor(ActiveAsyncCall.scheduler());
         while (true) {
-            CompletableTask.delay(duration, executor);
+            yield( CompletableTask.delay(duration, executor) );
         }
     }
     
-    public @async Generator<Duration> delays(long timeout, TimeUnit timeUnit) {
+    public static @async Generator<Duration> delays(int timeout, TimeUnit timeUnit) {
         Executor executor = new CurrentSchedulerExecutor(ActiveAsyncCall.scheduler());
         while (true) {
-            CompletableTask.delay(timeout, timeUnit, executor);
+            yield(CompletableTask.delay(timeout, timeUnit, executor));
         }
     }
 
@@ -73,7 +73,7 @@ public class Generators {
         
         @Override
         public void execute(Runnable command) {
-            scheduler.schedule(scheduler.contextualize(command));
+            scheduler.schedule(command);
         }
     }
 }

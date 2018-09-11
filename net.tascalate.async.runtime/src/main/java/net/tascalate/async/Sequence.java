@@ -67,7 +67,7 @@ public interface Sequence<T, F extends CompletionStage<T>> extends AutoCloseable
         return stream().iterator();
     }
     
-    default SuspendableIterator<T> readyValues() {
+    default SuspendableIterator<T> values() {
         return stream().map$(CallContext.awaitValue()).iterator();
     }     
     

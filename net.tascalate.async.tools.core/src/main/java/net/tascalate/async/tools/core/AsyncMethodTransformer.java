@@ -35,7 +35,6 @@ import static net.tascalate.async.tools.core.BytecodeIntrospection.invisibleAnno
 import static net.tascalate.async.tools.core.BytecodeIntrospection.invisibleParameterAnnotationsOf;
 import static net.tascalate.async.tools.core.BytecodeIntrospection.invisibleTypeAnnotationsOf;
 import static net.tascalate.async.tools.core.BytecodeIntrospection.methodsOf;
-import static net.tascalate.async.tools.core.BytecodeIntrospection.removeAsyncAnnotation;
 import static net.tascalate.async.tools.core.BytecodeIntrospection.visibleAnnotationsOf;
 import static net.tascalate.async.tools.core.BytecodeIntrospection.visibleParameterAnnotationsOf;
 import static net.tascalate.async.tools.core.BytecodeIntrospection.visibleTypeAnnotationsOf;
@@ -67,6 +66,8 @@ import org.objectweb.asm.tree.TypeAnnotationNode;
 
 abstract public class AsyncMethodTransformer {
     protected final static Log log = LogFactory.getLog(AsyncAwaitClassFileGenerator.class);
+
+    private final static String ASYNC_ANNOTATION_DESCRIPTOR = "Lnet/tascalate/async/async;";
     
     protected final static String CALL_CONTXT_NAME = "net/tascalate/async/CallContext";
     
@@ -109,7 +110,7 @@ abstract public class AsyncMethodTransformer {
 
         // Create InnerClassNode for anoymous class
         String asyncTaskClassName = createInnerClassName(classNode);
-        innerClassesOf(classNode).add(new InnerClassNode(asyncTaskClassName, null, null, 0));
+        innerClassesOf(classNode).add(new InnerClassNode(asyncTaskClassName, null, null, (originalAsyncMethod.access & ACC_STATIC)));
 
         // Create accessor methods
         createAccessMethodsForAsyncMethod();
@@ -119,17 +120,17 @@ abstract public class AsyncMethodTransformer {
 
         // Replace original method
 
-        MethodNode replacementAsyncMethodNode = createReplacementAsyncMethod(asyncTaskClassName);
-        
         List<MethodNode> methods = methodsOf(classNode);
-        methods.set(methods.indexOf(originalAsyncMethod), replacementAsyncMethodNode);        
+        methods.remove(originalAsyncMethod);
+        
+        createReplacementAsyncMethod(asyncTaskClassName);
         
         //System.out.println(BytecodeTraceUtil.toString(classNode));
         return asyncTaskClassNode;
     }
     
-    abstract protected MethodNode createReplacementAsyncMethod(String asyncTaskClassName);
-    abstract protected MethodNode addAnonymousClassRunMethod(ClassNode asyncRunnableClass, FieldNode outerClassField);
+    abstract protected MethodVisitor createReplacementAsyncMethod(String asyncTaskClassName);
+    abstract protected MethodVisitor addAnonymousClassRunMethod(ClassNode asyncRunnableClass, FieldNode outerClassField);
 
     
     protected ClassNode createAnonymousClass(String asyncTaskClassName, Type superClassType) {
@@ -137,7 +138,7 @@ abstract public class AsyncMethodTransformer {
 
         ClassNode asyncRunnableClass = new ClassNode();
 
-        asyncRunnableClass.visit(classNode.version, ACC_SUPER, asyncTaskClassName, null, superClassType.getInternalName(), null);
+        asyncRunnableClass.visit(classNode.version, ACC_FINAL + ACC_SUPER, asyncTaskClassName, null, superClassType.getInternalName(), null);
         asyncRunnableClass.visitSource(classNode.sourceFile, null);
         asyncRunnableClass.visitOuterClass(classNode.name, originalAsyncMethod.name, originalAsyncMethod.desc);
 
@@ -171,7 +172,7 @@ abstract public class AsyncMethodTransformer {
             for (int i = 0; i < originalArity; i++) {
                 String argName = createOuterClassMethodArgFieldName(i);
                 String argDesc = argTypes[i].getDescriptor();
-                asyncRunnableClass.visitField(ACC_PRIVATE + ACC_FINAL + ACC_SYNTHETIC, argName, argDesc, null, null);
+                asyncRunnableClass.visitField(ACC_PRIVATE /* + ACC_FINAL */ + ACC_SYNTHETIC, argName, argDesc, null, null);
             }
         }
 
@@ -181,70 +182,72 @@ abstract public class AsyncMethodTransformer {
         return asyncRunnableClass;
     }
     
-    protected MethodNode addAnonymousClassConstructor(ClassNode asyncRunnableClass, Type superClassType, FieldNode outerClassField) {
+    protected MethodVisitor addAnonymousClassConstructor(ClassNode asyncRunnableClass, Type superClassType, FieldNode outerClassField) {
         boolean isStatic = (originalAsyncMethod.access & Opcodes.ACC_STATIC) != 0;
         // Original methods arguments
-        Type[] argTypes = Type.getArgumentTypes(originalAsyncMethod.desc);
-        int originalArity = argTypes.length;
+        Type[] originalArgTypes = Type.getArgumentTypes(originalAsyncMethod.desc);
+        int originalArity = originalArgTypes.length;
 
         String constructorDesc = Type.getMethodDescriptor(
             Type.VOID_TYPE,
             appendArray(
-                isStatic ? argTypes : prependArray(argTypes, Type.getObjectType(classNode.name)),
+                isStatic ? originalArgTypes : prependArray(originalArgTypes, Type.getObjectType(classNode.name)),
                 SCHEDULER_TYPE
             )
         );
 
-        MethodVisitor mv = asyncRunnableClass.visitMethod(0, "<init>", constructorDesc, null, null);
-        mv.visitCode();
+        MethodVisitor result = asyncRunnableClass.visitMethod(0, "<init>", constructorDesc, null, null);
+        result.visitCode();
 
         if (!isStatic) {
             // Store outer class instance
-            mv.visitVarInsn(ALOAD, 0);
-            mv.visitVarInsn(ALOAD, 1);
-            mv.visitFieldInsn(PUTFIELD, asyncRunnableClass.name, outerClassField.name, outerClassField.desc);
+            result.visitVarInsn(ALOAD, 0);
+            result.visitVarInsn(ALOAD, 1);
+            result.visitFieldInsn(PUTFIELD, asyncRunnableClass.name, outerClassField.name, outerClassField.desc);
         }
 
         // Store original method's arguments
+        int paramVarIdx = isStatic ? 1 : 2;
+        boolean hasDWordParam = false;
         for (int i = 0; i < originalArity; i++) {
-            String argName = createOuterClassMethodArgFieldName(i);
-            String argDesc = argTypes[i].getDescriptor();
-
-            mv.visitVarInsn(ALOAD, 0);
-            mv.visitVarInsn(argTypes[i].getOpcode(ILOAD), i + (isStatic ? 1 : 2));
-            mv.visitFieldInsn(PUTFIELD, asyncRunnableClass.name, argName, argDesc);
+            Type argType = originalArgTypes[i];
+            result.visitVarInsn(ALOAD, 0);
+            result.visitVarInsn(argType.getOpcode(ILOAD), paramVarIdx);
+            paramVarIdx += argType.getSize();
+            hasDWordParam |= argType.getSize() > 1; 
+            result.visitFieldInsn(PUTFIELD, asyncRunnableClass.name, createOuterClassMethodArgFieldName(i), argType.getDescriptor());
         }
 
         // Invoke super()
-        mv.visitVarInsn(ALOAD, 0);
-        mv.visitVarInsn(ALOAD, originalArity + (isStatic ? 1 : 2));
-        mv.visitMethodInsn(
+        result.visitVarInsn(ALOAD, 0);
+        result.visitVarInsn(ALOAD, paramVarIdx);
+        result.visitMethodInsn(
             INVOKESPECIAL, superClassType.getInternalName(), 
             "<init>", Type.getMethodDescriptor(Type.VOID_TYPE, SCHEDULER_TYPE), false
         );
 
-        mv.visitInsn(RETURN);
-        mv.visitMaxs(2 /* stack */, originalArity + (isStatic ? 1 : 2) + 1 /* locals */);
-        mv.visitEnd();
+        result.visitInsn(RETURN);
+        result.visitMaxs(hasDWordParam ? 3 : 2 /* stack */, paramVarIdx /* locals */);
+        result.visitEnd();
 
-        return (MethodNode) mv;        
+        return result;        
     }
 
-    protected MethodNode addAnonymousClassToStringMethod(ClassNode asyncRunnableClass, Type runnableBaseClass) {
-        MethodNode asyncToStringMethod = (MethodNode)asyncRunnableClass.visitMethod(
+    protected MethodVisitor addAnonymousClassToStringMethod(ClassNode asyncRunnableClass, Type runnableBaseClass) {
+        MethodVisitor result = asyncRunnableClass.visitMethod(
             ACC_PUBLIC, "toString", Type.getMethodDescriptor(STRING_TYPE), null, null
         );
-        asyncToStringMethod.visitVarInsn(ALOAD, 0);
-        asyncToStringMethod.visitLdcInsn(classNode.name.replace('/', '.'));
-        asyncToStringMethod.visitLdcInsn(getMethodSignature(originalAsyncMethod, true));
-        asyncToStringMethod.visitMethodInsn(
+        result.visitVarInsn(ALOAD, 0);
+        result.visitLdcInsn(classNode.name.replace('/', '.'));
+        result.visitLdcInsn(getMethodSignature(originalAsyncMethod, true));
+        result.visitMethodInsn(
             INVOKEVIRTUAL, runnableBaseClass.getInternalName(), 
             "toString", Type.getMethodDescriptor(STRING_TYPE, STRING_TYPE, STRING_TYPE), 
             false
          );
-        asyncToStringMethod.visitInsn(ARETURN);
-        asyncToStringMethod.visitMaxs(3, 1);
-        return asyncToStringMethod;
+        result.visitInsn(ARETURN);
+        result.visitMaxs(3, 1);
+        return result;
         
     }
     
@@ -272,43 +275,60 @@ abstract public class AsyncMethodTransformer {
         return null;
     }
     
-    protected MethodNode createReplacementAsyncMethod(String asyncTaskClassName, Type runnableBaseClass, String runnableFieldName, Type runnableFieldType) {
+    protected MethodVisitor createReplacementAsyncMethod(String asyncTaskClassName, Type runnableBaseClass, String runnableFieldName, Type runnableFieldType) {
         boolean isStatic = (originalAsyncMethod.access & Opcodes.ACC_STATIC) != 0;
         int thisArgShift = isStatic ? 0 : 1;
         Type[] originalArgTypes = Type.getArgumentTypes(originalAsyncMethod.desc);
         int originalArity = originalArgTypes.length;
 
-        MethodNode replacementAsyncMethodNode = new MethodNode(
-            originalAsyncMethod.access, originalAsyncMethod.name, originalAsyncMethod.desc, null, null
+        MethodVisitor result = classNode.visitMethod( 
+            originalAsyncMethod.access, originalAsyncMethod.name, 
+            originalAsyncMethod.desc, originalAsyncMethod.signature, 
+            null
         );
-
-        replacementAsyncMethodNode.invisibleAnnotations = copyAnnotations(invisibleAnnotationsOf(originalAsyncMethod));
-        replacementAsyncMethodNode.visibleAnnotations = copyAnnotations(visibleAnnotationsOf(originalAsyncMethod));
-        // Remove @async annotation
-        removeAsyncAnnotation(replacementAsyncMethodNode);
         
-        replacementAsyncMethodNode.invisibleParameterAnnotations = copyParameterAnnotations(invisibleParameterAnnotationsOf(originalAsyncMethod));
-        replacementAsyncMethodNode.visibleParameterAnnotations = copyParameterAnnotations(visibleParameterAnnotationsOf(originalAsyncMethod));
-        replacementAsyncMethodNode.invisibleTypeAnnotations = copyTypeAnnotations(invisibleTypeAnnotationsOf(originalAsyncMethod));
-        replacementAsyncMethodNode.visibleTypeAnnotations = copyTypeAnnotations(visibleTypeAnnotationsOf(originalAsyncMethod));
-        
-        replacementAsyncMethodNode.visitAnnotation(SUSPENDABLE_ANNOTATION_TYPE.getDescriptor(), true).visitEnd();
-        replacementAsyncMethodNode.visitCode();
+        //replacementAsyncMethodNode.invisibleAnnotations = copyAnnotations(invisibleAnnotationsOf(originalAsyncMethod));
+        //Remove @async annotation
+        //removeAsyncAnnotation(replacementAsyncMethodNode);
+        invisibleAnnotationsOf(originalAsyncMethod)
+            .stream()
+            .filter(an -> !ASYNC_ANNOTATION_DESCRIPTOR.equals(an.desc))
+            .forEach(an -> an.accept( result.visitAnnotation(an.desc, false) ) );
+         
+        //replacementAsyncMethodNode.visibleAnnotations = copyAnnotations(visibleAnnotationsOf(originalAsyncMethod));
+        visibleAnnotationsOf(originalAsyncMethod)
+            .forEach(an -> an.accept( result.visitAnnotation(an.desc, true) ) );
 
-        int schedulerParamIdx = schedulerProviderParamIdx(originalAsyncMethod);
-        if (schedulerParamIdx >= 0) {
-            replacementAsyncMethodNode.visitVarInsn(ALOAD, schedulerParamIdx + thisArgShift);
+        //replacementAsyncMethodNode.invisibleTypeAnnotations = copyTypeAnnotations();
+        invisibleTypeAnnotationsOf(originalAsyncMethod)
+            .forEach(an -> an.accept( result.visitTypeAnnotation(an.typeRef, an.typePath, an.desc, false)) );
+        //replacementAsyncMethodNode.visibleTypeAnnotations = copyTypeAnnotations(visibleTypeAnnotationsOf(originalAsyncMethod));
+        visibleTypeAnnotationsOf(originalAsyncMethod)
+            .forEach(an -> an.accept( result.visitTypeAnnotation(an.typeRef, an.typePath, an.desc, true)) );
+        
+        result.visitAnnotation(SUSPENDABLE_ANNOTATION_TYPE.getDescriptor(), true).visitEnd();
+        
+        //replacementAsyncMethodNode.invisibleParameterAnnotations = copyParameterAnnotations();
+        copyParameterAnnotations(result, invisibleParameterAnnotationsOf(originalAsyncMethod), false);
+        //replacementAsyncMethodNode.visibleParameterAnnotations = copyParameterAnnotations(visibleParameterAnnotationsOf(originalAsyncMethod));
+        copyParameterAnnotations(result, visibleParameterAnnotationsOf(originalAsyncMethod), true);
+        
+        result.visitCode();
+
+        int providedSchedulerParamIdx = schedulerProviderParamIdx(originalAsyncMethod);
+        if (providedSchedulerParamIdx >= 0) {
+            result.visitVarInsn(ALOAD, providedSchedulerParamIdx + thisArgShift);
         } else {
-            replacementAsyncMethodNode.visitInsn(ACONST_NULL);
+            result.visitInsn(ACONST_NULL);
         }
         // Resolve by owner if non-static
         if (isStatic) {
-            replacementAsyncMethodNode.visitInsn(ACONST_NULL);
+            result.visitInsn(ACONST_NULL);
         } else {
-            replacementAsyncMethodNode.visitVarInsn(ALOAD, 0);
+            result.visitVarInsn(ALOAD, 0);
         }
-        replacementAsyncMethodNode.visitLdcInsn(Type.getObjectType(classNode.name));
-        replacementAsyncMethodNode.visitMethodInsn(
+        result.visitLdcInsn(Type.getObjectType(classNode.name));
+        result.visitMethodInsn(
             INVOKESTATIC, ASYNC_METHOD_EXECUTOR_TYPE.getInternalName(), "currentScheduler", 
             Type.getMethodDescriptor(SCHEDULER_TYPE, SCHEDULER_TYPE, OBJECT_TYPE, CLASS_TYPE), false
         );
@@ -320,29 +340,33 @@ abstract public class AsyncMethodTransformer {
                 SCHEDULER_TYPE
             )
         );
-        replacementAsyncMethodNode.visitVarInsn(ASTORE, originalArity + thisArgShift);
+        int schedulerVarIdx = Arrays.stream(originalArgTypes).mapToInt(a -> a.getSize()).sum() + thisArgShift;
+        result.visitVarInsn(ASTORE, schedulerVarIdx);
         
-        replacementAsyncMethodNode.visitTypeInsn(NEW, asyncTaskClassName);
-        replacementAsyncMethodNode.visitInsn(DUP);
+        result.visitTypeInsn(NEW, asyncTaskClassName);
+        result.visitInsn(DUP);
         if (!isStatic) {
             // Reference to outer this
-            replacementAsyncMethodNode.visitVarInsn(ALOAD, 0);
+            result.visitVarInsn(ALOAD, 0);
         }
 
         // load all method arguments into stack
+        int paramVarIdx = thisArgShift;
         for (int i = 0; i < originalArity; i++) {
-            // Shifted for this if necessary
-            replacementAsyncMethodNode.visitVarInsn(originalArgTypes[i].getOpcode(ILOAD), i + thisArgShift);
+            Type originalArgType = originalArgTypes[i];
+            result.visitVarInsn(originalArgType.getOpcode(ILOAD), paramVarIdx);
+            paramVarIdx += originalArgType.getSize();
         }
         
         // load resolved scheduler
-        replacementAsyncMethodNode.visitVarInsn(ALOAD, originalArity + thisArgShift);
+        result.visitVarInsn(ALOAD, schedulerVarIdx);
 
-        replacementAsyncMethodNode.visitMethodInsn(INVOKESPECIAL, asyncTaskClassName, "<init>", constructorDesc, false);
-        replacementAsyncMethodNode.visitVarInsn(ASTORE, originalArity + thisArgShift);
+        result.visitMethodInsn(INVOKESPECIAL, asyncTaskClassName, "<init>", constructorDesc, false);
+        int methodVarIdx = schedulerVarIdx + 1;
+        result.visitVarInsn(ASTORE, methodVarIdx);
 
-        replacementAsyncMethodNode.visitVarInsn(ALOAD, originalArity + thisArgShift);
-        replacementAsyncMethodNode.visitMethodInsn(
+        result.visitVarInsn(ALOAD, methodVarIdx);
+        result.visitMethodInsn(
             INVOKESTATIC, ASYNC_METHOD_EXECUTOR_TYPE.getInternalName(), "execute", 
             Type.getMethodDescriptor(Type.VOID_TYPE, ASYNC_METHOD_TYPE), false
         );
@@ -350,27 +374,41 @@ abstract public class AsyncMethodTransformer {
         Type returnType = Type.getReturnType(originalAsyncMethod.desc);
         boolean hasResult = !Type.VOID_TYPE.equals(returnType); 
         if (hasResult) {
-            replacementAsyncMethodNode.visitVarInsn(ALOAD, originalArity + thisArgShift);
-            replacementAsyncMethodNode.visitFieldInsn(
+            result.visitVarInsn(ALOAD, methodVarIdx);
+            result.visitFieldInsn(
                 GETFIELD, runnableBaseClass.getInternalName(), runnableFieldName, runnableFieldType.getDescriptor()
             );
             if (TASCALATE_PROMISE_TYPE.equals(returnType)) {
-                replacementAsyncMethodNode.visitMethodInsn(
+                result.visitMethodInsn(
                     INVOKESTATIC, TASCALATE_PROMISES_TYPE.getInternalName(), "from", 
                     Type.getMethodDescriptor(TASCALATE_PROMISE_TYPE, COMPLETION_STAGE_TYPE), false
                 ); 
             }
-            replacementAsyncMethodNode.visitInsn(ARETURN);
+            result.visitInsn(ARETURN);
         } else {
-            replacementAsyncMethodNode.visitInsn(RETURN);
+            result.visitInsn(RETURN);
         }
 
-        replacementAsyncMethodNode.visitMaxs(
-            Math.max(3 /*to resolve scheduler*/, originalArity + thisArgShift + 1), // for constructor call (incl. scheduler)
-            originalArity + thisArgShift + 1 // params count + outer this (for non static) + resolved scheduler
+        result.visitMaxs(
+            Math.max(3 /*to resolve scheduler*/, methodVarIdx + 1), // for constructor call (incl. scheduler + DUP)
+            methodVarIdx // params count + outer this (for non static) + resolved scheduler + methodRunnable
         );
-        replacementAsyncMethodNode.visitEnd();
-        return replacementAsyncMethodNode;
+
+        result.visitEnd();
+        return result;
+    }
+    
+    protected void copyParameterAnnotations(MethodVisitor target, List<AnnotationNode>[] annotationsByIdx, boolean visible) {
+        if (null == annotationsByIdx) {
+            return;
+        }
+        for (int i = 0; i < annotationsByIdx.length; i++ ) {
+            List<AnnotationNode> annotations = annotationsByIdx[i];
+            if (null != annotations) {
+                int idx = 0;
+                annotations.forEach(an -> an.accept(target.visitParameterAnnotation(idx, an.desc, visible)) );
+            }
+        }
     }
     
     protected int schedulerProviderParamIdx(MethodNode methodNode) {
@@ -396,25 +434,6 @@ abstract public class AsyncMethodTransformer {
         return result;
     }
     
-    protected static List<AnnotationNode> copyAnnotations(List<AnnotationNode> originalAnnotations) {
-        if (null == originalAnnotations || originalAnnotations.isEmpty()) {
-            return null;
-        }
-        return new ArrayList<>(originalAnnotations);
-    }
-    
-    protected static List<AnnotationNode>[] copyParameterAnnotations(List<AnnotationNode>[] originalAnnotations) {
-        if (null == originalAnnotations || originalAnnotations.length == 0) {
-            return null;
-        }
-        @SuppressWarnings("unchecked")
-        List<AnnotationNode>[] result = new List[originalAnnotations.length];
-        for (int i = originalAnnotations.length - 1; i >= 0; i--) {
-            result[i] = copyAnnotations(originalAnnotations[i]);
-        }
-        return result;
-    }
-    
     protected static List<TypeAnnotationNode> copyTypeAnnotations(List<TypeAnnotationNode> originalAnnotations) {
         if (null == originalAnnotations || originalAnnotations.isEmpty()) {
             return null;
@@ -424,7 +443,6 @@ abstract public class AsyncMethodTransformer {
             .map(t -> new TypeAnnotationNode(t.typeRef, t.typePath, t.desc))
             .collect(Collectors.toCollection(ArrayList::new));
     }
-
     
     protected void createAccessMethodsForAsyncMethod() {
         List<MethodNode> methods = methodsOf(classNode);
@@ -664,6 +682,17 @@ abstract public class AsyncMethodTransformer {
         return accessMethods.get(owner + name + desc + "-" + kind);
     }
 
+    protected static int findOriginalArgumentIndex(Type[] arguments, int var, boolean isStaticMethod) {
+        int varParamIdx = isStaticMethod ? 0 : 1;
+        int arity = arguments.length;
+        for (int i = 0; i < arity && varParamIdx <= var; i++) {
+          if (varParamIdx == var) {
+              return i;
+          }
+          varParamIdx += arguments[i].getSize();
+        }
+        return -1;
+    }
     
     protected static Type[] prependArray(Type[] array, Type value) {
         Type[] result = new Type[array.length + 1];

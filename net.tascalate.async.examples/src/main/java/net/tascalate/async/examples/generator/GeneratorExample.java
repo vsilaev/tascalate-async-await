@@ -60,7 +60,7 @@ public class GeneratorExample {
         final GeneratorExample example = new GeneratorExample();
         example.asyncOperation();
         final CompletionStage<String> result1 = example.mergeStrings(", ");
-        final CompletionStage<String> result2 = example.iterateStringsEx();
+        final CompletionStage<String> result2 = example.iterateStringsEx(11);
         
         result2.thenCombine(result1, (v1, v2) -> "\n" + v1 + "\n" + v2)
         .whenComplete((v, e) -> {
@@ -98,7 +98,16 @@ public class GeneratorExample {
     }
     
     @async
-    CompletionStage<String> iterateStringsEx() {
+    CompletionStage<String> iterateStringsEx(int z) {
+        z += 2;
+        System.out.println(z);
+        int x = 3;
+        x++;
+        if (x < z) {
+            x += 5;
+        }
+        System.out.println(x);
+        
         try (SuspendableIterator<String> values = moreStringsEx().values()) {
             
             while (values.hasNext()) {

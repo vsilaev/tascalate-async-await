@@ -1,11 +1,5 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <classpath>
-	<classpathentry kind="src" output="target/test-classes" path="src/test/java">
-		<attributes>
-			<attribute name="optional" value="true"/>
-			<attribute name="maven.pomderived" value="true"/>
-		</attributes>
-	</classpathentry>
 	<classpathentry kind="src" output="target/classes" path="src/main/java">
 		<attributes>
 			<attribute name="optional" value="true"/>
@@ -17,9 +11,19 @@
 			<attribute name="maven.pomderived" value="true"/>
 		</attributes>
 	</classpathentry>
-	<classpathentry kind="var" path="M2_REPO/commons-logging/commons-logging/1.2/commons-logging-1.2.jar"/>
+	<classpathentry kind="var" path="M2_REPO/commons-logging/commons-logging/1.2/commons-logging-1.2.jar" sourcepath="M2_REPO/commons-logging/commons-logging/1.2/commons-logging-1.2-sources.jar"/>
+	<classpathentry kind="src" path="/net.tascalate.async.runtime"/>
+	<classpathentry kind="var" path="M2_REPO/net/tascalate/javaflow/net.tascalate.javaflow.api/2.3.2/net.tascalate.javaflow.api-2.3.2.jar" sourcepath="M2_REPO/net/tascalate/javaflow/net.tascalate.javaflow.api/2.3.2/net.tascalate.javaflow.api-2.3.2-sources.jar"/>
+	<classpathentry kind="var" path="M2_REPO/net/tascalate/javaflow/net.tascalate.javaflow.extras/2.3.1/net.tascalate.javaflow.extras-2.3.1.jar" sourcepath="M2_REPO/net/tascalate/javaflow/net.tascalate.javaflow.extras/2.3.1/net.tascalate.javaflow.extras-2.3.1-sources.jar"/>
+	<classpathentry kind="var" path="M2_REPO/net/tascalate/concurrent/net.tascalate.concurrent.lib/0.6.7/net.tascalate.concurrent.lib-0.6.7.jar" sourcepath="M2_REPO/net/tascalate/concurrent/net.tascalate.concurrent.lib/0.6.7/net.tascalate.concurrent.lib-0.6.7-sources.jar"/>
 	<classpathentry kind="var" path="M2_REPO/junit/junit/4.11/junit-4.11.jar" sourcepath="M2_REPO/junit/junit/4.11/junit-4.11-sources.jar"/>
-	<classpathentry kind="var" path="M2_REPO/org/hamcrest/hamcrest-core/1.3/hamcrest-core-1.3.jar"/>
+	<classpathentry kind="var" path="M2_REPO/org/hamcrest/hamcrest-core/1.3/hamcrest-core-1.3.jar" sourcepath="M2_REPO/org/hamcrest/hamcrest-core/1.3/hamcrest-core-1.3-sources.jar"/>
+	<classpathentry kind="src" output="target/test-classes" path="src/test/java">
+		<attributes>
+			<attribute name="optional" value="true"/>
+			<attribute name="maven.pomderived" value="true"/>
+		</attributes>
+	</classpathentry>
 	<classpathentry kind="con" path="org.eclipse.m2e.MAVEN2_CLASSPATH_CONTAINER">
 		<attributes>
 			<attribute name="maven.pomderived" value="true"/>

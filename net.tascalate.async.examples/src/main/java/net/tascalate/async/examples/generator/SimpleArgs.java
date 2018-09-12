@@ -31,12 +31,14 @@ public class SimpleArgs {
     });
 
     public static void main(String[] args) {
-        //final SimpleArgs example = new SimpleArgs();
-        //CompletionStage<?> f = example.testArgs("ABC", Scheduler.from(executor, true));
-        CompletionStage<?> f = SimpleArgs.mergeStrings("|", new TaskScheduler(executor), 10);
-        f.whenComplete((r, e) -> {
-            System.out.println(r);
+        final SimpleArgs example = new SimpleArgs();
+        CompletionStage<?> f1 = example.testArgs("ABC", Scheduler.interruptible(executor));
+        CompletionStage<?> f2 = SimpleArgs.mergeStrings("|", new TaskScheduler(executor), 10);
+        f1.thenCombine(f2, (a, b) -> {
+            System.out.println("==>" + a);
+            System.out.println("==>" + b);
             executor.shutdownNow();
+            return "";
         });
     }
 

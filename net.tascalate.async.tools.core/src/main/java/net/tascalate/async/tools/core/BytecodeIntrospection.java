@@ -37,7 +37,6 @@ import static org.objectweb.asm.Opcodes.ISTORE;
 
 import java.util.Arrays;
 import java.util.Collections;
-import java.util.Iterator;
 import java.util.List;
 import java.util.stream.Collectors;
 
@@ -53,8 +52,9 @@ import org.objectweb.asm.tree.TryCatchBlockNode;
 import org.objectweb.asm.tree.TypeAnnotationNode;
 
 class BytecodeIntrospection {
-    private final static String ASYNC_ANNOTATION_DESCRIPTOR = "Lnet/tascalate/async/async;";
-    private final static Log log = LogFactory.getLog(BytecodeIntrospection.class);
+    private static final Log log = LogFactory.getLog(BytecodeIntrospection.class);
+    
+    static final String ASYNC_ANNOTATION_DESCRIPTOR = "Lnet/tascalate/async/async;";
 
     private BytecodeIntrospection() {
     }
@@ -108,6 +108,7 @@ class BytecodeIntrospection {
     }
 
     // --- Removing @async annotation
+    /*
     static void removeAsyncAnnotation(MethodNode methodNode) {
         if (methodNode.invisibleAnnotations != null) {
             for (Iterator<AnnotationNode> it = invisibleAnnotationsOf(methodNode).iterator(); it.hasNext();) {
@@ -121,6 +122,7 @@ class BytecodeIntrospection {
         }
         throw new IllegalStateException("No @async annotation found to remove");
     }
+    */
 
     @SuppressWarnings("unchecked")
     static List<MethodNode> methodsOf(ClassNode classNode) {

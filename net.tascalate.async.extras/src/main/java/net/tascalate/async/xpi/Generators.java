@@ -49,7 +49,7 @@ public class Generators {
         }
     }
     
-    public static @async Generator<Duration> delays(int timeout, TimeUnit timeUnit) {
+    public static @async Generator<Duration> delays(long timeout, TimeUnit timeUnit) {
         Executor executor = new CurrentSchedulerExecutor(ActiveAsyncCall.scheduler());
         while (true) {
             yield(CompletableTask.delay(timeout, timeUnit, executor));

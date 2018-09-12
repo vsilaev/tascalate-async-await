@@ -51,27 +51,32 @@ public class ContextPassingExamples {
     public static void main(String[] argv) {
         Scheduler scheduler = Scheduler.interruptible(ownExecutor, r -> {
             // Save context when invoked
-            String current = ctx.get();
+            String saved = ctx.get();
             
             return () -> {
                 // Inside runnable apply previously saved
-                ctx.set(current);
+                String prev = ctx.get();
+                ctx.set(saved);
                 try {
                     r.run();
                 } finally {
-                    ctx.remove();
+                    if (null == prev) { 
+                        ctx.remove();
+                    } else {
+                        ctx.set(prev);
+                    }
                 }
             };
         });
         ctx.set("CORRECT");
         
-        CompletableFuture<String> f = new ContextPassingExamples().asyncMethod(scheduler);
+        CompletableFuture<String> f = new ContextPassingExamples().asyncMethod(scheduler, 10);
         System.out.println(f.join());
         foreignExecutor.shutdownNow();
         ownExecutor.shutdownNow();
     }
     
-    @async CompletableFuture<String> asyncMethod(@SchedulerProvider Scheduler scheduler) {
+    @async CompletableFuture<String> asyncMethod(@SchedulerProvider Scheduler scheduler, long v) {
         System.out.println("Context A:" + ctx.get() + ", thread " + Thread.currentThread());
         await( waitString("1") );
         System.out.println("Context B:" + ctx.get() + ", thread " + Thread.currentThread());
@@ -85,6 +90,7 @@ public class ContextPassingExamples {
                 if (c >= 5) {
                     break;
                 }
+                System.out.println(++v);
                 System.out.println("Context X:" + ctx.get() + ", thread " + Thread.currentThread());
                 i.next();
             }

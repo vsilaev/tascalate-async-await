@@ -29,6 +29,7 @@ import java.util.concurrent.CancellationException;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionStage;
 import java.util.concurrent.Future;
+import java.util.concurrent.RejectedExecutionException;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Function;
@@ -107,21 +108,39 @@ abstract public class AsyncMethod implements Runnable {
         long currentBlockerVersion = blockerVersion.get();
         Runnable contextualResumer = scheduler.contextualize(originalResumer);
         if (scheduler.characteristics().contains(Scheduler.Characteristics.INTERRUPTIBLE)) {
-            return () -> {
-                CompletionStage<?> resumeFuture = scheduler.schedule(contextualResumer);
-                registerResumeTarget(resumeFuture, currentBlockerVersion);
-            };
+            return createInterruptibleResumeHandler(contextualResumer, currentBlockerVersion);
         } else {
-            Thread suspendThread = Thread.currentThread();
-            return () -> {
-                if (Thread.currentThread() == suspendThread) {
-                    // Is it possible to use originalResumer here, i.e. one without context???
-                    contextualResumer.run();
-                } else {
-                    scheduler.schedule(contextualResumer);
-                }
-            };
+            return createSimplifiedResumeHandler(contextualResumer, currentBlockerVersion);
         }        
+    }
+    
+    private Runnable createInterruptibleResumeHandler(Runnable contextualResumer, long currentBlockerVersion) {
+        return () -> {
+            CompletionStage<?> resumeFuture;
+            try {
+                resumeFuture = scheduler.schedule(contextualResumer);
+            } catch (RejectedExecutionException ex) {
+                failure(ex);
+                return;
+            }
+            registerResumeTarget(resumeFuture, currentBlockerVersion);
+        };        
+    }
+    
+    private Runnable createSimplifiedResumeHandler(Runnable contextualResumer, long currentBlockerVersion) {
+        Thread suspendThread = Thread.currentThread();
+        return () -> {
+            if (Thread.currentThread() == suspendThread) {
+                // Is it possible to use originalResumer here, i.e. one without context???
+                contextualResumer.run();
+            } else {
+                try {
+                    scheduler.schedule(contextualResumer);
+                } catch (RejectedExecutionException ex) {
+                    failure(ex);
+                }
+            }
+        };        
     }
     
     private boolean registerResumeTarget(CompletionStage<?> resumePromise, long expectedBlockerVersion) {

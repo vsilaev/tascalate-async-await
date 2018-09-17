@@ -24,12 +24,16 @@
  */
 package net.tascalate.async;
 
+import java.util.NoSuchElementException;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionStage;
 import java.util.function.Function;
 import java.util.stream.Stream;
 import java.util.stream.StreamSupport;
 
+import org.apache.commons.javaflow.api.continuable;
+
+import net.tascalate.async.core.AsyncMethodExecutor;
 import net.tascalate.async.sequence.CompletionSequence;
 import net.tascalate.async.sequence.OrderedSequence;
 
@@ -64,12 +68,80 @@ public interface Sequence<T, F extends CompletionStage<T>> extends AutoCloseable
     }
     
     default SuspendableIterator<F> iterator() {
-        return stream().iterator();
+        // Optimized version instead of [to-producer].stream().iterator()
+        // to minimize call stack with suspendable methods
+        return new SuspendableIterator<F>() {
+            private boolean advance  = true;
+            private F current = null;
+            
+            @Override
+            public boolean hasNext() {
+                advanceIfNecessary();
+                return current != null;
+            }
+
+            @Override
+            public F next() {
+                advanceIfNecessary();
+                if (null == current) {
+                    throw new NoSuchElementException();
+                }
+                advance = true;
+                return current;
+            }
+
+            @Override
+            public void close() {
+                current = null;
+                advance = false;
+                Sequence.this.close();
+            }
+            
+            protected @continuable void advanceIfNecessary() {
+                if (advance) {
+                    current = next();
+                }
+                advance = false;
+            }
+
+            @Override
+            public String toString() {
+                return String.format("%s-PromisesIterator[owner=%s, current=%s]", getClass().getSimpleName(), Sequence.this, current);
+            }            
+        };
     }
     
-    default SuspendableIterator<T> values() {
-        return stream().map$(CallContext.awaitValue()).iterator();
+    default SuspendableStream<T> valuesStream() {
+        return stream().map$(CallContext.awaitValue());
     }     
+    
+    default SuspendableIterator<T> valuesIterator() {
+        // Optimized version instead of [to-producer].stream().map$(await).iterator()
+        // to minimize call stack with suspendable methods
+        SuspendableIterator<F> original = iterator();
+        return new SuspendableIterator<T>() {
+            @Override
+            public T next() {
+                F future = original.next();
+                return AsyncMethodExecutor.await( future );
+            }
+
+            @Override
+            public boolean hasNext() {
+                return original.hasNext();
+            }
+
+            @Override
+            public void close() {
+                original.close();
+            }
+
+            @Override
+            public String toString() {
+                return String.format("%s-ValuesIterator[owner=%s]", getClass().getSimpleName(), Sequence.this);
+            }            
+        };
+    }
     
     @SuppressWarnings("unchecked")
     public static <T, F extends CompletionStage<T>> Sequence<T, F> empty() {
@@ -156,4 +228,5 @@ public interface Sequence<T, F extends CompletionStage<T>> extends AutoCloseable
         };
         return SequenceByProducer::new;
     }        
+
 }

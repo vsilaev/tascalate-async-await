@@ -34,6 +34,7 @@ import java.util.concurrent.CompletionStage;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
+import net.tascalate.async.ContextualRunnable;
 import net.tascalate.async.Scheduler;
 import net.tascalate.async.SchedulerProvider;
 import net.tascalate.async.async;
@@ -46,29 +47,11 @@ public class ContextPassingExamples {
     final private static ExecutorService foreignExecutor = Executors.newFixedThreadPool(4);
     final private static ExecutorService ownExecutor = Executors.newFixedThreadPool(4);
     
-    private static final ThreadLocal<String> ctx = new ThreadLocal<>();
+    private static final ThreadLocal<String> MY_CONTEXT_VAR = new ThreadLocal<>();
 
     public static void main(String[] argv) {
-        Scheduler scheduler = Scheduler.interruptible(ownExecutor, r -> {
-            // Save context when invoked
-            String saved = ctx.get();
-            
-            return () -> {
-                // Inside runnable apply previously saved
-                String prev = ctx.get();
-                ctx.set(saved);
-                try {
-                    r.run();
-                } finally {
-                    if (null == prev) { 
-                        ctx.remove();
-                    } else {
-                        ctx.set(prev);
-                    }
-                }
-            };
-        });
-        ctx.set("CORRECT");
+        Scheduler scheduler = Scheduler.interruptible(ownExecutor, ContextualRunnable.relayContextVars(MY_CONTEXT_VAR));
+        MY_CONTEXT_VAR.set("CORRECT");
         
         CompletableFuture<String> f = new ContextPassingExamples().asyncMethod(scheduler, 10);
         System.out.println(f.join());
@@ -77,22 +60,22 @@ public class ContextPassingExamples {
     }
     
     @async CompletableFuture<String> asyncMethod(@SchedulerProvider Scheduler scheduler, long v) {
-        System.out.println("Context A:" + ctx.get() + ", thread " + Thread.currentThread());
+        System.out.println("Context A:" + MY_CONTEXT_VAR.get() + ", thread " + Thread.currentThread());
         await( waitString("1") );
-        System.out.println("Context B:" + ctx.get() + ", thread " + Thread.currentThread());
+        System.out.println("Context B:" + MY_CONTEXT_VAR.get() + ", thread " + Thread.currentThread());
         await( waitString("2") );
-        System.out.println("Context C:" + ctx.get() + ", thread " + Thread.currentThread());
+        System.out.println("Context C:" + MY_CONTEXT_VAR.get() + ", thread " + Thread.currentThread());
         int c = 0;
-        ctx.set("ALTERED");
-        try (SuspendableIterator<?> i = Generators.delays(Duration.ofSeconds(1)).iterator()) {
+        MY_CONTEXT_VAR.set("ALTERED");
+        try (SuspendableIterator<CompletionStage<Duration>> i = Generators.delays(Duration.ofSeconds(1)).iterator()) {
             while (i.hasNext()) {
+                await( i.next() );
+                System.out.println(++v);
+                System.out.println("Context X:" + MY_CONTEXT_VAR.get() + ", thread " + Thread.currentThread());
                 c++;
                 if (c >= 5) {
                     break;
                 }
-                System.out.println(++v);
-                System.out.println("Context X:" + ctx.get() + ", thread " + Thread.currentThread());
-                i.next();
             }
         }
         return async("Done");

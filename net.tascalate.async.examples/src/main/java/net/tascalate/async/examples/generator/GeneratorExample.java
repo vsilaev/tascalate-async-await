@@ -108,7 +108,7 @@ public class GeneratorExample {
         }
         System.out.println(x);
         
-        try (SuspendableIterator<String> values = moreStringsEx().values()) {
+        try (SuspendableIterator<String> values = moreStringsEx().valuesIterator()) {
             
             while (values.hasNext()) {
                 String v = values.next();

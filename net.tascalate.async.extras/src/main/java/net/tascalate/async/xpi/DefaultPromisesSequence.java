@@ -31,9 +31,6 @@ import net.tascalate.async.Sequence;
 import net.tascalate.concurrent.Promise;
 import net.tascalate.concurrent.Promises;
 
-import net.tascalate.javaflow.SuspendableIterator;
-import net.tascalate.javaflow.SuspendableStream;
-
 public class DefaultPromisesSequence<T> implements PromisesSequence<T> {
     
     protected final Sequence<T, ? extends CompletionStage<T>> delegate;
@@ -51,16 +48,6 @@ public class DefaultPromisesSequence<T> implements PromisesSequence<T> {
     @Override
     public void close() {
         delegate.close();
-    }
-
-    @Override
-    public SuspendableStream<Promise<T>> stream() {
-        return delegate.stream().map(Promises::from);
-    }
-    
-    @Override
-    public SuspendableIterator<Promise<T>> iterator() {
-        return stream().iterator();
     }
     
     @Override

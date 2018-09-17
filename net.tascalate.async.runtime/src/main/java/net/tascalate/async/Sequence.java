@@ -51,8 +51,7 @@ public interface Sequence<T, F extends CompletionStage<T>> extends AutoCloseable
         return decoratorFactory.apply(this);
     }
 
-    default
-    SuspendableStream<F> stream() {
+    default SuspendableStream<F> stream() {
         return new SuspendableStream<>(new SuspendableProducer<F>() {
             @Override
             public Option<F> produce() {

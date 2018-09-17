@@ -22,10 +22,10 @@
  * OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
-package net.tascalate.async.xpi;
+package net.tascalate.async;
 
-import net.tascalate.async.InteractiveSequence;
-import net.tascalate.concurrent.Promise;
+import java.util.concurrent.CompletionStage;
 
-public interface PromisesGenerator<T> extends PromisesSequence<T>, InteractiveSequence<T, Promise<T>> {
+public interface InteractiveSequence<T, F extends CompletionStage<T>> extends Sequence<T, F> {
+    @suspendable F next(Object param);
 }

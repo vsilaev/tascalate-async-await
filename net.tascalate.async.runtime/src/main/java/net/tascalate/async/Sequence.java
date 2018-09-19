@@ -98,7 +98,7 @@ public interface Sequence<T, F extends CompletionStage<T>> extends AutoCloseable
             
             protected @continuable void advanceIfNecessary() {
                 if (advance) {
-                    current = next();
+                    current = Sequence.this.next();
                 }
                 advance = false;
             }

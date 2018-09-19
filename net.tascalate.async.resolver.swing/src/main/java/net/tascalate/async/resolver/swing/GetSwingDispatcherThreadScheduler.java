@@ -24,6 +24,8 @@
  */
 package net.tascalate.async.resolver.swing;
 
+import javax.swing.SwingUtilities;
+
 import org.kohsuke.MetaInfServices;
 
 import net.tascalate.async.Scheduler;
@@ -36,12 +38,13 @@ public class GetSwingDispatcherThreadScheduler implements SchedulerResolver {
     
     @Override
     public int priority() {
-        return 5;
+        return 0;
     }
 
     @Override
     public Scheduler resolve(Object owner, Class<?> ownerDeclaringClass) {
-        return swingDispatcherThreadScheduler;
+        // Use SwingDispatcherThreadScheduler for methods invoked from Swing UI action handlers
+        return SwingUtilities.isEventDispatchThread() ? swingDispatcherThreadScheduler : null;
     }
     
     @Override

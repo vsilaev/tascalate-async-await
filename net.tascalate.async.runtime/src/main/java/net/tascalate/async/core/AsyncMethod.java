@@ -53,7 +53,7 @@ abstract public class AsyncMethod implements Runnable {
     private volatile CompletableFuture<?> terminateMethod;
     
     protected AsyncMethod(Scheduler scheduler) {
-        this.future = new CancellableResultPromise<>();
+        this.future = new ResultPromise<>();
         this.scheduler = scheduler != null ? scheduler : Scheduler.sameThreadContextless();
     }
 
@@ -82,11 +82,11 @@ abstract public class AsyncMethod implements Runnable {
 
     @SuppressWarnings("unchecked")
     protected final <T> boolean success(T value) {
-        return ((CancellableResultPromise<T>)future).internalSuccess(value);
+        return ((ResultPromise<T>)future).internalSuccess(value);
     }
     
     protected final <T> boolean failure(Throwable exception) {
-        return ((CancellableResultPromise<?>)future).internalFailure(exception);
+        return ((ResultPromise<?>)future).internalFailure(exception);
     }
     
     final void cancelAwaitIfNecessary() {
@@ -115,29 +115,35 @@ abstract public class AsyncMethod implements Runnable {
     }
     
     private Runnable createInterruptibleResumeHandler(Runnable contextualResumer, long currentBlockerVersion) {
-        return () -> {
-            CompletionStage<?> resumeFuture;
-            try {
-                resumeFuture = scheduler.schedule(contextualResumer);
-            } catch (RejectedExecutionException ex) {
-                failure(ex);
-                return;
+        return new Runnable() {
+            @Override
+            public void run() {
+                CompletionStage<?> resumeFuture;
+                try {
+                    resumeFuture = scheduler.schedule(contextualResumer);
+                } catch (RejectedExecutionException ex) {
+                    failure(ex);
+                    return;
+                }
+                registerResumeTarget(resumeFuture, currentBlockerVersion);
             }
-            registerResumeTarget(resumeFuture, currentBlockerVersion);
         };        
     }
     
     private Runnable createSimplifiedResumeHandler(Runnable contextualResumer, long currentBlockerVersion) {
         Thread suspendThread = Thread.currentThread();
-        return () -> {
-            if (Thread.currentThread() == suspendThread) {
-                // Is it possible to use originalResumer here, i.e. one without context???
-                contextualResumer.run();
-            } else {
-                try {
-                    scheduler.schedule(contextualResumer);
-                } catch (RejectedExecutionException ex) {
-                    failure(ex);
+        return new Runnable() {
+            @Override
+            public void run() {
+                if (Thread.currentThread() == suspendThread) {
+                    // Is it possible to use originalResumer here, i.e. one without context???
+                    contextualResumer.run();
+                } else {
+                    try {
+                        scheduler.schedule(contextualResumer);
+                    } catch (RejectedExecutionException ex) {
+                        failure(ex);
+                    }
                 }
             }
         };        
@@ -183,9 +189,9 @@ abstract public class AsyncMethod implements Runnable {
         }
     }
     
-    final class CancellableResultPromise<T> extends CompletableFuture<T> {
+    final class ResultPromise<T> extends CompletableFuture<T> {
         
-        CancellableResultPromise() {}
+        ResultPromise() {}
         
         protected boolean internalSuccess(T value) {
             return super.complete(value);

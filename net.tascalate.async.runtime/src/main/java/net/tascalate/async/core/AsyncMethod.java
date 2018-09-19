@@ -82,11 +82,11 @@ abstract public class AsyncMethod implements Runnable {
 
     @SuppressWarnings("unchecked")
     protected final <T> boolean success(T value) {
-        return ((ResultPromise<T>)future).internalSuccess(value);
+        return ((CancellableResultPromise<T>)future).internalSuccess(value);
     }
     
     protected final <T> boolean failure(Throwable exception) {
-        return ((ResultPromise<?>)future).internalFailure(exception);
+        return ((CancellableResultPromise<?>)future).internalFailure(exception);
     }
     
     final void cancelAwaitIfNecessary() {
@@ -183,7 +183,28 @@ abstract public class AsyncMethod implements Runnable {
         }
     }
     
-    class CancellableResultPromise<T> extends ResultPromise<T> {
+    final class CancellableResultPromise<T> extends CompletableFuture<T> {
+        
+        CancellableResultPromise() {}
+        
+        protected boolean internalSuccess(T value) {
+            return super.complete(value);
+        }
+        
+        protected boolean internalFailure(Throwable exception) {
+            return super.completeExceptionally(exception);
+        }
+        
+        @Override
+        public boolean complete(T value) {
+            throw new UnsupportedOperationException("ResultPromise may not be completed explicitly");
+        }
+        
+        @Override
+        public boolean completeExceptionally(Throwable exception) {
+            throw new UnsupportedOperationException("ResultPromise may not be completed explicitly");
+        }        
+        
         @Override
         public boolean cancel(boolean mayInterruptIfRunning) {
             boolean doCancel = mayInterruptIfRunning || !isRunning();

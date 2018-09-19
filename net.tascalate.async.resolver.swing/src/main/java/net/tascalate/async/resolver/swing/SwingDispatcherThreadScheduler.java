@@ -31,7 +31,6 @@ import java.util.function.Function;
 
 import javax.swing.SwingUtilities;
 
-import net.tascalate.async.core.ResultPromise;
 import net.tascalate.async.scheduler.AbstractScheduler;
 
 public class SwingDispatcherThreadScheduler extends AbstractScheduler {
@@ -64,9 +63,9 @@ public class SwingDispatcherThreadScheduler extends AbstractScheduler {
                 public void run() {
                     try {
                         command.run();
-                        result.success(null);
+                        result.internalSuccess(null);
                     } catch (final Throwable ex) {
-                        result.failure(ex);
+                        result.internalFailure(ex);
                     }
                 }
             };
@@ -82,25 +81,25 @@ public class SwingDispatcherThreadScheduler extends AbstractScheduler {
         throw new IllegalArgumentException("Characteristics must contains " + Characteristics.INTERRUPTIBLE);
     }
     
-    static class SchedulePromise<T> extends ResultPromise<T> {
+    static final class SchedulePromise<T> extends CompletableFuture<T> {
         SchedulePromise() {}
         
-        final boolean success(T value) {
-            return super.internalSuccess(value);
+        protected boolean internalSuccess(T value) {
+            return super.complete(value);
         }
         
-        final boolean failure(Throwable exception) {
-            return super.internalFailure(exception);
-        }
-        
-        @Override
-        protected final boolean internalSuccess(T value) {
-            throw new UnsupportedOperationException("SchedulePromise may not be completed explicitly");
+        protected boolean internalFailure(Throwable exception) {
+            return super.completeExceptionally(exception);
         }
         
         @Override
-        protected final boolean internalFailure(Throwable exception) {
-            throw new UnsupportedOperationException("SchedulePromise may not be completed explicitly");
+        public boolean complete(T value) {
+            throw new UnsupportedOperationException("ResultPromise may not be completed explicitly");
+        }
+        
+        @Override
+        public boolean completeExceptionally(Throwable exception) {
+            throw new UnsupportedOperationException("ResultPromise may not be completed explicitly");
         }
     }
 }

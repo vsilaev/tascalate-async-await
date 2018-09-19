@@ -14,7 +14,7 @@ import net.tascalate.async.Generator;
 import net.tascalate.async.Scheduler;
 import net.tascalate.async.Sequence;
 import net.tascalate.async.async;
-import net.tascalate.async.spi.ActiveAsyncCall;
+import net.tascalate.async.spi.CurrentCallContext;
 
 import net.tascalate.concurrent.CompletableTask;
 
@@ -43,14 +43,14 @@ public class Generators {
     }
     
     public static @async Generator<Duration> delays(Duration duration) {
-        Executor executor = new CurrentSchedulerExecutor(ActiveAsyncCall.scheduler());
+        Executor executor = new CurrentSchedulerExecutor(CurrentCallContext.scheduler());
         while (true) {
             yield( CompletableTask.delay(duration, executor) );
         }
     }
     
     public static @async Generator<Duration> delays(long timeout, TimeUnit timeUnit) {
-        Executor executor = new CurrentSchedulerExecutor(ActiveAsyncCall.scheduler());
+        Executor executor = new CurrentSchedulerExecutor(CurrentCallContext.scheduler());
         while (true) {
             yield( CompletableTask.delay(timeout, timeUnit, executor) );
         }

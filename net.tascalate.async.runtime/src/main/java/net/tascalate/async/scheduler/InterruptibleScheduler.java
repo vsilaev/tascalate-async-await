@@ -63,16 +63,19 @@ public class InterruptibleScheduler extends AbstractExecutorScheduler<ExecutorSe
                 }
             }
         };
-        delegate[0] = executor.submit(() -> {
-            try {
-                command.run();
-                result.success(null);
-                return null;
-            } catch (final Throwable ex) {
-                result.failure(ex);
-                throw ex;
+        Runnable wrapped = new Runnable() {
+            @Override
+            public void run() {
+                try {
+                    command.run();
+                    result.success(null);
+                } catch (final Throwable ex) {
+                    result.failure(ex);
+                    throw ex;
+                }
             }
-        });
+        };
+        delegate[0] = executor.submit(wrapped);
         return result;
     }
     

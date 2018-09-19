@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <projectDescription>
-  <name>net.tascalate.async.resolver.inherited</name>
+  <name>net.tascalate.async.resolver.swing</name>
   <comment>Async / Await asynchronous programming model for Java similar to the functionality available in C# 5. 
         The implementation is based on continuations for Java (see tascalate-javaflow). NO_M2ECLIPSE_SUPPORT: Project files created with the maven-eclipse-plugin are not supported in M2Eclipse.</comment>
   <projects>

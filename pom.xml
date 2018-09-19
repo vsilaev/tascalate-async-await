@@ -37,9 +37,10 @@
 	<modules>
 		<module>net.tascalate.async.runtime</module>
 		<module>net.tascalate.async.extras</module>
-		<module>net.tascalate.async.resolver.inherited</module>
+		<module>net.tascalate.async.resolver.propagated</module>
 		<module>net.tascalate.async.resolver.provided</module>
 		<module>net.tascalate.async.resolver.scoped</module>
+		<module>net.tascalate.async.resolver.swing</module>
 		<module>net.tascalate.async.tools.core</module>
 		<module>net.tascalate.async.tools.maven</module>
 		<module>net.tascalate.async.tools.javaagent</module>

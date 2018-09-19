@@ -24,6 +24,7 @@
  */
 package net.tascalate.async.core;
 
+import java.util.Comparator;
 import java.util.Objects;
 import java.util.ServiceLoader;
 import java.util.stream.StreamSupport;
@@ -40,7 +41,7 @@ class SchedulerResolvers {
         ServiceLoader<SchedulerResolver> serviceLoader = getServiceLoader(serviceClassLoader);
 
         return StreamSupport.stream(serviceLoader.spliterator(), false)
-            .sorted()
+            .sorted(SCHEDULER_RESOLVER_BY_PRIORITY)
             .map(l -> l.resolve(owner, ownerDeclaringClass))
             .filter(Objects::nonNull)
             .findFirst()
@@ -87,7 +88,9 @@ class SchedulerResolvers {
         return result;
     }
     
-    private
-    static final Cache<ClassLoader, ServiceLoader<SchedulerResolver>> SERVICE_LOADER_BY_CLASS_LOADER = new Cache<>();
+    private static final Comparator<SchedulerResolver> SCHEDULER_RESOLVER_BY_PRIORITY = 
+        Comparator.comparing(SchedulerResolver::priority).reversed();
+    private static final Cache<ClassLoader, ServiceLoader<SchedulerResolver>> SERVICE_LOADER_BY_CLASS_LOADER = 
+        new Cache<>();
 
 }

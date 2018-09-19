@@ -22,15 +22,29 @@
  * OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
-package net.tascalate.async.resolver.scoped;
+package net.tascalate.async.resolver.propagated;
 
 import org.kohsuke.MetaInfServices;
 
+import net.tascalate.async.Scheduler;
+import net.tascalate.async.spi.CurrentCallContext;
 import net.tascalate.async.spi.SchedulerResolver;
 
-@MetaInfServices(SchedulerResolver.class)
-public class GetDefaultScheduler extends AbstractScopedScheduler {
-    public GetDefaultScheduler() {
-        super(SchedulerScope.DEFAULTS, 10);
+@MetaInfServices
+public class PropagateCurrentCallContextScheduler implements SchedulerResolver {
+
+    @Override
+    public int priority() {
+        return 100;
+    }
+
+    @Override
+    public Scheduler resolve(Object owner, Class<?> ownerDeclaringClass) {
+        return CurrentCallContext.scheduler();
+    }
+    
+    @Override
+    public String toString() {
+        return String.format("%s[priority=%d]", getClass().getSimpleName(), priority());
     }
 }

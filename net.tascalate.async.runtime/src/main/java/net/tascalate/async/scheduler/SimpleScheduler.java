@@ -58,14 +58,18 @@ public class SimpleScheduler extends AbstractExecutorScheduler<Executor> {
     @Override
     public CompletionStage<?> schedule(Runnable command) {
         SchedulePromise<?> result = new SchedulePromise<>();
-        executor.execute(() -> {
-            try {
-                command.run();
-                result.success(null);
-            } catch (final Throwable ex) {
-                result.failure(ex);
+        Runnable wrapper = new Runnable() {
+            @Override
+            public void run() {
+                try {
+                    command.run();
+                    result.success(null);
+                } catch (final Throwable ex) {
+                    result.failure(ex);
+                }
             }
-        });
+        };
+        executor.execute(wrapper);
         return result;
     }
     

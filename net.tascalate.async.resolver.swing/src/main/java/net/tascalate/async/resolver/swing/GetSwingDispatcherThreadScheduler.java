@@ -22,15 +22,34 @@
  * OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
-package net.tascalate.async.spi;
+package net.tascalate.async.resolver.swing;
+
+import org.kohsuke.MetaInfServices;
 
 import net.tascalate.async.Scheduler;
-import net.tascalate.async.core.InternalCallContext;
+import net.tascalate.async.spi.SchedulerResolver;
 
-final public class ActiveAsyncCall {
-    private ActiveAsyncCall() {}
+@MetaInfServices
+public class GetSwingDispatcherThreadScheduler implements SchedulerResolver {
+
+    private final Scheduler swingDispatcherThreadScheduler = new SwingDispatcherThreadScheduler(); 
     
-    public static Scheduler scheduler() {
-        return InternalCallContext.scheduler(false);
+    @Override
+    public int priority() {
+        return 5;
     }
+
+    @Override
+    public Scheduler resolve(Object owner, Class<?> ownerDeclaringClass) {
+        return swingDispatcherThreadScheduler;
+    }
+    
+    @Override
+    public String toString() {
+        return String.format(
+            "%s[priority=%d, swingDispatcherThreadScheduler=%s]", 
+            getClass().getSimpleName(), priority(), swingDispatcherThreadScheduler
+        );
+    }
+    
 }

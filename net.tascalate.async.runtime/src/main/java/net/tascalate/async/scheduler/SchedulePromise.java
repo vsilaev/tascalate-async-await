@@ -27,6 +27,8 @@ package net.tascalate.async.scheduler;
 import net.tascalate.async.core.ResultPromise;
 
 class SchedulePromise<T> extends ResultPromise<T> {
+    SchedulePromise() {}
+    
     final boolean success(T value) {
         return super.internalSuccess(value);
     }

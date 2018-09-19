@@ -26,15 +26,9 @@ package net.tascalate.async.spi;
 
 import net.tascalate.async.Scheduler;
 
-public interface SchedulerResolver extends Comparable<SchedulerResolver> {
+public interface SchedulerResolver {
     
     int priority();
     
     Scheduler resolve(Object owner, Class<?> ownerDeclaringClass);
-    
-    @Override
-    default int compareTo(SchedulerResolver other) {
-        // Highest priority first
-        return other.priority() - this.priority();
-    } 
 }

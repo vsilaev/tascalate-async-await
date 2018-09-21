@@ -40,145 +40,143 @@ import org.apache.commons.logging.LogFactory;
 
 import net.tascalate.async.tools.core.AsyncAwaitClassFileGenerator;
 
-public class AsyncAwaitClassFileTransformer implements ClassFileTransformer {
-	
-	final private static Log log = LogFactory.getLog(AsyncAwaitClassFileTransformer.class);
-	
-	final private ClassFileTransformer postProcessor;
-	
-	public AsyncAwaitClassFileTransformer(final ClassFileTransformer postProcessor) {
-		this.postProcessor = postProcessor;
-	}
-	
-	public byte[] transform(ClassLoader originalClassLoader, final String className, 
-			                final Class<?> classBeingRedefined, 
-			                final ProtectionDomain protectionDomain, 
-			                final byte[] classfileBuffer) throws IllegalClassFormatException {
-	    
-	    try {		
-	        if (skipClassByName(className)) {
-	            return null;
-	        }
-	        
-    		final ClassLoader classLoader = getSafeClassLoader(originalClassLoader);
-    				
-    		final AsyncAwaitClassFileGenerator generator = new AsyncAwaitClassFileGenerator(new ClasspathResourceLoader(classLoader));
-    		final byte[] transformed = generator.transform(classfileBuffer);
-    		if (null == transformed) {
-    			return postProcess(classLoader, className, classBeingRedefined, protectionDomain, classfileBuffer);	
-    		}
-    		
-    		final Map<String, byte[]> extraClasses = generator.getGeneratedClasses();
-    		generator.reset(); 
-    		
-    		// Define new classes and then redefine inner classes
-    		final byte[] finalResult = postProcess(classLoader, className, classBeingRedefined, protectionDomain, transformed);
-    		final Map<String, byte[]> inMemoryResources = renameInMemoryResources(extraClasses);
-    		inMemoryResources.put(className + ".class", finalResult);
-    		
-    		ExtendedClasspathResourceLoader.runWithInMemoryResources(
-    			new Runnable() {
-    				@Override
-    				public void run() {
-    					defineGeneratedClasses(classLoader, protectionDomain, extraClasses);
-    				}
-    			}, 
-    			inMemoryResources
-    		);
-    		return finalResult;
+class AsyncAwaitClassFileTransformer implements ClassFileTransformer {
+
+    private static final Log log = LogFactory.getLog(AsyncAwaitClassFileTransformer.class);
+
+    private final ClassFileTransformer postProcessor;
+
+    AsyncAwaitClassFileTransformer(ClassFileTransformer postProcessor) {
+        this.postProcessor = postProcessor;
+    }
+
+    public byte[] transform(ClassLoader      originalClassLoader, 
+                            String           className, 
+                            Class<?>         classBeingRedefined,
+                            ProtectionDomain protectionDomain, 
+                            byte[]           classfileBuffer) throws IllegalClassFormatException {
+
+        try {
+            if (skipClassByName(className)) {
+                return null;
+            }
+
+            ClassLoader classLoader = getSafeClassLoader(originalClassLoader);
+
+            AsyncAwaitClassFileGenerator generator = new AsyncAwaitClassFileGenerator(
+                new ClasspathResourceLoader(classLoader)
+            );
+            
+            byte[] transformed = generator.transform(classfileBuffer);
+            if (null == transformed) {
+                return postProcess(classLoader, className, classBeingRedefined, protectionDomain, classfileBuffer);
+            }
+
+            Map<String, byte[]> extraClasses = generator.getGeneratedClasses();
+            generator.reset();
+
+            // Define new classes and then redefine inner classes
+            byte[] finalResult = postProcess(classLoader, className, classBeingRedefined, protectionDomain, transformed);
+            Map<String, byte[]> inMemoryResources = renameInMemoryResources(extraClasses);
+            inMemoryResources.put(className + ".class", finalResult);
+
+            ExtendedClasspathResourceLoader.runWithInMemoryResources(new Runnable() {
+                @Override
+                public void run() {
+                    defineGeneratedClasses(classLoader, protectionDomain, extraClasses);
+                }
+            }, inMemoryResources);
+            return finalResult;
         } catch (Error | RuntimeException ex) {
             System.err.println("--->");
             ex.printStackTrace(System.err);
             throw ex;
         }
-	}
-	
-	protected byte[] postProcess(final ClassLoader classLoader, final String className, 
-			                     final Class<?> classBeingRedefined, 
-			                     final ProtectionDomain protectionDomain, 
-			                     final byte[] classfileBuffer) throws IllegalClassFormatException {
-		
-		if (null == classfileBuffer) {
-			return null;
-		}
-		// Apply continuable annotations
-		return postProcessor.transform(
-			classLoader, className, classBeingRedefined, protectionDomain, classfileBuffer
-		);
-	}
-	
-	protected void defineGeneratedClasses(final ClassLoader classLoader, 
-	                                      final ProtectionDomain protectionDomain, 
-	                                      final Map<String, byte[]> generatedClasses) {
-		
-		for (Map.Entry<String, byte[]> e : generatedClasses.entrySet()) {
-			byte[] bytes;
-			try {
-				log.info("TRANSOFRMING: " + e.getKey());
-				bytes = transform(classLoader, e.getKey(), null, protectionDomain, e.getValue());
-				e.setValue(bytes);
-				log.info("TRANSOFRMED: " + e.getKey());
-			} catch (final IllegalClassFormatException ex) {
-				log.error(ex);
-				throw new RuntimeException(ex);
-			} catch (Error | RuntimeException ex) {
-			    log.error(ex);
-			    throw ex;
-			}
-			if (bytes == null) {
-				continue;
-			}
-			try {
-				@SuppressWarnings("unused")
-				final Class<?> ignore = (Class<?>)DEFINE_CLASS.invokeExact(
-					classLoader, (String)null, bytes, 0, bytes.length, protectionDomain
-				);
-				log.info("DEFINED: " + e.getKey());
-			} catch (Throwable ex) {
-				log.error(ex);
-				throw new RuntimeException(ex);
-			}
-		}
-	}
-	
-   static boolean skipClassByName(String className) {
+    }
+
+    protected byte[] postProcess(ClassLoader      classLoader, 
+                                 String           className,
+                                 Class<?>         classBeingRedefined, 
+                                 ProtectionDomain protectionDomain, 
+                                 byte[]           classfileBuffer)
+            throws IllegalClassFormatException {
+
+        if (null == classfileBuffer) {
+            return null;
+        }
+        // Apply continuable annotations
+        return postProcessor.transform(classLoader, className, classBeingRedefined, protectionDomain, classfileBuffer);
+    }
+
+    protected void defineGeneratedClasses(ClassLoader         classLoader, 
+                                          ProtectionDomain    protectionDomain, 
+                                          Map<String, byte[]> generatedClasses) {
+        for (Map.Entry<String, byte[]> e : generatedClasses.entrySet()) {
+            byte[] bytes;
+            try {
+                log.info("TRANSOFRMING: " + e.getKey());
+                bytes = transform(classLoader, e.getKey(), null, protectionDomain, e.getValue());
+                e.setValue(bytes);
+                log.info("TRANSOFRMED: " + e.getKey());
+            } catch (final IllegalClassFormatException ex) {
+                log.error(ex);
+                throw new RuntimeException(ex);
+            } catch (Error | RuntimeException ex) {
+                log.error(ex);
+                throw ex;
+            }
+            if (bytes == null) {
+                continue;
+            }
+            try {
+                @SuppressWarnings("unused")
+                Class<?> ignore = (Class<?>)DEFINE_CLASS.invokeExact(
+                    classLoader, (String) null, bytes, 0, bytes.length, protectionDomain
+                );
+                log.info("DEFINED: " + e.getKey());
+            } catch (Throwable ex) {
+                log.error(ex);
+                throw new RuntimeException(ex);
+            }
+        }
+    }
+
+    static boolean skipClassByName(String className) {
         return null != className && (
-                className.startsWith("java/") ||
-                className.startsWith("javax/") ||
-                className.startsWith("sun/") ||
-                className.startsWith("com/sun/") ||
-                className.startsWith("oracle/") ||
-                className.startsWith("com/oracle/") ||
-                className.startsWith("ibm/") ||
-                className.startsWith("com/ibm/")
+               className.startsWith("java/")       || 
+               className.startsWith("javax/")      || 
+               className.startsWith("sun/")        || 
+               className.startsWith("com/sun/")    || 
+               className.startsWith("oracle/")     || 
+               className.startsWith("com/oracle/") || 
+               className.startsWith("ibm/")        || 
+               className.startsWith("com/ibm/")
                );
     }
-	
-	private static ClassLoader getSafeClassLoader(final ClassLoader classLoader) {
-		return null != classLoader ? classLoader : ClassLoader.getSystemClassLoader(); 
-	}
 
-	private static Map<String, byte[]> renameInMemoryResources(final Map<String, byte[]> generatedClasses) {
-		final Map<String, byte[]> resources = new HashMap<String, byte[]>();
-		for (Map.Entry<String, byte[]> e : generatedClasses.entrySet()) {
-			resources.put(e.getKey() + ".class", e.getValue());
-		}
-		return resources;
-	}
+    private static ClassLoader getSafeClassLoader(ClassLoader classLoader) {
+        return null != classLoader ? classLoader : ClassLoader.getSystemClassLoader();
+    }
 
-	
-	final private static MethodHandle DEFINE_CLASS;
-	static {
-		try {
-			final Method m = ClassLoader.class.getDeclaredMethod(
-				"defineClass", String.class, byte[].class, int.class, int.class, ProtectionDomain.class
-			);
-			m.setAccessible(true);
-			DEFINE_CLASS = MethodHandles.lookup().unreflect(m);
-		} catch (final NoSuchMethodException | IllegalAccessException ex) {
-			throw new RuntimeException(ex);
-		}
-	}
-	
+    private static Map<String, byte[]> renameInMemoryResources(Map<String, byte[]> generatedClasses) {
+        Map<String, byte[]> resources = new HashMap<String, byte[]>();
+        for (Map.Entry<String, byte[]> e : generatedClasses.entrySet()) {
+            resources.put(e.getKey() + ".class", e.getValue());
+        }
+        return resources;
+    }
+
+    private static final MethodHandle DEFINE_CLASS;
+    static {
+        try {
+            Method m = ClassLoader.class.getDeclaredMethod(
+                "defineClass", String.class, byte[].class, int.class, int.class, ProtectionDomain.class
+            );
+            m.setAccessible(true);
+            DEFINE_CLASS = MethodHandles.lookup().unreflect(m);
+        } catch (NoSuchMethodException | IllegalAccessException ex) {
+            throw new RuntimeException(ex);
+        }
+    }
 
 }

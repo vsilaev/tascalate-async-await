@@ -139,7 +139,7 @@ protected @async CompletionStage<Long> calculateTaxes(Order order) {
 ```
 In the above example all async methods `calculateRawItemsPrice`, `calculateShippingCost`, `calculateTaxes` are executed serially, one by one, hence the performance is degraded comparing to the following parallelized solution:
 ```java
-public @async CompletionStage<BigDecimal> calculateTotalPrice(Order order) {
+public @async CompletionStage<Long> calculateTotalPrice(Order order) {
    CompletionStage<Long> rawItemsPrice = calculateRawItemsPrice(order);  
    CompletionStage<Long> shippingCost  = calculateShippingCost(order);  
    CompletionStage<Long> taxes         = calculateTaxes(order);  

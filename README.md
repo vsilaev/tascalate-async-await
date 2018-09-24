@@ -116,6 +116,37 @@ public @async CompletionStage<String> bar(int i) {
     return async(result);
 }
 ```
+It's worth to mention, that when developing code with async/await you should avoid so-called ["async/await hell"](https://medium.com/@7genblogger/escaping-so-called-async-await-hell-in-node-js-b5f5ba5fa9ca). In short, pay special attention what parts of your code may be executed in parallel and what parts require serial execution. Consider the following example:
+```java
+public @async CompletionStage<Long> calculateTotalPrice(Order order) {
+   Long rawItemsPrice = await( calculateRawItemsPrice(order) );  
+   Long shippingCost  = await( calculateShippingCost(order) );  
+   Long taxes         = await( calculateTaxes(order) );  
+   return async(rawItemsPrice + shippingCost + taxes);
+}
+
+protected @async CompletionStage<Long> calculateRawItemsPrice(Order order) {
+  ...
+}
+
+protected @async CompletionStage<Long> calculateShippingCost(Order order) {
+  ...
+}
+
+protected @async CompletionStage<Long> calculateTaxes(Order order) {
+  ...
+}
+```
+In the above example all async methods `calculateRawItemsPrice`, `calculateShippingCost`, `calculateTaxes` are executed serially, one by one, hence the performance is degraded comparing to the following parallelized solution:
+```java
+public @async CompletionStage<BigDecimal> calculateTotalPrice(Order order) {
+   CompletionStage<Long> rawItemsPrice = calculateRawItemsPrice(order);  
+   CompletionStage<Long> shippingCost  = calculateShippingCost(order);  
+   CompletionStage<Long> taxes         = calculateTaxes(order);  
+   return async( await(rawItemsPrice) + await(shippingCost) + await(taxes) );
+}
+```
+This way all inner async operations are started (almost) simualtenously and are running in parallel, unlike in the first example.
 
 # Generators
 

@@ -27,15 +27,14 @@ package net.tascalate.async.xpi;
 import java.util.concurrent.CompletionStage;
 
 import net.tascalate.async.Sequence;
-
 import net.tascalate.concurrent.Promise;
 import net.tascalate.concurrent.Promises;
 
 public class DefaultPromisesSequence<T> implements PromisesSequence<T> {
     
-    protected final Sequence<T, ? extends CompletionStage<T>> delegate;
+    protected final Sequence<? extends CompletionStage<T>> delegate;
     
-    public DefaultPromisesSequence(Sequence<T, ? extends CompletionStage<T>> delegate) {
+    public DefaultPromisesSequence(Sequence<? extends CompletionStage<T>> delegate) {
         this.delegate = delegate;
     }
     

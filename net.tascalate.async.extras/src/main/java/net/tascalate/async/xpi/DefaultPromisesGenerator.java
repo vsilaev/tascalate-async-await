@@ -26,20 +26,20 @@ package net.tascalate.async.xpi;
 
 import java.util.concurrent.CompletionStage;
 
-import net.tascalate.async.Generator;
+import net.tascalate.async.AsyncGenerator;
 import net.tascalate.concurrent.Promise;
 import net.tascalate.concurrent.Promises;
 
 public class DefaultPromisesGenerator<T> extends DefaultPromisesSequence<T> implements PromisesGenerator<T> {
     
-    public DefaultPromisesGenerator(Generator<T> delegate) {
+    public DefaultPromisesGenerator(AsyncGenerator<T> delegate) {
         super(delegate);
     }
     
     @Override
     public Promise<T> next(Object producerParam) {
         @SuppressWarnings("unchecked")
-        Generator<T> _delegate = (Generator<T>)delegate;
+        AsyncGenerator<T> _delegate = (AsyncGenerator<T>)delegate;
         CompletionStage<T> original = _delegate.next(producerParam);
         return null == original ? null : Promises.from(original);
     }

@@ -49,15 +49,15 @@ public class AsyncMethodExecutor {
     private static final AsyncMethodExecutor INSTANCE = new AsyncMethodExecutor();
 
     /**
-     * Execute the {@link AsyncMethod}.
+     * Execute the {@link AbstractAsyncMethod}.
      */
-    public static void execute(AsyncMethod asyncMethod) {
+    public static void execute(AbstractAsyncMethod asyncMethod) {
         INSTANCE.executeTask(asyncMethod);
     }
 
     /**
      */
-    protected void executeTask(AsyncMethod asyncMethod) {
+    protected void executeTask(AbstractAsyncMethod asyncMethod) {
         // Create the initial Continuation
         log.debug("Starting suspended Continuation");
         Continuation continuation = Continuation.startSuspendedWith(asyncMethod);
@@ -97,7 +97,7 @@ public class AsyncMethodExecutor {
         SuspendParams<R> suspendParams = (SuspendParams<R>)continuation.value();
         
         CompletionStage<R> future   = suspendParams.future;
-        AsyncMethod suspendedMethod = suspendParams.suspendedMethod;
+        AbstractAsyncMethod suspendedMethod = suspendParams.suspendedMethod;
         
         ContinuationResumer<? super R, Throwable> originalResumer = new ContinuationResumer<>(continuation);
         Runnable wrappedResumer = suspendedMethod.createResumeHandler(originalResumer);
@@ -130,7 +130,7 @@ public class AsyncMethodExecutor {
             return earlyResult.done();
         }
         
-        AsyncMethod currentMethod = InternalCallContext.asyncMethod();
+        AbstractAsyncMethod currentMethod = InternalCallContext.asyncMethod();
 
         // Register (and wrap) promise we are blocking on
         // to support cancellation from outside
@@ -188,10 +188,10 @@ public class AsyncMethodExecutor {
     }
 
     static class SuspendParams<R> {
-        final AsyncMethod suspendedMethod;
+        final AbstractAsyncMethod suspendedMethod;
         final CompletionStage<R> future;
         
-        SuspendParams(AsyncMethod suspendedMethod, CompletionStage<R> future) {
+        SuspendParams(AbstractAsyncMethod suspendedMethod, CompletionStage<R> future) {
             this.suspendedMethod = suspendedMethod;
             this.future = future;
         }

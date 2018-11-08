@@ -35,11 +35,11 @@ public class AsyncAwaitInstrumentationAgent {
      * After the Java Virtual Machine (JVM) has initialized, the premain method
      * will be called. Then the real application main method will be called.
      * 
-     * @param args
-     * @param inst
-     * @throws Exception
+     * @param args arguments supplied to the agent
+     * @param instrumentation {@link Instrumentation} object passed by JVM
+     * @throws Exception thrown when agent is unable to start
      */
-    public static void premain(final String args, final Instrumentation instrumentation) throws Exception {
+    public static void premain(String args, Instrumentation instrumentation) throws Exception {
         setupInstrumentation(instrumentation);
         System.setProperty(AsyncAwaitInstrumentationAgent.class.getName(), "true");
         System.setProperty("org.apache.commons.javaflow.instrumentation.JavaFlowInstrumentationAgent", "true");
@@ -51,11 +51,11 @@ public class AsyncAwaitInstrumentationAgent {
      * The agent class may have an agentmain method for use when the agent is
      * started after VM startup.
      * 
-     * @param args
-     * @param inst
-     * @throws Exception
+     * @param args arguments supplied to the agent
+     * @param instrumentation {@link Instrumentation} object passed by JVM
+     * @throws Exception thrown when agent is unable to start
      */
-    public static void agentmain(final String args, final Instrumentation instrumentation) throws Exception {
+    public static void agentmain(String args, Instrumentation instrumentation) throws Exception {
         setupInstrumentation(instrumentation);
         for (Class<?> clazz : instrumentation.getAllLoadedClasses()) {
             if (instrumentation.isModifiableClass(clazz) && 

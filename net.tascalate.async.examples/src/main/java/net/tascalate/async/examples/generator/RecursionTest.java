@@ -32,7 +32,7 @@ import java.util.function.Consumer;
 
 import org.apache.commons.javaflow.core.StackRecorder;
 
-import net.tascalate.async.Generator;
+import net.tascalate.async.AsyncGenerator;
 import net.tascalate.async.Sequence;
 import net.tascalate.async.async;
 
@@ -57,7 +57,7 @@ public class RecursionTest {
         return async("Done");
     }
     
-    @async static Generator<Object> producer() {
+    @async static AsyncGenerator<Object> producer() {
         System.out.println( StackRecorder.get().getRunnable().toString() );        
         for (int i = 0; i < 10_000_000; i++) {
             /*

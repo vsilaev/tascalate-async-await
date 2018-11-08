@@ -1,40 +1,12 @@
-/**
- * ﻿Copyright 2015-2018 Valery Silaev (http://vsilaev.com)
- *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions are met:
-
- * * Redistributions of source code must retain the above copyright notice, this
- *   list of conditions and the following disclaimer.
-
- * * Redistributions in binary form must reproduce the above copyright notice,
- *   this list of conditions and the following disclaimer in the documentation
- *   and/or other materials provided with the distribution.
-
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
- * AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
- * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
- * DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE
- * FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
- * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR
- * SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
- * CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY,
- * OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
- * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
- */
 package net.tascalate.async;
 
 import java.util.NoSuchElementException;
-import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.CompletionStage;
 import java.util.function.Function;
+
 import java.util.stream.Stream;
-import java.util.stream.StreamSupport;
 
 import org.apache.commons.javaflow.api.continuable;
 
-import net.tascalate.async.core.AsyncMethodExecutor;
-import net.tascalate.async.sequence.CompletionSequence;
 import net.tascalate.async.sequence.OrderedSequence;
 
 import net.tascalate.javaflow.Option;
@@ -42,20 +14,20 @@ import net.tascalate.javaflow.SuspendableIterator;
 import net.tascalate.javaflow.SuspendableProducer;
 import net.tascalate.javaflow.SuspendableStream;
 
-public interface Sequence<T, F extends CompletionStage<T>> extends AutoCloseable {
-    @suspendable F next();
+public interface Sequence<T> extends AutoCloseable {
+    @suspendable T next();
     
     void close();
     
-    default <D> D as(Function<? super Sequence<T, F>, ? extends D> decoratorFactory) {
+    default <D> D as(Function<? super Sequence<T>, ? extends D> decoratorFactory) {
         return decoratorFactory.apply(this);
     }
 
-    default SuspendableStream<F> stream() {
-        return new SuspendableStream<>(new SuspendableProducer<F>() {
+    default SuspendableStream<T> stream() {
+        return new SuspendableStream<>(new SuspendableProducer<T>() {
             @Override
-            public Option<F> produce() {
-                F result = Sequence.this.next();
+            public Option<T> produce() {
+                T result = Sequence.this.next();
                 return null != result ? Option.some(result) : Option.none();
             }
 
@@ -66,12 +38,12 @@ public interface Sequence<T, F extends CompletionStage<T>> extends AutoCloseable
         });
     }
     
-    default SuspendableIterator<F> iterator() {
+    default SuspendableIterator<T> iterator() {
         // Optimized version instead of [to-producer].stream().iterator()
         // to minimize call stack with suspendable methods
-        return new SuspendableIterator<F>() {
+        return new SuspendableIterator<T>() {
             private boolean advance  = true;
-            private F current = null;
+            private T current = null;
             
             @Override
             public boolean hasNext() {
@@ -80,7 +52,7 @@ public interface Sequence<T, F extends CompletionStage<T>> extends AutoCloseable
             }
 
             @Override
-            public F next() {
+            public T next() {
                 advanceIfNecessary();
                 if (null == current) {
                     throw new NoSuchElementException();
@@ -110,108 +82,38 @@ public interface Sequence<T, F extends CompletionStage<T>> extends AutoCloseable
         };
     }
     
-    default SuspendableStream<T> valuesStream() {
-        return stream().map$(CallContext.awaitValue());
-    }     
-    
-    default SuspendableIterator<T> valuesIterator() {
-        // Optimized version instead of [to-producer].stream().map$(await).iterator()
-        // to minimize call stack with suspendable methods
-        SuspendableIterator<F> original = iterator();
-        return new SuspendableIterator<T>() {
-            @Override
-            public T next() {
-                F future = original.next();
-                return AsyncMethodExecutor.await( future );
-            }
-
-            @Override
-            public boolean hasNext() {
-                return original.hasNext();
-            }
-
-            @Override
-            public void close() {
-                original.close();
-            }
-
-            @Override
-            public String toString() {
-                return String.format("%s-ValuesIterator[owner=%s]", getClass().getSimpleName(), Sequence.this);
-            }            
-        };
-    }
-    
     @SuppressWarnings("unchecked")
-    public static <T, F extends CompletionStage<T>> Sequence<T, F> empty() {
-        return (Sequence<T, F>)OrderedSequence.EMPTY_SEQUENCE;
+    public static <T> Sequence<T> empty() {
+        return (Sequence<T>)OrderedSequence.EMPTY_SEQUENCE;
     }
-
-    public static <T> Sequence<T, CompletionStage<T>> from(T readyValue) {
-        return from(Stream.of(readyValue));
+    
+    public static <T> Sequence<T> of(T value) {
+        return of(Stream.of(value));
     }
     
     @SafeVarargs
-    public static <T> Sequence<T, CompletionStage<T>> from(T... readyValues) {
-        return from(Stream.of(readyValues));
-    }
-    
-    public static <T> Sequence<T, CompletionStage<T>> from(Iterable<T> readyValues) {
-        return from(StreamSupport.stream(readyValues.spliterator(), false));
-    }
-    
-    public static <T> Sequence<T, CompletionStage<T>> from(Stream<T> readyValues) {
-        return of(readyValues.map(CompletableFuture::completedFuture));
-    }
-    
-    public static <T, F extends CompletionStage<T>> Sequence<T, F> of(F pendingValue) {
-        return of(Stream.of(pendingValue));
-    }
-    
-    @SafeVarargs
-    public static <T, F extends CompletionStage<T>> Sequence<T, F> of(F... pendingValues) {
-        return of(Stream.of(pendingValues));
+    public static <T> Sequence<T> of(T... values) {
+        return of(Stream.of(values));
     }
 
-    public static <T, F extends CompletionStage<T>> Sequence<T, F> of(Iterable<? extends F> pendingValues) {
-        return OrderedSequence.create(pendingValues);
+    public static <T> Sequence<T> of(Iterable<? extends T> values) {
+        return OrderedSequence.create(values);
     }
     
-    public static <T, F extends CompletionStage<T>> Sequence<T, F> of(Stream<? extends F> pendingValues) {
-        return OrderedSequence.create(pendingValues);
+    public static <T> Sequence<T> of(Stream<? extends T> values) {
+        return OrderedSequence.create(values);
     }
 
-    @SafeVarargs
-    public static <T, F extends CompletionStage<T>> Sequence<T, F> readyFirst(F... pendingValues) {
-        return readyFirst(Stream.of(pendingValues));
-    }
-
-    public static <T, F extends CompletionStage<T>> Sequence<T, F> readyFirst(Iterable<? extends F> pendingValues) {
-        return readyFirst(pendingValues, -1);
-    } 
-    
-    public static <T, F extends CompletionStage<T>> Sequence<T, F> readyFirst(Iterable<? extends F> pendingValues, int chunkSize) {
-        return CompletionSequence.create(pendingValues, chunkSize);
-    }
-    
-    public static <T, F extends CompletionStage<T>> Sequence<T, F> readyFirst(Stream<? extends F> pendingValues) {
-        return readyFirst(pendingValues, -1);
-    }
-    
-    public static <T, F extends CompletionStage<T>> Sequence<T, F> readyFirst(Stream<? extends F> pendingValues, int chunkSize) {
-        return CompletionSequence.create(pendingValues, chunkSize);
-    }
-    
-    public static <T, F extends CompletionStage<T>> Function<SuspendableProducer<? extends F>, Sequence<T, F>> fromStream() {
-        final class SequenceByProducer implements Sequence<T, F> {
-            private final SuspendableProducer<? extends F> producer;
+    public static <T> Function<SuspendableProducer<? extends T>, Sequence<T>> fromStream() {
+        final class SequenceByProducer implements Sequence<T> {
+            private final SuspendableProducer<? extends T> producer;
             
-            SequenceByProducer(SuspendableProducer<? extends F> producer) {
+            SequenceByProducer(SuspendableProducer<? extends T> producer) {
                 this.producer = producer;
             }
             
             @Override
-            public F next() {
+            public T next() {
                 return producer.produce().orElseNull().get();
             }
 
@@ -227,5 +129,4 @@ public interface Sequence<T, F extends CompletionStage<T>> extends AutoCloseable
         };
         return SequenceByProducer::new;
     }        
-
 }

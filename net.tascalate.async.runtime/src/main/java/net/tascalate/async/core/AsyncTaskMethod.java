@@ -31,9 +31,9 @@ import net.tascalate.async.Scheduler;
 import net.tascalate.async.suspendable;
 
 
-abstract public class AsyncTask<T> extends AsyncMethod {
+abstract public class AsyncTaskMethod<T> extends AbstractAsyncMethod {
 
-    protected AsyncTask(Scheduler scheduler) {
+    protected AsyncTaskMethod(Scheduler scheduler) {
         super(scheduler);
     }
     

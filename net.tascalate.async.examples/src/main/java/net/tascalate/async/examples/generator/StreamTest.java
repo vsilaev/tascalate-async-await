@@ -36,7 +36,7 @@ import java.util.concurrent.CompletionStage;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
-import net.tascalate.async.Generator;
+import net.tascalate.async.AsyncGenerator;
 import net.tascalate.async.Sequence;
 import net.tascalate.async.YieldReply;
 import net.tascalate.async.async;
@@ -116,7 +116,7 @@ public class StreamTest {
         ); 
     }
     
-    @async Generator<String> produceMergedStrings() {
+    @async AsyncGenerator<String> produceMergedStrings() {
         SuspendableStream<CompletionStage<String>> alphas = 
             produceAlphaStrings()
                 .stream()
@@ -138,7 +138,7 @@ public class StreamTest {
     
     // Private to ensure that generated accessor methods work 
     @async
-    private Generator<String> produceNumericStrings() {
+    private AsyncGenerator<String> produceNumericStrings() {
         try {
             yield(Sequence.empty());
             yield(waitString("111"));
@@ -152,7 +152,7 @@ public class StreamTest {
     }
     
     @async
-    Generator<String> produceAlphaStrings() {
+    AsyncGenerator<String> produceAlphaStrings() {
         try {
             for (String s : Arrays.asList("AAA", "BBB", "CCC", "DDD")) {
                 yield( waitString(s, 400) );
@@ -164,7 +164,7 @@ public class StreamTest {
     }
     
     @async
-    Generator<String> producePrefixedStrings(CompletionStage<String> prefix) {
+    AsyncGenerator<String> producePrefixedStrings(CompletionStage<String> prefix) {
         try {
             for (int i = 1; i <= 9; i++) {
                 YieldReply<String> r = yield( prefix.thenCombine(waitString(String.valueOf(i)), (px,v) -> px + v) );

@@ -33,20 +33,20 @@ public class InternalCallContext {
     private InternalCallContext() {}
     
     public static Scheduler scheduler(boolean asyncCallMustBeAvailable) {
-        AsyncMethod asyncMethod = asyncMethod(asyncCallMustBeAvailable);
+        AbstractAsyncMethod asyncMethod = asyncMethod(asyncCallMustBeAvailable);
         return asyncMethod != null ? asyncMethod.scheduler() : null;
     }
     
     public static boolean interrupted(boolean asyncCallMustBeAvailable) {
-        AsyncMethod asyncMethod = asyncMethod(asyncCallMustBeAvailable);
+        AbstractAsyncMethod asyncMethod = asyncMethod(asyncCallMustBeAvailable);
         return asyncMethod != null && asyncMethod.interrupted();
     }
     
-    static AsyncMethod asyncMethod() {
+    static AbstractAsyncMethod asyncMethod() {
         return asyncMethod(true);
     }
     
-    private static AsyncMethod asyncMethod(boolean mustBeAvailable) {
+    private static AbstractAsyncMethod asyncMethod(boolean mustBeAvailable) {
         StackRecorder stackRecorder = StackRecorder.get();
         if (null == stackRecorder && mustBeAvailable) {
             throw new InvalidCallContextException(
@@ -54,11 +54,11 @@ public class InternalCallContext {
             );
         }
         Runnable result = stackRecorder.getRunnable();
-        if (result instanceof AsyncMethod) {
-            return (AsyncMethod)result;
+        if (result instanceof AbstractAsyncMethod) {
+            return (AbstractAsyncMethod)result;
         } else if (mustBeAvailable) {
             throw new InvalidCallContextException(
-                "Current runnable is not " + AsyncMethod.class.getName() + " - are your classes instrumented for javaflow?"
+                "Current runnable is not " + AbstractAsyncMethod.class.getName() + " - are your classes instrumented for javaflow?"
             );
         } else {
             return null;

@@ -34,10 +34,11 @@ import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Function;
 
+import net.tascalate.async.AsyncValue;
 import net.tascalate.async.Scheduler;
 import net.tascalate.async.suspendable;
 
-abstract public class AsyncMethod implements Runnable {
+abstract public class AbstractAsyncMethod implements Runnable {
     
     enum State {
         INITIAL, RUNNING, COMPLETED
@@ -52,7 +53,7 @@ abstract public class AsyncMethod implements Runnable {
     private volatile CompletionStage<?> originalAwait;
     private volatile CompletableFuture<?> terminateMethod;
     
-    protected AsyncMethod(Scheduler scheduler) {
+    protected AbstractAsyncMethod(Scheduler scheduler) {
         this.future = new ResultPromise<>();
         this.scheduler = scheduler != null ? scheduler : Scheduler.sameThreadContextless();
     }
@@ -189,7 +190,7 @@ abstract public class AsyncMethod implements Runnable {
         }
     }
     
-    final class ResultPromise<T> extends CompletableFuture<T> {
+    final class ResultPromise<T> extends CompletableFuture<T> implements AsyncValue<T> {
         
         ResultPromise() {}
         

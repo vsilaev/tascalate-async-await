@@ -68,11 +68,11 @@ public class CallContext {
         throw new IllegalStateException("Method call must be replaced by bytecode enhancer");
     }
 
-    public static <T, R extends CompletionStage<T>> YieldReply<T> yield(Sequence<T, R> values) throws CancellationException, InvalidCallContextException {
+    public static <T> YieldReply<T> yield(Sequence<? extends CompletionStage<T>> values) throws CancellationException, InvalidCallContextException {
         throw new IllegalStateException("Method call must be replaced by bytecode enhancer");
     }
 
-    public static <T> Generator<T> yield() {
+    public static <T> AsyncGenerator<T> yield() {
         throw new IllegalStateException("Method call must be replaced by bytecode enhancer");
     }
 

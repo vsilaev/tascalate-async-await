@@ -64,7 +64,7 @@ import org.objectweb.asm.tree.MethodInsnNode;
 import org.objectweb.asm.tree.MethodNode;
 import org.objectweb.asm.tree.TypeAnnotationNode;
 
-abstract public class AsyncMethodTransformer {
+abstract public class AbstractAsyncMethodTransformer {
     protected final static Log log = LogFactory.getLog(AsyncAwaitClassFileGenerator.class);
 
     private final static String ASYNC_ANNOTATION_DESCRIPTOR = "Lnet/tascalate/async/async;";
@@ -79,7 +79,7 @@ abstract public class AsyncMethodTransformer {
     protected final static Type ASYNC_METHOD_EXECUTOR_TYPE  = Type.getObjectType("net/tascalate/async/core/AsyncMethodExecutor");
     protected final static Type TASCALATE_PROMISE_TYPE      = Type.getObjectType("net/tascalate/concurrent/Promise");
     protected final static Type TASCALATE_PROMISES_TYPE     = Type.getObjectType("net/tascalate/concurrent/Promises");
-    protected final static Type ASYNC_METHOD_TYPE           = Type.getObjectType("net/tascalate/async/core/AsyncMethod");
+    protected final static Type ABSTRACT_ASYNC_METHOD_TYPE  = Type.getObjectType("net/tascalate/async/core/AbstractAsyncMethod");
     
     private final static Type SCHEDULER_TYPE             = Type.getObjectType("net/tascalate/async/Scheduler");
     private final static Type SCHEDULER_PROVIDER_TYPE    = Type.getObjectType("net/tascalate/async/SchedulerProvider");
@@ -91,7 +91,7 @@ abstract public class AsyncMethodTransformer {
     // MethodNode
     protected final Map<String, MethodNode> accessMethods;
     
-    protected AsyncMethodTransformer(ClassNode               classNode, 
+    protected AbstractAsyncMethodTransformer(ClassNode               classNode, 
                                      MethodNode              originalAsyncMethod,
                                      Map<String, MethodNode> accessMethods) {
         
@@ -368,7 +368,7 @@ abstract public class AsyncMethodTransformer {
         result.visitVarInsn(ALOAD, methodVarIdx);
         result.visitMethodInsn(
             INVOKESTATIC, ASYNC_METHOD_EXECUTOR_TYPE.getInternalName(), "execute", 
-            Type.getMethodDescriptor(Type.VOID_TYPE, ASYNC_METHOD_TYPE), false
+            Type.getMethodDescriptor(Type.VOID_TYPE, ABSTRACT_ASYNC_METHOD_TYPE), false
         );
 
         Type returnType = Type.getReturnType(originalAsyncMethod.desc);

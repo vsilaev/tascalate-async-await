@@ -14,6 +14,7 @@ import java.util.concurrent.atomic.AtomicLong;
 import net.tascalate.async.Scheduler;
 import net.tascalate.async.SchedulerProvider;
 import net.tascalate.async.Sequence;
+import net.tascalate.async.AsyncGenerator;
 import net.tascalate.async.async;
 import net.tascalate.async.xpi.TaskScheduler;
 import net.tascalate.concurrent.Promise;
@@ -53,7 +54,7 @@ public class SimpleArgs {
     @async
     static Promise<String> mergeStrings(String delimeter, @SchedulerProvider Scheduler scheduler, int zz) {
         StringJoiner joiner = new StringJoiner(delimeter);
-        try (Sequence<String, Promise<String>> generator = Sequence.from("ABC", "XYZ").stream().map(Promises::from).convert(Sequence.fromStream())) {
+        try (Sequence<Promise<String>> generator = AsyncGenerator.from("ABC", "XYZ").stream().map(Promises::from).convert(Sequence.fromStream())) {
             System.out.println("%%MergeStrings - before iterations");
             CompletionStage<String> singleResult; 
             while (null != (singleResult = generator.next())) {

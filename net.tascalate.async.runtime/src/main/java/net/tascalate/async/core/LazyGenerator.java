@@ -27,22 +27,22 @@ package net.tascalate.async.core;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionStage;
 
-import net.tascalate.async.Generator;
+import net.tascalate.async.AsyncGenerator;
 import net.tascalate.async.InteractiveSequence;
 import net.tascalate.async.Sequence;
 import net.tascalate.async.YieldReply;
 import net.tascalate.async.suspendable;
 
-class LazyGenerator<T> implements Generator<T> {
-    private final AsyncGenerator<?> owner;
+class LazyGenerator<T> implements AsyncGenerator<T> {
+    private final AsyncGeneratorMethod<?> owner;
 	
     private CompletableFuture<YieldReply<T>> producerLock;
     private CompletableFuture<?> consumerLock;
     private CompletionStage<T> latestFuture;
 
-    private Sequence<T, ? extends CompletionStage<T>> currentDelegate = Sequence.empty();
+    private Sequence<? extends CompletionStage<T>> currentDelegate = Sequence.empty();
     
-    LazyGenerator(AsyncGenerator<T> owner) {
+    LazyGenerator(AsyncGeneratorMethod<T> owner) {
     	this.owner = owner;
     }
 
@@ -66,8 +66,8 @@ class LazyGenerator<T> implements Generator<T> {
             if (NO_PARAM == param) {
                 latestFuture = currentDelegate.next();
             } else if (currentDelegate instanceof InteractiveSequence) {
-                InteractiveSequence<T, ? extends CompletionStage<T>> typedDelegate 
-                    = (InteractiveSequence<T, ? extends CompletionStage<T>>)currentDelegate;
+                InteractiveSequence<? extends CompletionStage<T>> typedDelegate 
+                    = (InteractiveSequence<? extends CompletionStage<T>>)currentDelegate;
                 latestFuture = typedDelegate.next(param);
             } else {
                 // TODO: does it make sense to throw an error here?
@@ -100,7 +100,7 @@ class LazyGenerator<T> implements Generator<T> {
         end(null);
     }
 
-    final @suspendable YieldReply<T> produce(Sequence<T, ? extends CompletionStage<T>> pendingValues) {
+    final @suspendable YieldReply<T> produce(Sequence<? extends CompletionStage<T>> pendingValues) {
         currentDelegate = pendingValues;
         // Re-set producerLock
         // It's important to reset it before unlocking consumer!

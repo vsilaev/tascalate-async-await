@@ -58,9 +58,9 @@ import org.objectweb.asm.tree.MethodNode;
 import org.objectweb.asm.tree.TryCatchBlockNode;
 import org.objectweb.asm.tree.VarInsnNode;
 
-public class AsyncGeneratorMethodTransformer extends AsyncMethodTransformer {
-    private final static Type ASYNC_GENERATOR_TYPE = Type.getObjectType("net/tascalate/async/core/AsyncGenerator");
-    private final static Type LAZY_GENERATOR_TYPE = Type.getObjectType("net/tascalate/async/core/LazyGenerator");
+public class AsyncGeneratorMethodTransformer extends AbstractAsyncMethodTransformer {
+    private final static Type ASYNC_GENERATOR_METHOD_TYPE = Type.getObjectType("net/tascalate/async/core/AsyncGeneratorMethod");
+    private final static Type LAZY_GENERATOR_TYPE         = Type.getObjectType("net/tascalate/async/core/LazyGenerator");
     
     public AsyncGeneratorMethodTransformer(ClassNode               classNode,
                                            MethodNode              originalAsyncMethodNode,
@@ -70,12 +70,12 @@ public class AsyncGeneratorMethodTransformer extends AsyncMethodTransformer {
 
     @Override
     public ClassNode transform() {
-        return transform(ASYNC_GENERATOR_TYPE);
+        return transform(ASYNC_GENERATOR_METHOD_TYPE);
     }
     
     @Override
     protected MethodVisitor createReplacementAsyncMethod(String asyncTaskClassName) {
-        return createReplacementAsyncMethod(asyncTaskClassName, ASYNC_GENERATOR_TYPE, "generator", LAZY_GENERATOR_TYPE);
+        return createReplacementAsyncMethod(asyncTaskClassName, ASYNC_GENERATOR_METHOD_TYPE, "generator", LAZY_GENERATOR_TYPE);
     }
    
     @Override
@@ -244,7 +244,7 @@ public class AsyncGeneratorMethodTransformer extends AsyncMethodTransformer {
                             }
                             newInstructions.add(
                                 new MethodInsnNode(INVOKEVIRTUAL, 
-                                                   ASYNC_GENERATOR_TYPE.getInternalName(), 
+                                                   ASYNC_GENERATOR_METHOD_TYPE.getInternalName(), 
                                                    "yield", 
                                                    Type.getMethodDescriptor(Type.getReturnType(min.desc), args), 
                                                    false
@@ -255,7 +255,7 @@ public class AsyncGeneratorMethodTransformer extends AsyncMethodTransformer {
                             newInstructions.add(new VarInsnNode(ALOAD, 0));
                             newInstructions.add(
                                     new MethodInsnNode(INVOKEVIRTUAL, 
-                                                       ASYNC_GENERATOR_TYPE.getInternalName(), 
+                                                       ASYNC_GENERATOR_METHOD_TYPE.getInternalName(), 
                                                        "interrupted", 
                                                        Type.getMethodDescriptor(Type.BOOLEAN_TYPE), 
                                                        false

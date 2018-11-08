@@ -30,9 +30,9 @@ import java.util.stream.Stream;
 
 import net.tascalate.async.Sequence;
 
-public class OrderedSequence<T, R extends CompletionStage<T>> implements Sequence<T, R> {
+public class OrderedSequence<T> implements Sequence<T> {
     
-    public static final Sequence<Object, CompletionStage<Object>> EMPTY_SEQUENCE = new Sequence<Object, CompletionStage<Object>>() {
+    public static final Sequence<Object> EMPTY_SEQUENCE = new Sequence<Object>() {
 
         @Override
         public CompletionStage<Object> next() {
@@ -46,20 +46,28 @@ public class OrderedSequence<T, R extends CompletionStage<T>> implements Sequenc
         
         @Override
         public String toString() {
-            return "<empty-sequence>";
+            return "<empty-async-sequence>";
         }
         
     };
 
-    private final Iterator<? extends R> delegate;
+    private final Iterator<? extends T> delegate;
     
-    protected OrderedSequence(Iterator<? extends R> delegate) {
+    protected OrderedSequence(Iterator<? extends T> delegate) {
         this.delegate  = delegate;
     }
     
     @Override
-    public R next() {
-        return delegate.hasNext() ? delegate.next() : null;
+    public T next() {
+        if (delegate.hasNext()) {
+            T result = delegate.next();
+            if (null == result) {
+                throw new IllegalStateException("Null element returned from the wrapped iterable");
+            }
+            return result;
+        } else {
+            return null;
+        }
     }
 
     @Override
@@ -71,15 +79,15 @@ public class OrderedSequence<T, R extends CompletionStage<T>> implements Sequenc
         return String.format("%s[delegate=%s]", getClass().getSimpleName(), delegate);
     }
     
-    public static <T, F extends CompletionStage<T>> Sequence<T, F> create(Stream<? extends F> pendingPromises) {
+    public static <T> Sequence<T> create(Stream<? extends T> pendingPromises) {
         return create(pendingPromises.iterator());
     }
 
-    public static <T, F extends CompletionStage<T>> Sequence<T, F> create(Iterable<? extends F> pendingPromises) {
+    public static <T> Sequence<T> create(Iterable<? extends T> pendingPromises) {
         return create(pendingPromises.iterator());
     }
     
-    private static <T, F extends CompletionStage<T>> Sequence<T, F> create(Iterator<? extends F> pendingPromises) {
+    private static <T> Sequence<T> create(Iterator<? extends T> pendingPromises) {
         return new OrderedSequence<>(pendingPromises);
     }
 } 

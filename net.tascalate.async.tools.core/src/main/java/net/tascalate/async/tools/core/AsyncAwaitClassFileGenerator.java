@@ -49,15 +49,17 @@ public class AsyncAwaitClassFileGenerator {
 
     private final static Log log = LogFactory.getLog(AsyncAwaitClassFileGenerator.class);
     
-    private final static Type TYPE_COMPLETION_STAGE   = Type.getObjectType("java/util/concurrent/CompletionStage");
-    private final static Type TYPE_COMPLETABLE_FUTURE = Type.getObjectType("java/util/concurrent/CompletableFuture");
-    private final static Type TYPE_TASCALATE_PROMISE  = Type.getObjectType("net/tascalate/concurrent/Promise");
-    private final static Type TYPE_GENERATOR          = Type.getObjectType("net/tascalate/async/Generator");
+    private final static Type COMPLETION_STAGE_TYPE   = Type.getObjectType("java/util/concurrent/CompletionStage");
+    private final static Type COMPLETABLE_FUTURE_TYPE = Type.getObjectType("java/util/concurrent/CompletableFuture");
+    private final static Type ASYNC_VALUE_TYPE        = Type.getObjectType("net/tascalate/async/AsyncValue");
+    private final static Type TASCALATE_PROMISE_TYPE  = Type.getObjectType("net/tascalate/concurrent/Promise");
+    private final static Type ASYNC_GENERATOR_TYPE    = Type.getObjectType("net/tascalate/async/AsyncGenerator");
     
     private static final Set<Type> ASYNC_TASK_RETURN_TYPES = 
-        Stream.of(TYPE_COMPLETION_STAGE, 
-                  TYPE_COMPLETABLE_FUTURE, 
-                  TYPE_TASCALATE_PROMISE,
+        Stream.of(COMPLETION_STAGE_TYPE, 
+                  COMPLETABLE_FUTURE_TYPE,
+                  ASYNC_VALUE_TYPE,
+                  TASCALATE_PROMISE_TYPE,
                   Type.VOID_TYPE)
                .collect(Collectors.toSet());
     
@@ -124,10 +126,10 @@ public class AsyncAwaitClassFileGenerator {
         for (MethodNode methodNode : new ArrayList<MethodNode>(methodsOf(classNode))) {
             if (isAsyncMethod(methodNode)) {
                 Type returnType = Type.getReturnType(methodNode.desc);
-                AsyncMethodTransformer transformer = null;
+                AbstractAsyncMethodTransformer transformer = null;
                 if (ASYNC_TASK_RETURN_TYPES.contains(returnType)) {
                     transformer = new AsyncTaskMethodTransformer(classNode, methodNode, accessMethods);
-                } else if (TYPE_GENERATOR.equals(returnType)) {
+                } else if (ASYNC_GENERATOR_TYPE.equals(returnType)) {
                     transformer = new AsyncGeneratorMethodTransformer(classNode, methodNode, accessMethods);
                 } else {
                     // throw ex?

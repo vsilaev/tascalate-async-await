@@ -33,7 +33,7 @@ import java.util.concurrent.CompletionStage;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
-import net.tascalate.async.Generator;
+import net.tascalate.async.AsyncGenerator;
 import net.tascalate.async.YieldReply;
 import net.tascalate.async.async;
 import net.tascalate.concurrent.CompletableTask;
@@ -54,7 +54,7 @@ public class ExceptionsTest {
     }
     
     @async static Promise<String> consumer() {
-        try (Generator<Object> g = producer()) {
+        try (AsyncGenerator<Object> g = producer()) {
             CompletionStage<Object> f = null;
             while (null != (f = g.next())) {
                 System.out.println("Consumed future: " + f);
@@ -72,7 +72,7 @@ public class ExceptionsTest {
         return async("Done");
     }
     
-    @async static Generator<Object> producer() {
+    @async static AsyncGenerator<Object> producer() {
         for (int i = 0; i < 10; i++) {
             if (i % 2 == 0) {
                 YieldReply<String> reply = yield(waitString("VALUE " + i, 100));

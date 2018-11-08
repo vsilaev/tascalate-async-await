@@ -24,8 +24,6 @@
  */
 package net.tascalate.async;
 
-import java.util.concurrent.CompletionStage;
-
-public interface InteractiveSequence<T, F extends CompletionStage<T>> extends Sequence<T, F> {
-    @suspendable F next(Object param);
+public interface InteractiveSequence<T> extends Sequence<T> {
+    @suspendable T next(Object param);
 }

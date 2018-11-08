@@ -27,6 +27,6 @@ package net.tascalate.async.xpi;
 import net.tascalate.async.Sequence;
 import net.tascalate.concurrent.Promise;
 
-public interface PromisesSequence<T> extends Sequence<T, Promise<T>> {
+public interface PromisesSequence<T> extends Sequence<Promise<T>> {
 
 }

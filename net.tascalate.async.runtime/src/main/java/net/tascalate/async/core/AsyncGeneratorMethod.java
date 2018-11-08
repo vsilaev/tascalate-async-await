@@ -28,16 +28,16 @@ import java.util.concurrent.CancellationException;
 import java.util.concurrent.CompletionException;
 import java.util.concurrent.CompletionStage;
 
-import net.tascalate.async.Generator;
+import net.tascalate.async.AsyncGenerator;
 import net.tascalate.async.Scheduler;
 import net.tascalate.async.Sequence;
 import net.tascalate.async.YieldReply;
 import net.tascalate.async.suspendable;
 
-abstract public class AsyncGenerator<T> extends AsyncMethod {
+abstract public class AsyncGeneratorMethod<T> extends AbstractAsyncMethod {
     public final LazyGenerator<T> generator;
     
-    protected AsyncGenerator(Scheduler scheduler) {
+    protected AsyncGeneratorMethod(Scheduler scheduler) {
         super(scheduler);
         this.generator = new LazyGenerator<>(this);
     }
@@ -80,19 +80,19 @@ abstract public class AsyncGenerator<T> extends AsyncMethod {
         }
     }
 
-    protected final Generator<T> yield() {
+    protected final AsyncGenerator<T> yield() {
         return generator;
     }
     
     protected @suspendable final YieldReply<T> yield(T readyValue) {
-        return generator.produce(Sequence.from(readyValue));
+        return generator.produce(AsyncGenerator.from(readyValue));
     }
 
     protected @suspendable final YieldReply<T> yield(CompletionStage<T> pendingValue) {
         return generator.produce(Sequence.of(pendingValue));
     }
 
-    protected @suspendable final <F extends CompletionStage<T>> YieldReply<T> yield(Sequence<T, F> values) {
+    protected @suspendable final YieldReply<T> yield(Sequence<? extends CompletionStage<T>> values) {
         return generator.produce(values);
     }
     

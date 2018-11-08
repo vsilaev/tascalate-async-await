@@ -58,8 +58,8 @@ import org.objectweb.asm.tree.MethodNode;
 import org.objectweb.asm.tree.TryCatchBlockNode;
 import org.objectweb.asm.tree.VarInsnNode;
 
-public class AsyncTaskMethodTransformer extends AsyncMethodTransformer {
-    private final static Type ASYNC_TASK_TYPE         = Type.getObjectType("net/tascalate/async/core/AsyncTask");
+public class AsyncTaskMethodTransformer extends AbstractAsyncMethodTransformer {
+    private final static Type ASYNC_TASK_METHOD_TYPE  = Type.getObjectType("net/tascalate/async/core/AsyncTaskMethod");
     private final static Type COMPLETABLE_FUTURE_TYPE = Type.getObjectType("java/util/concurrent/CompletableFuture");
     
     public AsyncTaskMethodTransformer(ClassNode               classNode,
@@ -70,12 +70,12 @@ public class AsyncTaskMethodTransformer extends AsyncMethodTransformer {
     
     @Override
     public ClassNode transform() {
-        return transform(ASYNC_TASK_TYPE);
+        return transform(ASYNC_TASK_METHOD_TYPE);
     }
     
     @Override
     protected MethodVisitor createReplacementAsyncMethod(String asyncTaskClassName) {
-        return createReplacementAsyncMethod(asyncTaskClassName, ASYNC_TASK_TYPE, "future", COMPLETABLE_FUTURE_TYPE);
+        return createReplacementAsyncMethod(asyncTaskClassName, ASYNC_TASK_METHOD_TYPE, "future", COMPLETABLE_FUTURE_TYPE);
     }
     
     @Override
@@ -253,7 +253,7 @@ public class AsyncTaskMethodTransformer extends AsyncMethodTransformer {
                             newInstructions.add(new InsnNode(SWAP));
                             newInstructions.add(
                                 new MethodInsnNode(INVOKEVIRTUAL, 
-                                                   ASYNC_TASK_TYPE.getInternalName(), 
+                                                   ASYNC_TASK_METHOD_TYPE.getInternalName(), 
                                                    "complete",
                                                    Type.getMethodDescriptor(COMPLETION_STAGE_TYPE, OBJECT_TYPE),
                                                    false
@@ -264,7 +264,7 @@ public class AsyncTaskMethodTransformer extends AsyncMethodTransformer {
                             newInstructions.add(new VarInsnNode(ALOAD, 0));
                             newInstructions.add(
                                     new MethodInsnNode(INVOKEVIRTUAL, 
-                                                       ASYNC_TASK_TYPE.getInternalName(), 
+                                                       ASYNC_TASK_METHOD_TYPE.getInternalName(), 
                                                        "interrupted", 
                                                        Type.getMethodDescriptor(Type.BOOLEAN_TYPE), 
                                                        false

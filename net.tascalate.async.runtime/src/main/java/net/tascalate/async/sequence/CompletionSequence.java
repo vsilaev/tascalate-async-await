@@ -27,25 +27,27 @@ package net.tascalate.async.sequence;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Iterator;
+
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionStage;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.atomic.AtomicInteger;
+
 import java.util.stream.Stream;
 
 import net.tascalate.async.Sequence;
 import net.tascalate.async.core.AsyncMethodExecutor;
 
-public class CompletionSequence<T, F extends CompletionStage<T>> implements Sequence<T, F> {
+public class CompletionSequence<T, F extends CompletionStage<T>> implements Sequence<F> {
     
     private final Iterator<? extends F> pendingPromises;
     private final int chunkSize;
-    private final BlockingQueue<F> resolvedPromises = new LinkedBlockingQueue<>();
+    private final BlockingQueue<F> settledPromises = new LinkedBlockingQueue<>();
     private final AtomicInteger remaining = new AtomicInteger(0);
     
     private volatile CompletableFuture<Void> consumerLock = new CompletableFuture<>();
-    private Sequence<T, F> current = Sequence.empty();
+    private Sequence<F> current = Sequence.empty();
     
     protected CompletionSequence(Iterator<? extends F> pendingValues, int chunkSize) {  
         this.pendingPromises = pendingValues;
@@ -66,8 +68,8 @@ public class CompletionSequence<T, F extends CompletionStage<T>> implements Sequ
                 // Forcibly closed
                 return null;
             } else {
-                final Collection<F> readyValues = new ArrayList<>();
-                resolvedPromises.drainTo(readyValues);
+                final Collection<F> readyValues = new ArrayList<>(/*Math.max(0, chunkSize)*/);
+                settledPromises.drainTo(readyValues);
     
                 if (!readyValues.isEmpty()) {
                     // If we are consuming slower than producing 
@@ -129,7 +131,7 @@ public class CompletionSequence<T, F extends CompletionStage<T>> implements Sequ
     
     private void enlistResolved(F resolvedPromise) {
         try {
-            resolvedPromises.put(resolvedPromise);
+            settledPromises.put(resolvedPromise);
         } catch (InterruptedException e) {
             throw new RuntimeException(e); // Shouldn't happen for the queue with an unlimited size
         }
@@ -143,19 +145,19 @@ public class CompletionSequence<T, F extends CompletionStage<T>> implements Sequ
     public String toString() {
         return String.format(
             "%s[current=%s, consumer-lock=%s, remaining=%s, resolved-promises=%s]",
-            getClass().getSimpleName(), current, consumerLock, remaining, resolvedPromises
+            getClass().getSimpleName(), current, consumerLock, remaining, settledPromises
         );
     }
 
-    public static <T, F extends CompletionStage<T>> Sequence<T, F> create(Stream<? extends F> pendingPromises, int chunkSize) {
+    public static <T, F extends CompletionStage<T>> Sequence<F> create(Stream<? extends F> pendingPromises, int chunkSize) {
         return create(pendingPromises.iterator(), chunkSize);
     }
 
-    public static <T, F extends CompletionStage<T>> Sequence<T, F> create(Iterable<? extends F> pendingPromises, int chunkSize) {
+    public static <T, F extends CompletionStage<T>> Sequence<F> create(Iterable<? extends F> pendingPromises, int chunkSize) {
         return create(pendingPromises.iterator(), chunkSize);
     }
     
-    private static <T, F extends CompletionStage<T>> Sequence<T, F> create(Iterator<? extends F> pendingPromises, int chunkSize) {
+    private static <T, F extends CompletionStage<T>> Sequence< F> create(Iterator<? extends F> pendingPromises, int chunkSize) {
         return new CompletionSequence<>(pendingPromises, chunkSize);
     }
 }

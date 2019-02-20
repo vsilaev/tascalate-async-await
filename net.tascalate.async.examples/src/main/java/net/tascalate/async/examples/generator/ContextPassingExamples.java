@@ -60,6 +60,10 @@ public class ContextPassingExamples {
     }
     
     @async CompletableFuture<String> asyncMethod(@SchedulerProvider Scheduler scheduler, long v) {
+        IDemo z = new IDemo() {
+        };
+        String id = await(z.run());
+        System.out.println("FROM IDEMO: " + id);
         System.out.println("Context A:" + MY_CONTEXT_VAR.get() + ", thread " + Thread.currentThread());
         await( waitString("1") );
         System.out.println("Context B:" + MY_CONTEXT_VAR.get() + ", thread " + Thread.currentThread());

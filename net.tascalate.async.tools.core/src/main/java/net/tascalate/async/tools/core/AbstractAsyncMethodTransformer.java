@@ -92,8 +92,8 @@ abstract public class AbstractAsyncMethodTransformer {
     protected final Map<String, MethodNode> accessMethods;
     
     protected AbstractAsyncMethodTransformer(ClassNode               classNode, 
-                                     MethodNode              originalAsyncMethod,
-                                     Map<String, MethodNode> accessMethods) {
+                                             MethodNode              originalAsyncMethod,
+                                             Map<String, MethodNode> accessMethods) {
         
         this.classNode = classNode;
         this.originalAsyncMethod = originalAsyncMethod;
@@ -530,7 +530,8 @@ abstract public class AbstractAsyncMethodTransformer {
         Type returnType = Type.getReturnType(dynNode.desc);
         String desc = Type.getMethodDescriptor(returnType, argTypes);
 
-        accessMethodNode = new MethodNode(ACC_STATIC + ACC_SYNTHETIC, name, desc, null, null);
+        int publicFlag = (classNode.access & ACC_INTERFACE) != 0 ? ACC_PUBLIC : 0;
+        accessMethodNode = new MethodNode(ACC_STATIC + ACC_SYNTHETIC + publicFlag, name, desc, null, null);
         accessMethodNode.visitCode();
 
         // load all method arguments into stack

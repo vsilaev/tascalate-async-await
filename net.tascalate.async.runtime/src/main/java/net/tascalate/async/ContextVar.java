@@ -25,9 +25,14 @@
 
 package net.tascalate.async;
 
-import java.util.concurrent.atomic.AtomicLong;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Collections;
+import java.util.List;
 import java.util.function.Consumer;
+import java.util.function.Function;
 import java.util.function.Supplier;
+import java.util.stream.Collectors;
 
 public interface ContextVar<T> {
     
@@ -48,7 +53,7 @@ public interface ContextVar<T> {
     }
     
     public static <T> ContextVar<T> define(Supplier<? extends T> reader, Consumer<? super T> writer, Runnable eraser) {
-        return define($.generateName(), reader, writer, eraser);
+        return define(ContextualRunnable.generateVarName(), reader, writer, eraser);
     }
     
     public static <T> ContextVar<T> define(String name, Supplier<? extends T> reader, Consumer<? super T> writer, Runnable eraser) {
@@ -103,13 +108,35 @@ public interface ContextVar<T> {
         };
     }    
     
-    static class $ {
-        private $() {}
-        
-        static String generateName() {
-            return "<anonymous" + COUNTER.getAndIncrement() + ">";
-        }
-        
-        private static final AtomicLong COUNTER = new AtomicLong();
+    
+    public static Function<Runnable, Runnable> relay(ContextVar<?> contextVar) {
+        return ContextualRunnable.relayContextVars(Collections.singletonList(contextVar));
+    }
+    
+    public static Function<Runnable, Runnable> relay(ThreadLocal<?> threadLocal) {
+        return relay(ContextVar.from(threadLocal));
+    }
+
+    public static Function<Runnable, Runnable> relay(ContextVar<?>... contextVars) {
+        return ContextualRunnable.relayContextVars(Arrays.asList(contextVars));
+    }
+    
+    public static Function<Runnable, Runnable> relay(ThreadLocal<?>... threadLocals) {
+        return ContextualRunnable.relayContextVars(Arrays.stream(threadLocals).map(ContextVar::from).collect(Collectors.toList()));
+    }
+
+    public static Function<Runnable, Runnable> relay1(List<? extends ContextVar<?>> contextVars) {
+        return ContextualRunnable.relayContextVars(
+            contextVars == null ? Collections.emptyList() : new ArrayList<>(contextVars)
+        );
+    }
+    
+    public static Function<Runnable, Runnable> relay2(List<? extends ThreadLocal<?>> threadLocals) {
+        return ContextualRunnable.relayContextVars(
+            threadLocals == null ? Collections.emptyList() : threadLocals
+                .stream()
+                .map(tl -> ContextVar.from((ThreadLocal<?>)tl))
+                .collect(Collectors.toList())
+        );
     }
 }

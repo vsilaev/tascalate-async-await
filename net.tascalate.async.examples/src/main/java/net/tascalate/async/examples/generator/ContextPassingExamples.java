@@ -34,7 +34,7 @@ import java.util.concurrent.CompletionStage;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
-import net.tascalate.async.ContextualRunnable;
+import net.tascalate.async.ContextVar;
 import net.tascalate.async.Scheduler;
 import net.tascalate.async.SchedulerProvider;
 import net.tascalate.async.async;
@@ -50,7 +50,7 @@ public class ContextPassingExamples {
     private static final ThreadLocal<String> MY_CONTEXT_VAR = new ThreadLocal<>();
 
     public static void main(String[] argv) {
-        Scheduler scheduler = Scheduler.interruptible(ownExecutor, ContextualRunnable.relayContextVars(MY_CONTEXT_VAR));
+        Scheduler scheduler = Scheduler.interruptible(ownExecutor, ContextVar.relay(MY_CONTEXT_VAR));
         MY_CONTEXT_VAR.set("CORRECT");
         
         CompletableFuture<String> f = new ContextPassingExamples().asyncMethod(scheduler, 10);

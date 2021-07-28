@@ -24,6 +24,8 @@
  */
 package net.tascalate.async.resolver.provided;
 
+import java.lang.invoke.MethodHandles;
+
 import org.kohsuke.MetaInfServices;
 
 import net.tascalate.async.Scheduler;
@@ -41,20 +43,20 @@ public class GetSchedulerFromProvider implements SchedulerResolver {
     }
 
     @Override
-    public Scheduler resolve(Object owner, Class<?> ownerDeclaringClass) {
+    public Scheduler resolve(Object owner, MethodHandles.Lookup ownerClassLookup) {
         if (null == owner) {
-            if (null == ownerDeclaringClass) {
+            if (null == ownerClassLookup) {
                 return null;
             }
-            SchedulerProviderLookup.ClassAccessor cAccessor = lookup.getClassAccessor(ownerDeclaringClass);
+            SchedulerProviderLookup.ClassAccessor cAccessor = lookup.getClassAccessor(ownerClassLookup);
             return null != cAccessor ? cAccessor.read() : null;
         } else {
             // Use concrete owner class, though someone may find correct to use declaring class
-            Class<?> targetClass = owner.getClass();  
-            SchedulerProviderLookup.InstanceAccessor iAccessor = lookup.getInstanceAccessor(targetClass);
+            // Class<?> targetClass = owner.getClass();  
+            SchedulerProviderLookup.InstanceAccessor iAccessor = lookup.getInstanceAccessor(ownerClassLookup);
             if (null == iAccessor) {
                 // If no instance accessor then try class accessor
-                SchedulerProviderLookup.ClassAccessor cAccessor = lookup.getClassAccessor(targetClass);
+                SchedulerProviderLookup.ClassAccessor cAccessor = lookup.getClassAccessor(ownerClassLookup);
                 return null != cAccessor ? cAccessor.read() : null;
             } else {
                 return iAccessor.read(owner);

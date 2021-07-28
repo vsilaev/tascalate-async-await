@@ -30,9 +30,6 @@ module net.tascalate.async.tools.javaagent {
     requires net.tascalate.instrument.emitter;
     
     requires net.tascalate.async.tools.core;
-    
-    requires net.tascalate.javaflow.spi;
-    requires net.tascalate.javaflow.tools.instrument;
     requires net.tascalate.javaflow.tools.javaagent;
     
     exports net.tascalate.async.tools.instrumentation;

@@ -24,6 +24,7 @@
  */
 package net.tascalate.async.core;
 
+import java.lang.invoke.MethodHandles;
 import java.util.Comparator;
 import java.util.Objects;
 import java.util.ServiceLoader;
@@ -36,13 +37,13 @@ import net.tascalate.async.util.Cache;
 class SchedulerResolvers {
     private SchedulerResolvers() {}
     
-    static Scheduler currentScheduler(Object owner, Class<?> ownerDeclaringClass) {
-        ClassLoader serviceClassLoader = getServiceClassLoader(owner != null ? owner.getClass() : ownerDeclaringClass);
+    static Scheduler currentScheduler(Object owner, MethodHandles.Lookup ownerClassLookup) {
+        ClassLoader serviceClassLoader = getServiceClassLoader(owner != null ? owner.getClass() : ownerClassLookup.lookupClass());
         ServiceLoader<SchedulerResolver> serviceLoader = getServiceLoader(serviceClassLoader);
 
         return StreamSupport.stream(serviceLoader.spliterator(), false)
             .sorted(SCHEDULER_RESOLVER_BY_PRIORITY)
-            .map(l -> l.resolve(owner, ownerDeclaringClass))
+            .map(l -> l.resolve(owner, ownerClassLookup))
             .filter(Objects::nonNull)
             .findFirst()
             .orElse(Scheduler.sameThreadContextless())

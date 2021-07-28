@@ -24,6 +24,8 @@
  */
 package net.tascalate.async.spi;
 
+import java.lang.invoke.MethodHandle;
+import java.lang.invoke.MethodHandles;
 import java.lang.reflect.AccessibleObject;
 import java.lang.reflect.AnnotatedElement;
 import java.lang.reflect.Field;
@@ -47,7 +49,7 @@ public class SchedulerProviderLookup {
     abstract public static class Accessor {
         abstract protected boolean isVisibleTo(Class<?> subClass);
         
-        final protected boolean isVisibleTo(Class<?> subClass, Member member) {
+        final protected static boolean isVisibleTo(Class<?> subClass, Member member) {
             Class<?> declaringClass = member.getDeclaringClass();
             if (!declaringClass.isAssignableFrom(subClass)) {
                 return false;
@@ -67,22 +69,26 @@ public class SchedulerProviderLookup {
     }
     
     abstract public static class InstanceAccessor extends Accessor {
-        abstract protected Object doRead(Object target) throws ReflectiveOperationException;
+        abstract protected Object doRead(Object target) throws Throwable;
         final public Scheduler read(Object target) {
             try {
                 return (Scheduler)doRead(target);
-            } catch (ReflectiveOperationException ex) {
+            } catch (Error | RuntimeException ex) {
+                throw ex;
+            } catch (Throwable ex) {
                 throw new RuntimeException(ex);
             }
         }        
     }
     
     abstract public static class ClassAccessor extends Accessor {
-        abstract protected Object doRead() throws ReflectiveOperationException;
+        abstract protected Object doRead() throws Throwable;
         final public Scheduler read() {
             try {
                 return (Scheduler)doRead();
-            } catch (ReflectiveOperationException ex) {
+            } catch (Error | RuntimeException ex) {
+                throw ex;
+            } catch (Throwable ex) {
                 throw new RuntimeException(ex);
             }
         }        
@@ -90,9 +96,11 @@ public class SchedulerProviderLookup {
     
     static final class ReadClassField extends ClassAccessor {
         final private Field field;
+        final private MethodHandle getter;
         
-        ReadClassField(Field field) {
+        ReadClassField(Field field, MethodHandles.Lookup ownerClassLookup) throws IllegalAccessException {
             this.field = field;
+            this.getter = ownerClassLookup.unreflectGetter(field);
         }
         
         @Override
@@ -101,8 +109,8 @@ public class SchedulerProviderLookup {
         }
         
         @Override
-        protected final Object doRead() throws ReflectiveOperationException {
-            return field.get(null);
+        protected final Object doRead() throws Throwable {
+            return getter.invoke();
         }
         
         @Override
@@ -113,9 +121,11 @@ public class SchedulerProviderLookup {
     
     static final class ReadInstanceField extends InstanceAccessor {
         final private Field field;
+        final private MethodHandle getter;
         
-        ReadInstanceField(Field field) {
+        ReadInstanceField(Field field, MethodHandles.Lookup ownerClassLookup) throws IllegalAccessException {
             this.field = field;
+            this.getter = ownerClassLookup.unreflectGetter(field);
         }
         
         @Override
@@ -124,8 +134,8 @@ public class SchedulerProviderLookup {
         }
         
         @Override
-        protected final Object doRead(Object target) throws ReflectiveOperationException {
-            return field.get(target);
+        protected final Object doRead(Object target) throws Throwable {
+            return getter.invoke(target);
         }
         
         @Override
@@ -136,9 +146,11 @@ public class SchedulerProviderLookup {
     
     static final class InvokeClassGetter extends ClassAccessor {
         final private Method method;
+        final private MethodHandle getter;
         
-        InvokeClassGetter(Method method) {
+        InvokeClassGetter(Method method, MethodHandles.Lookup ownerClassLookup) throws IllegalAccessException {
             this.method = method;
+            this.getter = ownerClassLookup.unreflect(method);
         }
         
         @Override
@@ -147,8 +159,8 @@ public class SchedulerProviderLookup {
         }
         
         @Override
-        protected final Object doRead() throws ReflectiveOperationException {
-            return method.invoke(null);
+        protected final Object doRead() throws Throwable {
+            return getter.invoke();
         }
         
         @Override
@@ -159,9 +171,11 @@ public class SchedulerProviderLookup {
     
     static final class InvokeInstanceGetter extends InstanceAccessor {
         final private Method method;
+        final private MethodHandle getter;
         
-        InvokeInstanceGetter(Method method) {
+        InvokeInstanceGetter(Method method, MethodHandles.Lookup ownerClassLookup) throws IllegalAccessException {
             this.method = method;
+            this.getter = ownerClassLookup.unreflect(method);
         }
         
         @Override
@@ -170,8 +184,8 @@ public class SchedulerProviderLookup {
         }
         
         @Override
-        protected final Object doRead(Object target) throws ReflectiveOperationException {
-            return method.invoke(target);
+        protected final Object doRead(Object target) throws Throwable {
+            return getter.invoke(target);
         }
         
         @Override
@@ -192,25 +206,33 @@ public class SchedulerProviderLookup {
             boolean accept(Member m) { return !isStatic(m); }
             
             @Override
-            Accessor from(Field f) { return new ReadInstanceField(f); }
+            Accessor from(Field f, MethodHandles.Lookup ownerClassLookup) throws IllegalAccessException { 
+                return new ReadInstanceField(f, ownerClassLookup); 
+            }
             
             @Override
-            Accessor from(Method m) { return new InvokeInstanceGetter(m); }            
+            Accessor from(Method m, MethodHandles.Lookup ownerClassLookup) throws IllegalAccessException { 
+                return new InvokeInstanceGetter(m, ownerClassLookup); 
+            }            
         }, 
         CLASS {
             @Override
             boolean accept(Member m) { return isStatic(m); }
             
             @Override
-            Accessor from(Field f) { return new ReadClassField(f); }
+            Accessor from(Field f, MethodHandles.Lookup ownerClassLookup) throws IllegalAccessException { 
+                return new ReadClassField(f, ownerClassLookup); 
+            }
             
             @Override
-            Accessor from(Method m) { return new InvokeClassGetter(m); }
+            Accessor from(Method m, MethodHandles.Lookup ownerClassLookup) throws IllegalAccessException { 
+                return new InvokeClassGetter(m, ownerClassLookup); 
+            }
         };
         
         abstract boolean accept(Member m);
-        abstract Accessor from(Field f);
-        abstract Accessor from(Method m);
+        abstract Accessor from(Field f, MethodHandles.Lookup ownerClassLookup) throws IllegalAccessException;
+        abstract Accessor from(Method m, MethodHandles.Lookup ownerClassLookup) throws IllegalAccessException;
         
         
         protected static boolean isStatic(Member target) {
@@ -233,30 +255,30 @@ public class SchedulerProviderLookup {
         this.superClassPriority  = superClassPriority;
     }
     
-    public InstanceAccessor getInstanceAccessor(Class<?> targetClass) {
-        Accessor result = getAccessor(targetClass, instanceAccessorsCache, Kind.INSATNCE, new HashSet<>());
+    public InstanceAccessor getInstanceAccessor(MethodHandles.Lookup ownerClassLookup) {
+        Accessor result = getAccessor(ownerClassLookup, ownerClassLookup.lookupClass(), instanceAccessorsCache, Kind.INSATNCE, new HashSet<>());
         return (InstanceAccessor)result;
     }
     
-    public ClassAccessor getClassAccessor(Class<?> targetClass) {
-        Accessor result = getAccessor(targetClass, classAccessorsCache, Kind.CLASS, new HashSet<>());
+    public ClassAccessor getClassAccessor(MethodHandles.Lookup ownerClassLookup) {
+        Accessor result = getAccessor(ownerClassLookup, ownerClassLookup.lookupClass(), classAccessorsCache, Kind.CLASS, new HashSet<>());
         return (ClassAccessor)result;
     }
 
     
-    protected Accessor getAccessor(Class<?> targetClass, Cache<Class<?>, Accessor> cache, Kind kind, Set<Class<?>> visitedInterfaces) {
+    protected Accessor getAccessor(MethodHandles.Lookup ownerClassLookup, Class<?> targetClass, Cache<Class<?>, Accessor> cache, Kind kind, Set<Class<?>> visitedInterfaces) {
         Accessor result = cache.get(
             targetClass,
             c -> {
-                Accessor a = findAccessor(c, cache, kind, visitedInterfaces);
+                Accessor a = findAccessor(ownerClassLookup, c, cache, kind, visitedInterfaces);
                 return a != null ? a : NO_ACCESSOR;
             }
         );
         return result == NO_ACCESSOR ? null : result;
     }
     
-    protected Accessor findAccessor(Class<?> targetClass, Cache<Class<?>, Accessor> cache, Kind kind, Set<Class<?>> visitedInterfaces) {
-        Accessor accessor = findDeclaredAccessor(targetClass, kind);
+    protected Accessor findAccessor(MethodHandles.Lookup ownerClassLookup, Class<?> targetClass, Cache<Class<?>, Accessor> cache, Kind kind, Set<Class<?>> visitedInterfaces) {
+        Accessor accessor = findDeclaredAccessor(ownerClassLookup, targetClass, kind);
         if (null != accessor) {
             return accessor;
         }
@@ -264,10 +286,12 @@ public class SchedulerProviderLookup {
         if (inspectSuperclasses) {
             Class<?> superClass = targetClass.getSuperclass();
             if (null != superClass && Object.class != superClass) {
-                accessor = getAccessor(superClass, cache, kind, visitedInterfaces);
+                accessor = getAccessor(ownerClassLookup, superClass, cache, kind, visitedInterfaces);
+                /*
                 if (null != accessor && checkVisibility && !accessor.isVisibleTo(targetClass)) {
                     accessor = null;
                 }
+                */
             }
         }
 
@@ -284,12 +308,14 @@ public class SchedulerProviderLookup {
             Stream<Accessor> accessorsByInterfaces = Stream.of(targetClass.getInterfaces())
                 .filter(i -> !visitedInterfaces.contains(i))
                 .peek(i -> visitedInterfaces.add(i))
-                .map(i -> getAccessor(i, cache, kind, visitedInterfaces))
+                .map(i -> getAccessor(ownerClassLookup, i, cache, kind, visitedInterfaces))
                 .filter(Objects::nonNull);
             
+            /*
             if (checkVisibility) {
                 accessorsByInterfaces = accessorsByInterfaces.filter(a -> a.isVisibleTo(targetClass));
             }
+            */
             
             List<Accessor> accessors = accessorsByInterfaces
                 //.limit(2)
@@ -310,7 +336,7 @@ public class SchedulerProviderLookup {
         }
     }
     
-    protected Accessor findDeclaredAccessor(Class<?> targetClass, Kind kind) {
+    protected Accessor findDeclaredAccessor(MethodHandles.Lookup ownerClassLookup, Class<?> targetClass, Kind kind) {
         List<Field> ownProviderFields = Stream.of(targetClass.getDeclaredFields())
             .filter(SchedulerProviderLookup::isSchedulerProviderField)
             .filter(kind::accept)
@@ -341,12 +367,31 @@ public class SchedulerProviderLookup {
                 "-- fields: "+ ownProviderFields + "\n" +
                 "-- getters: " + ownProviderMethods
             );
-        } else if (fSize == 1) {
-            return kind.from(ensureAccessible(ownProviderFields.get(0)));
-        } else if (mSize == 1) {
-            return kind.from(ensureAccessible(ownProviderMethods.get(0)));
-        } else {
-            return null;
+        }
+        try {
+            if (fSize == 1) {
+                Field f = ownProviderFields.get(0);
+                if (!checkVisibility) {
+                    return kind.from(ensureAccessible(f), ownerClassLookup);
+                } else if (Accessor.isVisibleTo(ownerClassLookup.lookupClass(), f)) {
+                    return kind.from(f, ownerClassLookup);
+                } else {
+                    return null;
+                }
+            } else if (mSize == 1) {
+                Method m = ownProviderMethods.get(0);
+                if (!checkVisibility) {
+                    return kind.from(ensureAccessible(m), ownerClassLookup);
+                } else if (Accessor.isVisibleTo(ownerClassLookup.lookupClass(), m)) {
+                    return kind.from(m, ownerClassLookup);
+                } else {
+                    return null;
+                }                
+            } else {
+                return null;
+            }
+        } catch (IllegalAccessException ex) {
+            throw new RuntimeException(ex);
         }
     }
     

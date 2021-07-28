@@ -40,6 +40,7 @@ import static net.tascalate.async.tools.core.BytecodeIntrospection.visibleParame
 import static net.tascalate.async.tools.core.BytecodeIntrospection.visibleTypeAnnotationsOf;
 import static net.tascalate.asmx.Opcodes.*;
 
+import java.lang.invoke.MethodHandles;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Iterator;
@@ -74,6 +75,8 @@ abstract public class AbstractAsyncMethodTransformer {
     
     protected final static Type SUSPENDABLE_ANNOTATION_TYPE = Type.getObjectType("net/tascalate/async/suspendable");
     protected final static Type COMPLETION_STAGE_TYPE       = Type.getObjectType("java/util/concurrent/CompletionStage");
+    protected final static Type METHOD_HANDLES_TYPE         = Type.getType(MethodHandles.class);
+    protected final static Type METHOD_HANDLES_LOOKUP_TYPE  = Type.getType(MethodHandles.Lookup.class);
     protected final static Type OBJECT_TYPE                 = Type.getType(Object.class);
     protected final static Type STRING_TYPE                 = Type.getType(String.class);
     protected final static Type CLASS_TYPE                  = Type.getType(Class.class);    
@@ -328,7 +331,11 @@ abstract public class AbstractAsyncMethodTransformer {
         } else {
             result.visitVarInsn(ALOAD, 0);
         }
-        result.visitLdcInsn(Type.getObjectType(classNode.name));
+        // result.visitLdcInsn(Type.getObjectType(classNode.name));
+        result.visitMethodInsn(
+            INVOKESTATIC, METHOD_HANDLES_TYPE.getInternalName(), "lookup", 
+            Type.getMethodDescriptor(METHOD_HANDLES_LOOKUP_TYPE), false
+        );
         result.visitMethodInsn(
             INVOKESTATIC, ASYNC_METHOD_EXECUTOR_TYPE.getInternalName(), "currentScheduler", 
             Type.getMethodDescriptor(SCHEDULER_TYPE, SCHEDULER_TYPE, OBJECT_TYPE, CLASS_TYPE), false

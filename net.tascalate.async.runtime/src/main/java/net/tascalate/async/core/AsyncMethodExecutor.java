@@ -24,6 +24,7 @@
  */
 package net.tascalate.async.core;
 
+import java.lang.invoke.MethodHandles;
 import java.util.concurrent.CancellationException;
 import java.util.concurrent.CompletionStage;
 import java.util.concurrent.ExecutionException;
@@ -157,11 +158,11 @@ public class AsyncMethodExecutor {
         }
     }
     
-    public static Scheduler currentScheduler(Scheduler explicitScheduler, Object owner, Class<?> ownerDeclaringClass) {
+    public static Scheduler currentScheduler(Scheduler explicitScheduler, Object owner, MethodHandles.Lookup ownerClassLookup) {
         return null != explicitScheduler ? 
             explicitScheduler 
             : 
-            SchedulerResolvers.currentScheduler(owner, ownerDeclaringClass);
+            SchedulerResolvers.currentScheduler(owner, ownerClassLookup);
     }
     
     private static <R, E extends Throwable> FutureResult<R, E> getResolvedOutcome(CompletionStage<R> stage) {

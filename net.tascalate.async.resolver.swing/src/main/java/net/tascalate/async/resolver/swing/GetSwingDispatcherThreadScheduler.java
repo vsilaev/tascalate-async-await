@@ -24,6 +24,8 @@
  */
 package net.tascalate.async.resolver.swing;
 
+import java.lang.invoke.MethodHandles;
+
 import javax.swing.SwingUtilities;
 
 import org.kohsuke.MetaInfServices;
@@ -42,7 +44,7 @@ public class GetSwingDispatcherThreadScheduler implements SchedulerResolver {
     }
 
     @Override
-    public Scheduler resolve(Object owner, Class<?> ownerDeclaringClass) {
+    public Scheduler resolve(Object owner, MethodHandles.Lookup ownerClassLookup) {
         // Use SwingDispatcherThreadScheduler for methods invoked from Swing UI action handlers
         return SwingUtilities.isEventDispatchThread() ? swingDispatcherThreadScheduler : null;
     }

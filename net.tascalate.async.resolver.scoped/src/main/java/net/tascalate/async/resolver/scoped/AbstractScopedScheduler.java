@@ -24,6 +24,8 @@
  */
 package net.tascalate.async.resolver.scoped;
 
+import java.lang.invoke.MethodHandles;
+
 import net.tascalate.async.Scheduler;
 import net.tascalate.async.spi.SchedulerResolver;
 
@@ -43,7 +45,7 @@ public class AbstractScopedScheduler implements SchedulerResolver {
     }
 
     @Override
-    public Scheduler resolve(Object owner, Class<?> ownerDeclaringClass) {
+    public Scheduler resolve(Object owner, MethodHandles.Lookup ownerClassLookup) {
         return scope.currentExecutor.get();
     }
 

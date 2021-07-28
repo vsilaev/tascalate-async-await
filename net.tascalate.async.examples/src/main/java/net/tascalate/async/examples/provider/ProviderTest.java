@@ -1,5 +1,7 @@
 package net.tascalate.async.examples.provider;
 
+import java.lang.invoke.MethodHandles;
+
 import net.tascalate.async.Scheduler;
 import net.tascalate.async.SchedulerProvider;
 import net.tascalate.async.spi.SchedulerProviderLookup;
@@ -9,6 +11,9 @@ public class ProviderTest {
     static class Abc {
         @SchedulerProvider
         private Scheduler exec = Scheduler.sameThreadContextless();
+        public void run(SchedulerProviderLookup lookup) {
+            ProviderTest.tryAccessor(lookup, this, MethodHandles.lookup());
+        }
     }
     
     static class Xyz {
@@ -16,15 +21,21 @@ public class ProviderTest {
         public Scheduler exec() {
             return Scheduler.sameThreadContextless();
         }
+        public void run(SchedulerProviderLookup lookup) {
+            ProviderTest.tryAccessor(lookup, this, MethodHandles.lookup());
+        }
     }
     
     static class BaseByField {
         @SchedulerProvider
         Scheduler baseExec = Scheduler.sameThreadContextless();
+
     }
 
     static class InheritedByField extends BaseByField {
-
+        public void run(SchedulerProviderLookup lookup) {
+            ProviderTest.tryAccessor(lookup, this, MethodHandles.lookup());
+        }
     }
 
     static class BaseByMethod {
@@ -35,11 +46,13 @@ public class ProviderTest {
     }
 
     static class InheritedByMethod extends BaseByMethod {
-
+        public void run(SchedulerProviderLookup lookup) {
+            ProviderTest.tryAccessor(lookup, this, MethodHandles.lookup());
+        }
     }
 
     interface IntfA {
-        //@SchedulerProvider -- uncomment to see error
+        //@SchedulerProvider //-- uncomment to see error
         Scheduler intfExec();
     }
     
@@ -57,20 +70,24 @@ public class ProviderTest {
             return IntfB.super.intfExec();
         }
         
+        public void run(SchedulerProviderLookup lookup) {
+            ProviderTest.tryAccessor(lookup, this, MethodHandles.lookup());
+        }
+     
     }
     
     public static void main(String[] args) {
         SchedulerProviderLookup lookup = new SchedulerProviderLookup(true, true, true, false);
-        tryAccessor(lookup, new Abc());
-        tryAccessor(lookup, new Xyz());
-        tryAccessor(lookup, new InheritedByField());
-        tryAccessor(lookup, new InheritedByMethod());
-        tryAccessor(lookup, new InheritedByInterfaces());
+        new Abc().run(lookup);
+        new Xyz().run(lookup);
+        new InheritedByField().run(lookup);
+        new InheritedByMethod().run(lookup);
+        new InheritedByInterfaces().run(lookup);
 
     }
     
-    private static void tryAccessor(SchedulerProviderLookup lookup, Object o) {
-        SchedulerProviderLookup.InstanceAccessor reader = lookup.getInstanceAccessor(o.getClass());
+    static void tryAccessor(SchedulerProviderLookup lookup, Object o, MethodHandles.Lookup ownerLookup) {
+        SchedulerProviderLookup.InstanceAccessor reader = lookup.getInstanceAccessor(ownerLookup);
         System.out.println("Class: " + o.getClass().getName());
         System.out.println("Accessor: " + reader);
         if (null != reader) {

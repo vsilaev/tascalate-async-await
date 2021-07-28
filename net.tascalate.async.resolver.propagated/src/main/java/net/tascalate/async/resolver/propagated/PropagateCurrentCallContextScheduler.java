@@ -24,6 +24,8 @@
  */
 package net.tascalate.async.resolver.propagated;
 
+import java.lang.invoke.MethodHandles;
+
 import org.kohsuke.MetaInfServices;
 
 import net.tascalate.async.Scheduler;
@@ -39,7 +41,7 @@ public class PropagateCurrentCallContextScheduler implements SchedulerResolver {
     }
 
     @Override
-    public Scheduler resolve(Object owner, Class<?> ownerDeclaringClass) {
+    public Scheduler resolve(Object owner, MethodHandles.Lookup ownerClassLookup) {
         return CurrentCallContext.scheduler();
     }
     

@@ -24,11 +24,13 @@
  */
 package net.tascalate.async.spi;
 
+import java.lang.invoke.MethodHandles;
+
 import net.tascalate.async.Scheduler;
 
 public interface SchedulerResolver {
     
     int priority();
     
-    Scheduler resolve(Object owner, Class<?> ownerDeclaringClass);
+    Scheduler resolve(Object owner, MethodHandles.Lookup ownerClassLookup);
 }

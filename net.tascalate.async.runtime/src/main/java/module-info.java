@@ -1,5 +1,5 @@
 /**
- * ﻿Copyright 2015-2017 Valery Silaev (http://vsilaev.com)
+ * ﻿Copyright 2015-2018 Valery Silaev (http://vsilaev.com)
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
@@ -22,27 +22,15 @@
  * OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
-package net.tascalate.nio.channels;
-
-import java.nio.channels.CompletionHandler;
-
-import net.tascalate.concurrent.CompletablePromise;
-
-class AsyncResult<V> extends CompletablePromise<V> {
+module net.tascalate.async.runtime {
+    requires org.slf4j;
+    requires net.tascalate.javaflow.api;
+    requires net.tascalate.javaflow.extras;
     
-    final CompletionHandler<V, Object> handler = new CompletionHandler<V, Object>() {
-        @Override
-        public void completed(final V result, final Object attachment) {
-            onSuccess(result);
-        }
-
-        @Override
-        public void failed(Throwable exc, Object attachment) {
-            onFailure(exc);     
-        }
-    };
-
-    AsyncResult() {
-    }
+    exports net.tascalate.async;
+    exports net.tascalate.async.generator;
+    exports net.tascalate.async.scheduler;
+    exports net.tascalate.async.spi;
     
+    uses net.tascalate.async.spi.SchedulerResolver;
 }

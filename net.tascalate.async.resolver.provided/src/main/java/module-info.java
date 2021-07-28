@@ -22,42 +22,11 @@
  * OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
-package net.tascalate.async.core;
-
-import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.CompletionStage;
-
-import net.tascalate.async.Scheduler;
-import net.tascalate.async.suspendable;
-
-
-abstract public class AsyncTaskMethod<T> extends AbstractAsyncMethod {
-
-    protected AsyncTaskMethod(Scheduler scheduler) {
-        super(scheduler);
-    }
+module net.tascalate.async.resolver.provided {
+    requires org.slf4j;
+    requires net.tascalate.async.runtime;
+    requires static metainf.services;
     
-    @Override
-    protected final @suspendable void internalRun() {
-        try {
-            doRun();
-            // ensure that promise is resolved
-            success(null);
-        } catch (Throwable ex) {
-            failure(ex);
-        }
-    }
-    
-    abstract protected @suspendable void doRun() throws Throwable;
-
-    protected final CompletionStage<T> complete(final T value) {
-        success(value);
-        @SuppressWarnings("unchecked")
-        CompletableFuture<T> typedFuture = (CompletableFuture<T>)future;
-        return typedFuture;
-    }
-  
-    protected final String toString(String className, String methodSignature) {
-        return toString("<generated-async-task>", className, methodSignature);
-    }
+    provides net.tascalate.async.spi.SchedulerResolver 
+             with net.tascalate.async.resolver.provided.GetSchedulerFromProvider;
 }

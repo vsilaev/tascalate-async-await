@@ -27,7 +27,6 @@ package net.tascalate.async.tools.core;
 import static net.tascalate.async.tools.core.BytecodeIntrospection.isAsyncMethod;
 import static net.tascalate.async.tools.core.BytecodeIntrospection.methodsOf;
 
-import java.lang.instrument.IllegalClassFormatException;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -37,17 +36,19 @@ import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
 import org.apache.commons.javaflow.spi.ResourceLoader;
-import org.apache.commons.logging.Log;
-import org.apache.commons.logging.LogFactory;
-import org.objectweb.asm.ClassReader;
-import org.objectweb.asm.ClassWriter;
-import org.objectweb.asm.Type;
-import org.objectweb.asm.tree.ClassNode;
-import org.objectweb.asm.tree.MethodNode;
+
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
+import net.tascalate.asmx.ClassReader;
+import net.tascalate.asmx.ClassWriter;
+import net.tascalate.asmx.Type;
+import net.tascalate.asmx.tree.ClassNode;
+import net.tascalate.asmx.tree.MethodNode;
 
 public class AsyncAwaitClassFileGenerator {
 
-    private final static Log log = LogFactory.getLog(AsyncAwaitClassFileGenerator.class);
+    private final static Logger log = LoggerFactory.getLogger(AsyncAwaitClassFileGenerator.class);
     
     private final static Type COMPLETION_STAGE_TYPE   = Type.getObjectType("java/util/concurrent/CompletionStage");
     private final static Type COMPLETABLE_FUTURE_TYPE = Type.getObjectType("java/util/concurrent/CompletableFuture");
@@ -75,7 +76,7 @@ public class AsyncAwaitClassFileGenerator {
         this.resourceLoader = resourceLoader;
     }
     
-    public byte[] transform(byte[] classfileBuffer) throws IllegalClassFormatException {
+    public byte[] transform(byte[] classfileBuffer) {
         // Read
         ClassReader classReader = new ClassReader(classfileBuffer);
         ClassNode classNode = new ClassNode();

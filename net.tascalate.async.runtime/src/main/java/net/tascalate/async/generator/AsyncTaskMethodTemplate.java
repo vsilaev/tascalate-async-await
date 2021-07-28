@@ -22,42 +22,15 @@
  * OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
-package net.tascalate.async.core;
-
-import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.CompletionStage;
+package net.tascalate.async.generator;
 
 import net.tascalate.async.Scheduler;
-import net.tascalate.async.suspendable;
+import net.tascalate.async.core.AsyncTaskMethod;
 
+public abstract class AsyncTaskMethodTemplate<T> extends AsyncTaskMethod<T> {
 
-abstract public class AsyncTaskMethod<T> extends AbstractAsyncMethod {
-
-    protected AsyncTaskMethod(Scheduler scheduler) {
+    protected AsyncTaskMethodTemplate(Scheduler scheduler) {
         super(scheduler);
     }
-    
-    @Override
-    protected final @suspendable void internalRun() {
-        try {
-            doRun();
-            // ensure that promise is resolved
-            success(null);
-        } catch (Throwable ex) {
-            failure(ex);
-        }
-    }
-    
-    abstract protected @suspendable void doRun() throws Throwable;
 
-    protected final CompletionStage<T> complete(final T value) {
-        success(value);
-        @SuppressWarnings("unchecked")
-        CompletableFuture<T> typedFuture = (CompletableFuture<T>)future;
-        return typedFuture;
-    }
-  
-    protected final String toString(String className, String methodSignature) {
-        return toString("<generated-async-task>", className, methodSignature);
-    }
 }

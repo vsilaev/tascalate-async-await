@@ -31,8 +31,8 @@ import java.util.concurrent.Future;
 
 import org.apache.commons.javaflow.api.Continuation;
 
-import org.apache.commons.logging.Log;
-import org.apache.commons.logging.LogFactory;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import net.tascalate.async.InvalidCallContextException;
 import net.tascalate.async.Scheduler;
@@ -44,7 +44,7 @@ import net.tascalate.async.suspendable;
  */
 public class AsyncMethodExecutor {
 
-    private static final Log log = LogFactory.getLog(AsyncMethodExecutor.class);
+    private static final Logger log = LoggerFactory.getLogger(AsyncMethodExecutor.class);
 
     private static final AsyncMethodExecutor INSTANCE = new AsyncMethodExecutor();
 
@@ -60,7 +60,7 @@ public class AsyncMethodExecutor {
     protected void executeTask(AbstractAsyncMethod asyncMethod) {
         // Create the initial Continuation
         log.debug("Starting suspended Continuation");
-        Continuation continuation = Continuation.startSuspendedWith(asyncMethod);
+        Continuation continuation = Continuation.startSuspendedWith(asyncMethod, true);
         // Start it
         ContinuationResumer<?, Throwable> originalInvoker = new ContinuationResumer<>(continuation);
         originalInvoker.setup(null, null);

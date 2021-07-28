@@ -22,42 +22,25 @@
  * OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
-package net.tascalate.async.core;
+package net.tascalate.async.extras;
 
-import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionStage;
 
-import net.tascalate.async.Scheduler;
-import net.tascalate.async.suspendable;
+import net.tascalate.async.AsyncGenerator;
+import net.tascalate.concurrent.Promise;
+import net.tascalate.concurrent.Promises;
 
-
-abstract public class AsyncTaskMethod<T> extends AbstractAsyncMethod {
-
-    protected AsyncTaskMethod(Scheduler scheduler) {
-        super(scheduler);
+public class DefaultPromisesGenerator<T> extends DefaultPromisesSequence<T> implements PromisesGenerator<T> {
+    
+    public DefaultPromisesGenerator(AsyncGenerator<T> delegate) {
+        super(delegate);
     }
     
     @Override
-    protected final @suspendable void internalRun() {
-        try {
-            doRun();
-            // ensure that promise is resolved
-            success(null);
-        } catch (Throwable ex) {
-            failure(ex);
-        }
-    }
-    
-    abstract protected @suspendable void doRun() throws Throwable;
-
-    protected final CompletionStage<T> complete(final T value) {
-        success(value);
+    public Promise<T> next(Object producerParam) {
         @SuppressWarnings("unchecked")
-        CompletableFuture<T> typedFuture = (CompletableFuture<T>)future;
-        return typedFuture;
-    }
-  
-    protected final String toString(String className, String methodSignature) {
-        return toString("<generated-async-task>", className, methodSignature);
+        AsyncGenerator<T> _delegate = (AsyncGenerator<T>)delegate;
+        CompletionStage<T> original = _delegate.next(producerParam);
+        return null == original ? null : Promises.from(original);
     }
 }

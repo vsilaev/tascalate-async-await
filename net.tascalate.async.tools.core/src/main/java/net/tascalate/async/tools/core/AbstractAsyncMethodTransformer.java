@@ -38,7 +38,7 @@ import static net.tascalate.async.tools.core.BytecodeIntrospection.methodsOf;
 import static net.tascalate.async.tools.core.BytecodeIntrospection.visibleAnnotationsOf;
 import static net.tascalate.async.tools.core.BytecodeIntrospection.visibleParameterAnnotationsOf;
 import static net.tascalate.async.tools.core.BytecodeIntrospection.visibleTypeAnnotationsOf;
-import static org.objectweb.asm.Opcodes.*;
+import static net.tascalate.asmx.Opcodes.*;
 
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -47,25 +47,26 @@ import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
 
-import org.apache.commons.logging.Log;
-import org.apache.commons.logging.LogFactory;
-import org.objectweb.asm.Handle;
-import org.objectweb.asm.MethodVisitor;
-import org.objectweb.asm.Opcodes;
-import org.objectweb.asm.Type;
-import org.objectweb.asm.tree.AbstractInsnNode;
-import org.objectweb.asm.tree.AnnotationNode;
-import org.objectweb.asm.tree.ClassNode;
-import org.objectweb.asm.tree.FieldInsnNode;
-import org.objectweb.asm.tree.FieldNode;
-import org.objectweb.asm.tree.InnerClassNode;
-import org.objectweb.asm.tree.InvokeDynamicInsnNode;
-import org.objectweb.asm.tree.MethodInsnNode;
-import org.objectweb.asm.tree.MethodNode;
-import org.objectweb.asm.tree.TypeAnnotationNode;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
+import net.tascalate.asmx.Handle;
+import net.tascalate.asmx.MethodVisitor;
+import net.tascalate.asmx.Opcodes;
+import net.tascalate.asmx.Type;
+import net.tascalate.asmx.tree.AbstractInsnNode;
+import net.tascalate.asmx.tree.AnnotationNode;
+import net.tascalate.asmx.tree.ClassNode;
+import net.tascalate.asmx.tree.FieldInsnNode;
+import net.tascalate.asmx.tree.FieldNode;
+import net.tascalate.asmx.tree.InnerClassNode;
+import net.tascalate.asmx.tree.InvokeDynamicInsnNode;
+import net.tascalate.asmx.tree.MethodInsnNode;
+import net.tascalate.asmx.tree.MethodNode;
+import net.tascalate.asmx.tree.TypeAnnotationNode;
 
 abstract public class AbstractAsyncMethodTransformer {
-    protected final static Log log = LogFactory.getLog(AsyncAwaitClassFileGenerator.class);
+    protected final static Logger log = LoggerFactory.getLogger(AsyncAwaitClassFileGenerator.class);
 
     private final static String ASYNC_ANNOTATION_DESCRIPTOR = "Lnet/tascalate/async/async;";
     
@@ -148,7 +149,7 @@ abstract public class AbstractAsyncMethodTransformer {
             "serialVersionUID", 
             "J", 
             null,
-            new Long(1L)
+            Long.valueOf(1L)
         );
 
         // Outer class instance field

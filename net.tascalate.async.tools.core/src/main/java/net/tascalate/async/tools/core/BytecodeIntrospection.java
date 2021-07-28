@@ -24,35 +24,36 @@
  */
 package net.tascalate.async.tools.core;
 
-import static org.objectweb.asm.Opcodes.ACC_ABSTRACT;
-import static org.objectweb.asm.Opcodes.ACC_FINAL;
-import static org.objectweb.asm.Opcodes.ACC_PRIVATE;
-import static org.objectweb.asm.Opcodes.ACC_PROTECTED;
-import static org.objectweb.asm.Opcodes.ACC_PUBLIC;
-import static org.objectweb.asm.Opcodes.ACC_STATIC;
-import static org.objectweb.asm.Opcodes.ACC_STRICT;
-import static org.objectweb.asm.Opcodes.ACC_SYNCHRONIZED;
-import static org.objectweb.asm.Opcodes.ILOAD;
-import static org.objectweb.asm.Opcodes.ISTORE;
+import static net.tascalate.asmx.Opcodes.ACC_ABSTRACT;
+import static net.tascalate.asmx.Opcodes.ACC_FINAL;
+import static net.tascalate.asmx.Opcodes.ACC_PRIVATE;
+import static net.tascalate.asmx.Opcodes.ACC_PROTECTED;
+import static net.tascalate.asmx.Opcodes.ACC_PUBLIC;
+import static net.tascalate.asmx.Opcodes.ACC_STATIC;
+import static net.tascalate.asmx.Opcodes.ACC_STRICT;
+import static net.tascalate.asmx.Opcodes.ACC_SYNCHRONIZED;
+import static net.tascalate.asmx.Opcodes.ILOAD;
+import static net.tascalate.asmx.Opcodes.ISTORE;
 
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 import java.util.stream.Collectors;
 
-import org.apache.commons.logging.Log;
-import org.apache.commons.logging.LogFactory;
-import org.objectweb.asm.Type;
-import org.objectweb.asm.tree.AnnotationNode;
-import org.objectweb.asm.tree.ClassNode;
-import org.objectweb.asm.tree.FieldNode;
-import org.objectweb.asm.tree.InnerClassNode;
-import org.objectweb.asm.tree.MethodNode;
-import org.objectweb.asm.tree.TryCatchBlockNode;
-import org.objectweb.asm.tree.TypeAnnotationNode;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
+import net.tascalate.asmx.Type;
+import net.tascalate.asmx.tree.AnnotationNode;
+import net.tascalate.asmx.tree.ClassNode;
+import net.tascalate.asmx.tree.FieldNode;
+import net.tascalate.asmx.tree.InnerClassNode;
+import net.tascalate.asmx.tree.MethodNode;
+import net.tascalate.asmx.tree.TryCatchBlockNode;
+import net.tascalate.asmx.tree.TypeAnnotationNode;
 
 class BytecodeIntrospection {
-    private static final Log log = LogFactory.getLog(BytecodeIntrospection.class);
+    private static final Logger log = LoggerFactory.getLogger(BytecodeIntrospection.class);
     
     static final String ASYNC_ANNOTATION_DESCRIPTOR = "Lnet/tascalate/async/async;";
 
@@ -82,7 +83,6 @@ class BytecodeIntrospection {
         result.append(')');
         if (outputExceptions && null != methodNode.exceptions && !methodNode.exceptions.isEmpty()) {
             result.append(" throws ");
-            @SuppressWarnings("unchecked")
             List<String> exceptions = (List<String>)methodNode.exceptions;
             result.append(
                 exceptions.stream()
@@ -124,14 +124,12 @@ class BytecodeIntrospection {
     }
     */
 
-    @SuppressWarnings("unchecked")
     static List<MethodNode> methodsOf(ClassNode classNode) {
         return null == classNode.methods ? 
                Collections.<MethodNode> emptyList() : 
                (List<MethodNode>) classNode.methods;
     }
 
-    @SuppressWarnings("unchecked")
     static List<InnerClassNode> innerClassesOf(ClassNode classNode) {
         return null == classNode.innerClasses ? 
                Collections.<InnerClassNode> emptyList() :
@@ -230,7 +228,6 @@ class BytecodeIntrospection {
         return getMethod(methodName, null, methods) != null;
     }
 
-    @SuppressWarnings("unchecked")
     private static List<FieldNode> fieldsOf(ClassNode classNode) {
         return null == classNode.fields ? Collections.<FieldNode> emptyList() : (List<FieldNode>) classNode.fields;
     }
@@ -239,7 +236,6 @@ class BytecodeIntrospection {
         return safeAnnotationsList(methodNode.visibleAnnotations);
     }
     
-    @SuppressWarnings("unchecked")
     static List<AnnotationNode>[] visibleParameterAnnotationsOf(MethodNode methodNode) {
         return methodNode.visibleParameterAnnotations;
     }
@@ -256,7 +252,6 @@ class BytecodeIntrospection {
         return safeAnnotationsList(methodNode.invisibleAnnotations);
     }
     
-    @SuppressWarnings("unchecked")
     static List<AnnotationNode>[] invisibleParameterAnnotationsOf(MethodNode methodNode) {
         return methodNode.invisibleParameterAnnotations;
     }

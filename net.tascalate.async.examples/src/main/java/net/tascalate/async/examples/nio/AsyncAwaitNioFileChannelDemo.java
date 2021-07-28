@@ -40,9 +40,13 @@ import java.util.Collections;
 import java.util.concurrent.CompletionStage;
 
 import net.tascalate.async.async;
-import net.tascalate.nio.channels.AsynchronousFileChannel;
+import net.tascalate.concurrent.TaskExecutorService;
+import net.tascalate.concurrent.TaskExecutors;
+import net.tascalate.concurrent.io.AsyncFileChannel;
 
 public class AsyncAwaitNioFileChannelDemo {
+    
+    final private static TaskExecutorService executor = TaskExecutors.newFixedThreadPool(4);
 
 	public static void main(final String[] argv) throws Exception {
 		final AsyncAwaitNioFileChannelDemo demo = new AsyncAwaitNioFileChannelDemo();
@@ -70,8 +74,8 @@ public class AsyncAwaitNioFileChannelDemo {
 	public @async CompletionStage<String> processFile(final String fileName) throws IOException {
 		final Path path = Paths.get(new File(fileName).toURI());
 		try (
-				final AsynchronousFileChannel file = AsynchronousFileChannel.open(path, Collections.singleton(StandardOpenOption.READ), null);
-				final FileLock lock = await(file.lockAll(true))
+				final AsyncFileChannel file = AsyncFileChannel.open(path, executor, Collections.singleton(StandardOpenOption.READ));
+				final FileLock lock = await(file.lock(true))
 			) {
 			System.out.println("In process, shared lock: " + lock);
 			final ByteBuffer buffer = ByteBuffer.allocateDirect((int)file.size());

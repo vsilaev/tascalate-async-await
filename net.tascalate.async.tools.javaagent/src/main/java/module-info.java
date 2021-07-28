@@ -22,11 +22,18 @@
  * OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
-package net.tascalate.async.xpi;
-
-import net.tascalate.async.Sequence;
-import net.tascalate.concurrent.Promise;
-
-public interface PromisesSequence<T> extends Sequence<Promise<T>> {
-
+module net.tascalate.async.tools.javaagent {
+    requires org.slf4j;
+    
+    requires transitive java.instrument;
+    
+    requires net.tascalate.instrument.emitter;
+    
+    requires net.tascalate.async.tools.core;
+    
+    requires net.tascalate.javaflow.spi;
+    requires net.tascalate.javaflow.tools.instrument;
+    requires net.tascalate.javaflow.tools.javaagent;
+    
+    exports net.tascalate.async.tools.instrumentation;
 }

@@ -4,14 +4,16 @@
 		<attributes>
 			<attribute name="optional" value="true"/>
 			<attribute name="maven.pomderived" value="true"/>
+			<attribute name="test" value="true"/>
 		</attributes>
 	</classpathentry>
 	<classpathentry excluding="**" kind="src" output="target/test-classes" path="src/test/resources">
 		<attributes>
 			<attribute name="maven.pomderived" value="true"/>
+			<attribute name="test" value="true"/>
 		</attributes>
 	</classpathentry>
-	<classpathentry kind="src" output="target/classes" path="src/main/java">
+	<classpathentry excluding="module-info.java" kind="src" output="target/classes" path="src/main/java">
 		<attributes>
 			<attribute name="optional" value="true"/>
 			<attribute name="maven.pomderived" value="true"/>
@@ -28,7 +30,11 @@
 		</attributes>
 	</classpathentry>
 	<classpathentry kind="var" path="M2_REPO/commons-logging/commons-logging/1.2/commons-logging-1.2.jar" sourcepath="M2_REPO/commons-logging/commons-logging/1.2/commons-logging-1.2-sources.jar"/>
-	<classpathentry kind="src" path="/net.tascalate.async.runtime"/>
+	<classpathentry kind="src" path="/net.tascalate.async.runtime">
+		<attributes>
+			<attribute name="module" value="true"/>
+		</attributes>
+	</classpathentry>
 	<classpathentry kind="var" path="M2_REPO/net/tascalate/javaflow/net.tascalate.javaflow.api/2.3.2/net.tascalate.javaflow.api-2.3.2.jar" sourcepath="M2_REPO/net/tascalate/javaflow/net.tascalate.javaflow.api/2.3.2/net.tascalate.javaflow.api-2.3.2-sources.jar"/>
 	<classpathentry kind="var" path="M2_REPO/net/tascalate/javaflow/net.tascalate.javaflow.extras/2.3.1/net.tascalate.javaflow.extras-2.3.1.jar" sourcepath="M2_REPO/net/tascalate/javaflow/net.tascalate.javaflow.extras/2.3.1/net.tascalate.javaflow.extras-2.3.1-sources.jar"/>
 	<classpathentry kind="var" path="M2_REPO/org/kohsuke/metainf-services/metainf-services/1.1/metainf-services-1.1.jar" sourcepath="M2_REPO/org/kohsuke/metainf-services/metainf-services/1.1/metainf-services-1.1-sources.jar"/>

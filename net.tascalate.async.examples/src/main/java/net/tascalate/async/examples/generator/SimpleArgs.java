@@ -16,7 +16,7 @@ import net.tascalate.async.SchedulerProvider;
 import net.tascalate.async.Sequence;
 import net.tascalate.async.AsyncGenerator;
 import net.tascalate.async.async;
-import net.tascalate.async.xpi.TaskScheduler;
+import net.tascalate.async.extras.TaskScheduler;
 import net.tascalate.concurrent.Promise;
 import net.tascalate.concurrent.Promises;
 

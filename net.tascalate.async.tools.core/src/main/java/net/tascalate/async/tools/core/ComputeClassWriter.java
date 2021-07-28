@@ -35,9 +35,9 @@ import java.io.IOException;
 import java.io.InputStream;
 
 import org.apache.commons.javaflow.spi.ResourceLoader;
-import org.objectweb.asm.ClassReader;
-import org.objectweb.asm.ClassWriter;
-import org.objectweb.asm.Opcodes;
+import net.tascalate.asmx.ClassReader;
+import net.tascalate.asmx.ClassWriter;
+import net.tascalate.asmx.Opcodes;
 
 /**
  * A ClassWriter that computes the common super class of two classes without

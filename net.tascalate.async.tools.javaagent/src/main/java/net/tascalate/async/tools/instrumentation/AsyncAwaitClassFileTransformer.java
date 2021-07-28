@@ -26,23 +26,24 @@ package net.tascalate.async.tools.instrumentation;
 
 import java.lang.instrument.ClassFileTransformer;
 import java.lang.instrument.IllegalClassFormatException;
-import java.lang.invoke.MethodHandle;
-import java.lang.invoke.MethodHandles;
-import java.lang.reflect.Method;
 import java.security.ProtectionDomain;
 import java.util.HashMap;
 import java.util.Map;
 
 import org.apache.commons.javaflow.spi.ClasspathResourceLoader;
 import org.apache.commons.javaflow.spi.ExtendedClasspathResourceLoader;
-import org.apache.commons.logging.Log;
-import org.apache.commons.logging.LogFactory;
+
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import net.tascalate.async.tools.core.AsyncAwaitClassFileGenerator;
+import net.tascalate.instrument.emitter.spi.ClassEmitter;
+import net.tascalate.instrument.emitter.spi.ClassEmitters;
+import net.tascalate.instrument.emitter.spi.PortableClassFileTransformer;
 
-class AsyncAwaitClassFileTransformer implements ClassFileTransformer {
+class AsyncAwaitClassFileTransformer extends PortableClassFileTransformer {
 
-    private static final Log log = LogFactory.getLog(AsyncAwaitClassFileTransformer.class);
+    private static final Logger log = LoggerFactory.getLogger(AsyncAwaitClassFileTransformer.class);
 
     private final ClassFileTransformer postProcessor;
 
@@ -50,11 +51,14 @@ class AsyncAwaitClassFileTransformer implements ClassFileTransformer {
         this.postProcessor = postProcessor;
     }
 
-    public byte[] transform(ClassLoader      originalClassLoader, 
-                            String           className, 
-                            Class<?>         classBeingRedefined,
-                            ProtectionDomain protectionDomain, 
-                            byte[]           classfileBuffer) throws IllegalClassFormatException {
+    @Override
+    public byte[] transform(ClassEmitters.Factory emitters,
+                            Object                module,
+                            ClassLoader           originalClassLoader, 
+                            String                className, 
+                            Class<?>              classBeingRedefined,
+                            ProtectionDomain      protectionDomain, 
+                            byte[]                classfileBuffer) throws IllegalClassFormatException {
 
         try {
             if (skipClassByName(className)) {
@@ -69,21 +73,21 @@ class AsyncAwaitClassFileTransformer implements ClassFileTransformer {
             
             byte[] transformed = generator.transform(classfileBuffer);
             if (null == transformed) {
-                return postProcess(classLoader, className, classBeingRedefined, protectionDomain, classfileBuffer);
+                return postProcess(module, classLoader, className, classBeingRedefined, protectionDomain, classfileBuffer);
             }
 
             Map<String, byte[]> extraClasses = generator.getGeneratedClasses();
             generator.reset();
 
             // Define new classes and then redefine inner classes
-            byte[] finalResult = postProcess(classLoader, className, classBeingRedefined, protectionDomain, transformed);
+            byte[] finalResult = postProcess(module, classLoader, className, classBeingRedefined, protectionDomain, transformed);
             Map<String, byte[]> inMemoryResources = renameInMemoryResources(extraClasses);
             inMemoryResources.put(className + ".class", finalResult);
 
             ExtendedClasspathResourceLoader.runWithInMemoryResources(new Runnable() {
                 @Override
                 public void run() {
-                    defineGeneratedClasses(classLoader, protectionDomain, extraClasses);
+                    defineGeneratedClasses(emitters, module, classLoader, protectionDomain, extraClasses);
                 }
             }, inMemoryResources);
             return finalResult;
@@ -94,7 +98,8 @@ class AsyncAwaitClassFileTransformer implements ClassFileTransformer {
         }
     }
 
-    protected byte[] postProcess(ClassLoader      classLoader, 
+    protected byte[] postProcess(Object           module,
+                                 ClassLoader      classLoader, 
                                  String           className,
                                  Class<?>         classBeingRedefined, 
                                  ProtectionDomain protectionDomain, 
@@ -105,37 +110,38 @@ class AsyncAwaitClassFileTransformer implements ClassFileTransformer {
             return null;
         }
         // Apply continuable annotations
-        return postProcessor.transform(classLoader, className, classBeingRedefined, protectionDomain, classfileBuffer);
+        return callTransformer(postProcessor, module, classLoader, className, classBeingRedefined, protectionDomain, classfileBuffer);
     }
 
-    protected void defineGeneratedClasses(ClassLoader         classLoader, 
-                                          ProtectionDomain    protectionDomain, 
-                                          Map<String, byte[]> generatedClasses) {
+    protected void defineGeneratedClasses(ClassEmitters.Factory emitters,
+                                          Object                module,
+                                          ClassLoader           classLoader, 
+                                          ProtectionDomain      protectionDomain, 
+                                          Map<String, byte[]>   generatedClasses) {
         for (Map.Entry<String, byte[]> e : generatedClasses.entrySet()) {
             byte[] bytes;
             try {
                 log.info("TRANSOFRMING: " + e.getKey());
-                bytes = transform(classLoader, e.getKey(), null, protectionDomain, e.getValue());
+                bytes = transform(emitters, module, classLoader, e.getKey(), null, protectionDomain, e.getValue());
                 e.setValue(bytes);
                 log.info("TRANSOFRMED: " + e.getKey());
             } catch (final IllegalClassFormatException ex) {
-                log.error(ex);
+                log.error("Unable to generate class bytecode", ex);
                 throw new RuntimeException(ex);
             } catch (Error | RuntimeException ex) {
-                log.error(ex);
+                log.error("Unable to generate class bytecode", ex);
                 throw ex;
             }
             if (bytes == null) {
                 continue;
             }
             try {
+                ClassEmitter emitter = emitters.create(ClassEmitters.packageNameOf(bytes));
                 @SuppressWarnings("unused")
-                Class<?> ignore = (Class<?>)DEFINE_CLASS.invokeExact(
-                    classLoader, (String) null, bytes, 0, bytes.length, protectionDomain
-                );
+                Class<?> ignore = emitter.defineClass(bytes, protectionDomain);
                 log.info("DEFINED: " + e.getKey());
             } catch (Throwable ex) {
-                log.error(ex);
+                log.error("Unable to define generated class", ex);
                 throw new RuntimeException(ex);
             }
         }
@@ -165,18 +171,4 @@ class AsyncAwaitClassFileTransformer implements ClassFileTransformer {
         }
         return resources;
     }
-
-    private static final MethodHandle DEFINE_CLASS;
-    static {
-        try {
-            Method m = ClassLoader.class.getDeclaredMethod(
-                "defineClass", String.class, byte[].class, int.class, int.class, ProtectionDomain.class
-            );
-            m.setAccessible(true);
-            DEFINE_CLASS = MethodHandles.lookup().unreflect(m);
-        } catch (NoSuchMethodException | IllegalAccessException ex) {
-            throw new RuntimeException(ex);
-        }
-    }
-
 }

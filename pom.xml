@@ -4,7 +4,7 @@
 
 	<groupId>net.tascalate.async</groupId>
 	<artifactId>net.tascalate.async.parent</artifactId>
-	<version>1.0.1-SNAPSHOT</version>
+	<version>1.1.0-SNAPSHOT</version>
 	<packaging>pom</packaging>
 
 	<name>Tascalate Async/Await</name>
@@ -50,9 +50,11 @@
 
 	<properties>
 		<project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
-		<tascalate.concurrent.version>0.6.7</tascalate.concurrent.version>
-		<tascalate.javaflow.version>2.3.2</tascalate.javaflow.version>
-		<tascalate.javaflow.extras.version>2.3.1</tascalate.javaflow.extras.version>
+		<tascalate.concurrent.version>0.9.5</tascalate.concurrent.version>
+		<tascalate.javaflow.version>2.6.4</tascalate.javaflow.version>
+		<tascalate.javaflow.extras.version>2.4.1</tascalate.javaflow.extras.version>
+		<tascalate.asmx.version>9.2.0</tascalate.asmx.version>
+		<tascalate.instrument.version>1.0.1</tascalate.instrument.version>
 	</properties>
 
 	<dependencyManagement>
@@ -69,6 +71,11 @@
 			</dependency>
 			<dependency>
 				<groupId>net.tascalate.javaflow</groupId>
+				<artifactId>net.tascalate.javaflow.tools.instrument</artifactId>
+				<version>${tascalate.javaflow.version}</version>
+			</dependency>
+			<dependency>
+				<groupId>net.tascalate.javaflow</groupId>
 				<artifactId>net.tascalate.javaflow.tools.javaagent</artifactId>
 				<version>${tascalate.javaflow.version}</version>
 			</dependency>
@@ -80,14 +87,19 @@
 			<dependency>
 				<groupId>org.kohsuke.metainf-services</groupId>
 				<artifactId>metainf-services</artifactId>
-				<version>1.1</version>
+				<version>1.8</version>
 			</dependency>
 			<dependency>
-				<groupId>commons-logging</groupId>
-				<artifactId>commons-logging</artifactId>
-				<version>1.2</version>
+				<groupId>org.slf4j</groupId>
+				<artifactId>slf4j-api</artifactId>
+				<version>1.8.0-beta4</version>
 			</dependency>
-
+			<dependency>
+				<groupId>org.slf4j</groupId>
+				<artifactId>slf4j-simple</artifactId>
+				<version>1.8.0-beta4</version>
+				<scope>runtime</scope>
+			</dependency>
 			<dependency>
 				<groupId>junit</groupId>
 				<artifactId>junit</artifactId>
@@ -175,6 +187,19 @@
 				<groupId>org.apache.maven.plugins</groupId>
 				<artifactId>maven-compiler-plugin</artifactId>
 				<version>3.6.1</version>
+				<executions>
+					<execution>
+						<id>default-compile</id>
+						<goals>
+							<goal>compile</goal>
+						</goals>
+						<configuration>
+							<excludes>
+								<exclude>module-info.java</exclude>
+							</excludes>
+						</configuration>
+					</execution> 
+				</executions>
 				<configuration>
 					<source>1.8</source>
 					<target>1.8</target>
@@ -202,6 +227,27 @@
 		</plugins>
 		<pluginManagement>
 			<plugins>
+				<plugin>
+					<groupId>org.moditect</groupId>
+					<artifactId>moditect-maven-plugin</artifactId>
+					<version>1.0.0.Beta2</version>
+					<executions>
+						<execution>
+							<id>add-module-infos</id>
+							<phase>package</phase>
+							<goals>
+								<goal>add-module-info</goal>
+							</goals>
+							<configuration>
+								<jvmVersion>9</jvmVersion>
+								<module>
+									<moduleInfoFile>src/main/java/module-info.java</moduleInfoFile>
+								</module>
+								<version>${project.version}</version>
+							</configuration>
+						</execution>
+					</executions>
+				</plugin>
 				<plugin>
 					<groupId>net.tascalate.javaflow</groupId>
 					<artifactId>net.tascalate.javaflow.tools.maven</artifactId>
@@ -232,7 +278,7 @@
 									<pluginExecutionFilter>
 										<groupId>net.tascalate.async</groupId>
 										<artifactId>net.tascalate.async.tools.maven</artifactId>
-										<versionRange>[1.0.0,)</versionRange>
+										<versionRange>[1.1.0,)</versionRange>
 										<goals>
 											<goal>tascalate-async-enhance</goal>
 										</goals>
@@ -247,7 +293,7 @@
 									<pluginExecutionFilter>
 										<groupId>net.tascalate.javaflow</groupId>
 										<artifactId>net.tascalate.javaflow.tools.maven</artifactId>
-										<versionRange>[2.3.1,)</versionRange>
+										<versionRange>[2.6.4,)</versionRange>
 										<goals>
 											<goal>javaflow-enhance</goal>
 										</goals>

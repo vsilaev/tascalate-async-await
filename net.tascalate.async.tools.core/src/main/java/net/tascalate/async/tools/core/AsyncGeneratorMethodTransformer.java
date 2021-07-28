@@ -29,7 +29,7 @@ import static net.tascalate.async.tools.core.BytecodeIntrospection.invisibleType
 import static net.tascalate.async.tools.core.BytecodeIntrospection.isLoadOpcode;
 import static net.tascalate.async.tools.core.BytecodeIntrospection.methodsOf;
 import static net.tascalate.async.tools.core.BytecodeIntrospection.visibleTypeAnnotationsOf;
-import static org.objectweb.asm.Opcodes.*;
+import static net.tascalate.asmx.Opcodes.*;
 
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -38,29 +38,29 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 
-import org.objectweb.asm.Handle;
-import org.objectweb.asm.MethodVisitor;
-import org.objectweb.asm.Opcodes;
-import org.objectweb.asm.Type;
-import org.objectweb.asm.tree.AbstractInsnNode;
-import org.objectweb.asm.tree.ClassNode;
-import org.objectweb.asm.tree.FieldInsnNode;
-import org.objectweb.asm.tree.FieldNode;
-import org.objectweb.asm.tree.IincInsnNode;
-import org.objectweb.asm.tree.InsnList;
-import org.objectweb.asm.tree.InsnNode;
-import org.objectweb.asm.tree.IntInsnNode;
-import org.objectweb.asm.tree.InvokeDynamicInsnNode;
-import org.objectweb.asm.tree.JumpInsnNode;
-import org.objectweb.asm.tree.LabelNode;
-import org.objectweb.asm.tree.MethodInsnNode;
-import org.objectweb.asm.tree.MethodNode;
-import org.objectweb.asm.tree.TryCatchBlockNode;
-import org.objectweb.asm.tree.VarInsnNode;
+import net.tascalate.asmx.Handle;
+import net.tascalate.asmx.MethodVisitor;
+import net.tascalate.asmx.Opcodes;
+import net.tascalate.asmx.Type;
+import net.tascalate.asmx.tree.AbstractInsnNode;
+import net.tascalate.asmx.tree.ClassNode;
+import net.tascalate.asmx.tree.FieldInsnNode;
+import net.tascalate.asmx.tree.FieldNode;
+import net.tascalate.asmx.tree.IincInsnNode;
+import net.tascalate.asmx.tree.InsnList;
+import net.tascalate.asmx.tree.InsnNode;
+import net.tascalate.asmx.tree.IntInsnNode;
+import net.tascalate.asmx.tree.InvokeDynamicInsnNode;
+import net.tascalate.asmx.tree.JumpInsnNode;
+import net.tascalate.asmx.tree.LabelNode;
+import net.tascalate.asmx.tree.MethodInsnNode;
+import net.tascalate.asmx.tree.MethodNode;
+import net.tascalate.asmx.tree.TryCatchBlockNode;
+import net.tascalate.asmx.tree.VarInsnNode;
 
 public class AsyncGeneratorMethodTransformer extends AbstractAsyncMethodTransformer {
-    private final static Type ASYNC_GENERATOR_METHOD_TYPE = Type.getObjectType("net/tascalate/async/core/AsyncGeneratorMethod");
-    private final static Type LAZY_GENERATOR_TYPE         = Type.getObjectType("net/tascalate/async/core/LazyGenerator");
+    private final static Type ASYNC_GENERATOR_METHOD_TYPE = Type.getObjectType("net/tascalate/async/generator/AsyncGeneratorMethodTemplate");
+    private final static Type LAZY_GENERATOR_TYPE         = Type.getObjectType("net/tascalate/async/AsyncGenerator");
     
     public AsyncGeneratorMethodTransformer(ClassNode               classNode,
                                            MethodNode              originalAsyncMethodNode,

@@ -38,7 +38,7 @@ import net.tascalate.async.ContextVar;
 import net.tascalate.async.Scheduler;
 import net.tascalate.async.SchedulerProvider;
 import net.tascalate.async.async;
-import net.tascalate.async.xpi.Generators;
+import net.tascalate.async.extras.Generators;
 import net.tascalate.concurrent.CompletableTask;
 import net.tascalate.javaflow.SuspendableIterator;
 

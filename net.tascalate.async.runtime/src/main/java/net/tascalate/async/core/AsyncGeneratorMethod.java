@@ -35,7 +35,7 @@ import net.tascalate.async.YieldReply;
 import net.tascalate.async.suspendable;
 
 abstract public class AsyncGeneratorMethod<T> extends AbstractAsyncMethod {
-    public final LazyGenerator<T> generator;
+    public final AsyncGenerator<T> generator;
     
     protected AsyncGeneratorMethod(Scheduler scheduler) {
         super(scheduler);
@@ -46,14 +46,14 @@ abstract public class AsyncGeneratorMethod<T> extends AbstractAsyncMethod {
     protected final @suspendable void internalRun() {
         boolean success = false;
         try {
-    	    generator.begin();
+    	    generator().begin();
     	    doRun();
     	    success = true;
         } catch (Throwable ex) {
-            generator.end(ex);
+            generator().end(ex);
         } finally {
             if (success) {
-                generator.end(null);
+                generator().end(null);
             }
         }
     }
@@ -85,20 +85,24 @@ abstract public class AsyncGeneratorMethod<T> extends AbstractAsyncMethod {
     }
     
     protected @suspendable final YieldReply<T> yield(T readyValue) {
-        return generator.produce(AsyncGenerator.from(readyValue));
+        return generator().produce(AsyncGenerator.from(readyValue));
     }
 
     protected @suspendable final YieldReply<T> yield(CompletionStage<T> pendingValue) {
-        return generator.produce(Sequence.of(pendingValue));
+        return generator().produce(Sequence.of(pendingValue));
     }
 
     protected @suspendable final YieldReply<T> yield(Sequence<? extends CompletionStage<T>> values) {
-        return generator.produce(values);
+        return generator().produce(values);
     }
     
-    final protected String toString(String className, String methodSignature) {
+    protected final String toString(String className, String methodSignature) {
         return 
             toString("<generated-async-generator>", className, methodSignature) +
             String.format("[lazy-generator=%s]", generator);
+    }
+    
+    private LazyGenerator<T> generator() {
+        return (LazyGenerator<T>)generator;
     }
 }

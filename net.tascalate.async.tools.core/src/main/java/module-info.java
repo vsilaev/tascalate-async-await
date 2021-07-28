@@ -22,35 +22,12 @@
  * OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
-package net.tascalate.async.xpi;
+module net.tascalate.async.tools.core {
+    requires org.slf4j;
+    requires transitive net.tascalate.javaflow.spi;
+    requires net.tascalate.asmx;
+    requires transitive net.tascalate.asmx.tree;
+    requires net.tascalate.asmx.util;
 
-import java.util.concurrent.CompletionStage;
-
-import net.tascalate.async.Sequence;
-import net.tascalate.concurrent.Promise;
-import net.tascalate.concurrent.Promises;
-
-public class DefaultPromisesSequence<T> implements PromisesSequence<T> {
-    
-    protected final Sequence<? extends CompletionStage<T>> delegate;
-    
-    public DefaultPromisesSequence(Sequence<? extends CompletionStage<T>> delegate) {
-        this.delegate = delegate;
-    }
-    
-    @Override
-    public Promise<T> next() {
-        CompletionStage<T> original = delegate.next();
-        return null == original ? null : Promises.from(original);
-    }
-
-    @Override
-    public void close() {
-        delegate.close();
-    }
-    
-    @Override
-    public String toString() {
-        return String.format("%s[delegate=%s]", PromisesGenerator.class.getSimpleName(), delegate);
-    }    
+    exports net.tascalate.async.tools.core;
 }

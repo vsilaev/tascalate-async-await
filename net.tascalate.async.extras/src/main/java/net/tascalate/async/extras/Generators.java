@@ -1,4 +1,4 @@
-package net.tascalate.async.xpi;
+package net.tascalate.async.extras;
 
 import static net.tascalate.async.CallContext.yield;
 

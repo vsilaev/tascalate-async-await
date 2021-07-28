@@ -27,16 +27,16 @@ package net.tascalate.async.tools.core;
 import java.io.PrintWriter;
 import java.io.StringWriter;
 
-import org.objectweb.asm.ClassReader;
-import org.objectweb.asm.ClassVisitor;
-import org.objectweb.asm.Opcodes;
-import org.objectweb.asm.tree.ClassNode;
-import org.objectweb.asm.tree.MethodInsnNode;
-import org.objectweb.asm.tree.MethodNode;
-import org.objectweb.asm.tree.VarInsnNode;
-import org.objectweb.asm.util.Textifier;
-import org.objectweb.asm.util.TraceClassVisitor;
-import org.objectweb.asm.util.TraceMethodVisitor;
+import net.tascalate.asmx.ClassReader;
+import net.tascalate.asmx.ClassVisitor;
+import net.tascalate.asmx.Opcodes;
+import net.tascalate.asmx.tree.ClassNode;
+import net.tascalate.asmx.tree.MethodInsnNode;
+import net.tascalate.asmx.tree.MethodNode;
+import net.tascalate.asmx.tree.VarInsnNode;
+import net.tascalate.asmx.util.Textifier;
+import net.tascalate.asmx.util.TraceClassVisitor;
+import net.tascalate.asmx.util.TraceMethodVisitor;
 
 /**
  * @author

@@ -338,7 +338,7 @@ abstract public class AbstractAsyncMethodTransformer {
         );
         result.visitMethodInsn(
             INVOKESTATIC, ASYNC_METHOD_EXECUTOR_TYPE.getInternalName(), "currentScheduler", 
-            Type.getMethodDescriptor(SCHEDULER_TYPE, SCHEDULER_TYPE, OBJECT_TYPE, CLASS_TYPE), false
+            Type.getMethodDescriptor(SCHEDULER_TYPE, SCHEDULER_TYPE, OBJECT_TYPE, METHOD_HANDLES_LOOKUP_TYPE), false
         );
         
         String constructorDesc = Type.getMethodDescriptor(

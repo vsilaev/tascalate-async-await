@@ -59,8 +59,8 @@ import net.tascalate.asmx.tree.TryCatchBlockNode;
 import net.tascalate.asmx.tree.VarInsnNode;
 
 public class AsyncGeneratorMethodTransformer extends AbstractAsyncMethodTransformer {
-    private final static Type ASYNC_GENERATOR_METHOD_TYPE = Type.getObjectType("net/tascalate/async/generator/AsyncGeneratorMethodTemplate");
-    private final static Type LAZY_GENERATOR_TYPE         = Type.getObjectType("net/tascalate/async/AsyncGenerator");
+    private final static Type ASYNC_GENERATOR_METHOD_TYPE = Type.getObjectType("net/tascalate/async/core/AsyncGeneratorMethod");
+    private final static Type LAZY_GENERATOR_TYPE         = Type.getObjectType("net/tascalate/async/core/LazyGenerator");
     
     public AsyncGeneratorMethodTransformer(ClassNode               classNode,
                                            MethodNode              originalAsyncMethodNode,

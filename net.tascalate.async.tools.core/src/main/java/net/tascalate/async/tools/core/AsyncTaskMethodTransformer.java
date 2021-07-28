@@ -59,7 +59,7 @@ import net.tascalate.asmx.tree.TryCatchBlockNode;
 import net.tascalate.asmx.tree.VarInsnNode;
 
 public class AsyncTaskMethodTransformer extends AbstractAsyncMethodTransformer {
-    private final static Type ASYNC_TASK_METHOD_TYPE  = Type.getObjectType("net/tascalate/async/generator/AsyncTaskMethodTemplate");
+    private final static Type ASYNC_TASK_METHOD_TYPE  = Type.getObjectType("net/tascalate/async/core/AsyncTaskMethod");
     private final static Type COMPLETABLE_FUTURE_TYPE = Type.getObjectType("java/util/concurrent/CompletableFuture");
     
     public AsyncTaskMethodTransformer(ClassNode               classNode,

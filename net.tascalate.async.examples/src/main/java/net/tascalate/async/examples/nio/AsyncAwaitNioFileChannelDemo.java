@@ -66,7 +66,7 @@ public class AsyncAwaitNioFileChannelDemo {
 		// Need to wait because NIO uses daemon threads that do not prevent program exit
 		System.out.println("Start waiting for result to prevent program close...");
 		waiter.toCompletableFuture().join();
-		
+		Thread.sleep(1000L);
 	}
 
 	
@@ -77,7 +77,7 @@ public class AsyncAwaitNioFileChannelDemo {
 				final AsyncFileChannel file = AsyncFileChannel.open(path, executor, Collections.singleton(StandardOpenOption.READ));
 				final FileLock lock = await(file.lock(true))
 			) {
-			System.out.println("In process, shared lock: " + lock);
+			//System.out.println("In process, shared lock: " + lock);
 			final ByteBuffer buffer = ByteBuffer.allocateDirect((int)file.size());
 			
 			await( file.read(buffer, 0L) );

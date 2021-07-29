@@ -51,8 +51,6 @@ public class GetSchedulerFromProvider implements SchedulerResolver {
             SchedulerProviderLookup.ClassAccessor cAccessor = lookup.getClassAccessor(ownerClassLookup);
             return null != cAccessor ? cAccessor.read() : null;
         } else {
-            // Use concrete owner class, though someone may find correct to use declaring class
-            // Class<?> targetClass = owner.getClass();  
             SchedulerProviderLookup.InstanceAccessor iAccessor = lookup.getInstanceAccessor(ownerClassLookup);
             if (null == iAccessor) {
                 // If no instance accessor then try class accessor

@@ -59,6 +59,8 @@ public class SchedulerProviderLookup {
                 return true;
             } else {
                 if (0 != (modifiers & Modifier.PRIVATE)) {
+                    // TODO: check nest relations
+                    // subClass.isNestmateOf(declaringClass.getNestHost());
                     return subClass == declaringClass;
                 } else {
                     return subClass.getPackage().equals(declaringClass.getPackage());

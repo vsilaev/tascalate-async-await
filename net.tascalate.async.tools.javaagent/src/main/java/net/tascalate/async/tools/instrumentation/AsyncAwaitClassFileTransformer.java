@@ -38,7 +38,6 @@ import org.slf4j.LoggerFactory;
 
 import net.tascalate.async.tools.core.AsyncAwaitClassFileGenerator;
 import net.tascalate.instrument.emitter.spi.ClassEmitter;
-import net.tascalate.instrument.emitter.spi.ClassEmitters;
 import net.tascalate.instrument.emitter.spi.PortableClassFileTransformer;
 
 class AsyncAwaitClassFileTransformer extends PortableClassFileTransformer {
@@ -52,13 +51,13 @@ class AsyncAwaitClassFileTransformer extends PortableClassFileTransformer {
     }
 
     @Override
-    public byte[] transform(ClassEmitters.Factory emitters,
-                            Object                module,
-                            ClassLoader           originalClassLoader, 
-                            String                className, 
-                            Class<?>              classBeingRedefined,
-                            ProtectionDomain      protectionDomain, 
-                            byte[]                classfileBuffer) throws IllegalClassFormatException {
+    public byte[] transform(ClassEmitter     emitter,
+                            Object           module,
+                            ClassLoader      originalClassLoader, 
+                            String           className, 
+                            Class<?>         classBeingRedefined,
+                            ProtectionDomain protectionDomain, 
+                            byte[]           classfileBuffer) throws IllegalClassFormatException {
 
         try {
             if (skipClassByName(className)) {
@@ -87,7 +86,7 @@ class AsyncAwaitClassFileTransformer extends PortableClassFileTransformer {
             ExtendedClasspathResourceLoader.runWithInMemoryResources(new Runnable() {
                 @Override
                 public void run() {
-                    defineGeneratedClasses(emitters, module, classLoader, protectionDomain, extraClasses);
+                    defineGeneratedClasses(emitter, module, classLoader, protectionDomain, extraClasses);
                 }
             }, inMemoryResources);
             return finalResult;
@@ -113,16 +112,16 @@ class AsyncAwaitClassFileTransformer extends PortableClassFileTransformer {
         return callTransformer(postProcessor, module, classLoader, className, classBeingRedefined, protectionDomain, classfileBuffer);
     }
 
-    protected void defineGeneratedClasses(ClassEmitters.Factory emitters,
-                                          Object                module,
-                                          ClassLoader           classLoader, 
-                                          ProtectionDomain      protectionDomain, 
-                                          Map<String, byte[]>   generatedClasses) {
+    protected void defineGeneratedClasses(ClassEmitter        emitter,
+                                          Object              module,
+                                          ClassLoader         classLoader, 
+                                          ProtectionDomain    protectionDomain, 
+                                          Map<String, byte[]> generatedClasses) {
         for (Map.Entry<String, byte[]> e : generatedClasses.entrySet()) {
             byte[] bytes;
             try {
                 log.info("TRANSOFRMING: " + e.getKey());
-                bytes = transform(emitters, module, classLoader, e.getKey(), null, protectionDomain, e.getValue());
+                bytes = transform(emitter, module, classLoader, e.getKey(), null, protectionDomain, e.getValue());
                 e.setValue(bytes);
                 log.info("TRANSOFRMED: " + e.getKey());
             } catch (final IllegalClassFormatException ex) {
@@ -136,7 +135,6 @@ class AsyncAwaitClassFileTransformer extends PortableClassFileTransformer {
                 continue;
             }
             try {
-                ClassEmitter emitter = emitters.create(ClassEmitters.packageNameOf(bytes));
                 @SuppressWarnings("unused")
                 Class<?> ignore = emitter.defineClass(bytes, protectionDomain);
                 log.info("DEFINED: " + e.getKey());

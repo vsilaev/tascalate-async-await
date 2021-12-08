@@ -54,7 +54,7 @@ public class SimpleArgs {
     @async
     static Promise<String> mergeStrings(String delimeter, @SchedulerProvider Scheduler scheduler, int zz) {
         StringJoiner joiner = new StringJoiner(delimeter);
-        try (Sequence<Promise<String>> generator = AsyncGenerator.from("ABC", "XYZ").stream().map(Promises::from).convert(Sequence.fromStream())) {
+        try (Sequence<Promise<String>> generator = AsyncGenerator.from("ABC", "KLM", "XYZ").stream().map(Promises::from).convert(Sequence.fromStream())) {
             System.out.println("%%MergeStrings - before iterations");
             CompletionStage<String> singleResult; 
             while (null != (singleResult = generator.next())) {
@@ -62,6 +62,7 @@ public class SimpleArgs {
                 String v = await(singleResult);
                 System.out.println(Thread.currentThread().getName());
                 System.out.println("Received: " + v);
+                joiner.add(v);
             }
         }
 

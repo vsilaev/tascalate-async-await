@@ -31,6 +31,7 @@
 			<groupId>net.tascalate.instrument</groupId>
 			<artifactId>net.tascalate.instrument.emitter</artifactId>
 			<version>${tascalate.instrument.version}</version>
+			<scope>provided</scope>
 		</dependency>
 		<dependency>
 			<groupId>org.slf4j</groupId>
@@ -67,6 +68,8 @@
 							<Agent-Class>net.tascalate.async.tools.instrumentation.AsyncAwaitInstrumentationAgent</Agent-Class>
 							<Can-Redefine-Classes>true</Can-Redefine-Classes>
 							<Can-Retransform-Classes>true</Can-Retransform-Classes>
+							<Automatic-Module-Name>net.tascalate.async.tools.javaagent.shaded</Automatic-Module-Name>
+							<Multi-Release>true</Multi-Release>
 						</manifestEntries>
 					</archive>
 					<descriptorRefs>

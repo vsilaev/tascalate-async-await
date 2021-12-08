@@ -30,7 +30,13 @@
 			<artifactId>net.tascalate.async.extras</artifactId>
 			<version>${project.version}</version>
 		</dependency>
-		
+
+		<!-- ONLY TO SUPPORT SHADOWED JavaAgent -->		
+		<dependency>
+			<groupId>net.tascalate.instrument</groupId>
+			<artifactId>net.tascalate.instrument.emitter</artifactId>
+			<version>${tascalate.instrument.version}</version>
+		</dependency>
 		<dependency>
     			<groupId>net.tascalate</groupId>
 	    		<artifactId>net.tascalate.concurrent</artifactId>
@@ -48,6 +54,10 @@
 	</dependencies>
 	<build>
 		<plugins>
+			<plugin>
+				<groupId>org.moditect</groupId>
+				<artifactId>moditect-maven-plugin</artifactId>
+			</plugin>
 			<plugin>
 				<groupId>net.tascalate.async</groupId>
 				<artifactId>net.tascalate.async.tools.maven</artifactId>

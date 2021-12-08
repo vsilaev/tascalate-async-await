@@ -22,10 +22,19 @@
  * OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
+import net.tascalate.instrument.emitter.api.AllowDynamicClasses;
+import net.tascalate.async.examples.generator.OpenGeneratorExamples;
+@AllowDynamicClasses({
+    OpenGeneratorExamples.class
+})
 module net.tascalate.async.examples {
     requires org.slf4j;
     requires net.tascalate.async.runtime;
     requires net.tascalate.async.extras;
     requires net.tascalate.javaflow.extras;
     requires net.tascalate.javaflow.api;
+    
+    /* Only to support JavaAgent */
+    requires net.tascalate.instrument.emitter;
+    opens net.tascalate.async.examples.generator to net.tascalate.instrument.emitter;
 }

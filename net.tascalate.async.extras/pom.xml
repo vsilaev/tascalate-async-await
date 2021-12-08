@@ -43,6 +43,10 @@
 	<build>
 		<plugins>
 			<plugin>
+				<groupId>org.moditect</groupId>
+				<artifactId>moditect-maven-plugin</artifactId>
+			</plugin>
+			<plugin>
 				<groupId>net.tascalate.async</groupId>
 				<artifactId>net.tascalate.async.tools.maven</artifactId>
 				<version>${project.version}</version>

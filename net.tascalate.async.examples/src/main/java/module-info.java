@@ -24,6 +24,7 @@
  */
 import net.tascalate.instrument.emitter.api.AllowDynamicClasses;
 import net.tascalate.async.examples.generator.OpenGeneratorExamples;
+// Annotation is necessary only to support Java Agent
 @AllowDynamicClasses({
     OpenGeneratorExamples.class
 })
@@ -36,5 +37,8 @@ module net.tascalate.async.examples {
     
     /* Only to support JavaAgent */
     requires net.tascalate.instrument.emitter;
+    // Explicit open is not necessary for the agent
+    /*
     opens net.tascalate.async.examples.generator to net.tascalate.instrument.emitter;
+    */
 }

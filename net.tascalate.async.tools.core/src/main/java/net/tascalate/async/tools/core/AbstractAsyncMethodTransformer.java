@@ -108,8 +108,10 @@ abstract public class AbstractAsyncMethodTransformer {
     abstract public ClassNode transform();
     
     public ClassNode transform(Type superClassType) {
-        log.info("Transforming blocking method: " + classNode.name + "." + originalAsyncMethod.name
-                + originalAsyncMethod.desc);
+        if (log.isDebugEnabled()) {
+            log.debug("Transforming blocking method: " + classNode.name + "." + originalAsyncMethod.name + 
+                      originalAsyncMethod.desc);
+        }
         //removeAsyncAnnotation(originalAsyncMethod);
 
         // Create InnerClassNode for anoymous class
@@ -466,7 +468,9 @@ abstract public class AbstractAsyncMethodTransformer {
                     MethodNode targetMethodNode = getMethod(methodInstructionNode.name, methodInstructionNode.desc,
                             methods);
                     if (null != targetMethodNode && (targetMethodNode.access & ACC_PRIVATE) != 0) {
-                        log.debug("Found private call " + BytecodeTraceUtil.toString(methodInstructionNode));
+                        if (log.isTraceEnabled()) {
+                            log.trace("Found private call " + BytecodeTraceUtil.toString(methodInstructionNode));
+                        }
                         createAccessMethod(methodInstructionNode,
                                 (targetMethodNode.access & ACC_STATIC) != 0, methods);
                     }
@@ -478,7 +482,9 @@ abstract public class AbstractAsyncMethodTransformer {
                     // INVOKESPECIAL is used for constructors/super-call,
                     // private instance methods
                     // Here we filtered out only to private super-method calls
-                    log.debug("Found super-call " + BytecodeTraceUtil.toString(methodInstructionNode));
+                    if (log.isTraceEnabled()) {
+                        log.trace("Found super-call " + BytecodeTraceUtil.toString(methodInstructionNode));
+                    }
                     createAccessMethod(methodInstructionNode, false, methods);
                 }
 
@@ -546,7 +552,9 @@ abstract public class AbstractAsyncMethodTransformer {
         int arity = argTypes.length;
         for (int i = 0; i < arity; i++) {
             int opcode = argTypes[i].getOpcode(ILOAD);
-            log.debug("Using opcode " + opcode + " for loading " + argTypes[i]);
+            if (log.isTraceEnabled()) {
+                log.trace("Using opcode " + opcode + " for loading " + argTypes[i]);
+            }
             accessMethodNode.visitVarInsn(opcode, i);
         }
         accessMethodNode.visitInvokeDynamicInsn(
@@ -586,7 +594,9 @@ abstract public class AbstractAsyncMethodTransformer {
         int arity = argTypes.length;
         for (int i = 0; i < arity; i++) {
             int opcode = argTypes[i].getOpcode(ILOAD);
-            log.debug("Using opcode " + opcode + " for loading " + argTypes[i]);
+            if (log.isTraceEnabled()) {
+                log.trace("Using opcode " + opcode + " for loading " + argTypes[i]);
+            }
             accessMethodNode.visitVarInsn(opcode, i);
         }
         accessMethodNode.visitMethodInsn(
@@ -625,7 +635,9 @@ abstract public class AbstractAsyncMethodTransformer {
         int arity = argTypes.length;
         for (int i = 0; i < arity; i++) {
             int opcode = argTypes[i].getOpcode(ILOAD);
-            log.debug("Using opcode " + opcode + " for loading " + argTypes[i]);
+            if (log.isTraceEnabled()) {
+                log.trace("Using opcode " + opcode + " for loading " + argTypes[i]);
+            }
             accessMethodNode.visitVarInsn(opcode, i);
         }
         accessMethodNode.visitFieldInsn(
@@ -667,7 +679,9 @@ abstract public class AbstractAsyncMethodTransformer {
         int arity = argTypes.length;
         for (int i = 0; i < arity; i++) {
             int opcode = argTypes[i].getOpcode(ILOAD);
-            log.debug("Using opcode " + opcode + " for loading " + argTypes[i]);
+            if (log.isTraceEnabled()) {
+                log.trace("Using opcode " + opcode + " for loading " + argTypes[i]);
+            }
             accessMethodNode.visitVarInsn(opcode, i);
         }
         accessMethodNode.visitFieldInsn(

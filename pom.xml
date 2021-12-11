@@ -54,7 +54,7 @@
 		<tascalate.javaflow.version>2.6.4</tascalate.javaflow.version>
 		<tascalate.javaflow.extras.version>2.4.1</tascalate.javaflow.extras.version>
 		<tascalate.asmx.version>9.2.0</tascalate.asmx.version>
-		<tascalate.instrument.version>1.1.0</tascalate.instrument.version>
+		<tascalate.instrument.version>1.2.0</tascalate.instrument.version>
 	</properties>
 
 	<dependencyManagement>

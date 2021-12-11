@@ -88,12 +88,14 @@ public class AsyncAwaitClassFileGenerator {
             return null;
         }
 
-        // Print transformed class
-        log.debug("Transformed class:\n\n" + BytecodeTraceUtil.toString(classNode) + "\n\n");
-
-        // Print generated classes
-        for (ClassNode newClass : newClasses) {
-            log.debug("Generated class:\n\n" + BytecodeTraceUtil.toString(newClass) + "\n\n");
+        if (log.isDebugEnabled()) {
+            // Print transformed class
+            log.debug("Transformed class:\n\n" + BytecodeTraceUtil.toString(classNode) + "\n\n");
+            
+            // Print generated classes
+            for (ClassNode newClass : newClasses) {
+                log.debug("Generated class:\n\n" + BytecodeTraceUtil.toString(newClass) + "\n\n");
+            }
         }
 
         // Write

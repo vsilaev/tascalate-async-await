@@ -86,7 +86,9 @@ public class AsyncTaskMethodTransformer extends AbstractAsyncMethodTransformer {
         int thisShiftNecessary = isStatic ? 1 : 0;
 
         Type[] originalArgTypes = Type.getArgumentTypes(originalAsyncMethod.desc);
-        log.debug("Method has " + originalArgTypes.length + " arguments");
+        if (log.isTraceEnabled()) {
+            log.trace("Method has " + originalArgTypes.length + " arguments");
+        }
 
         MethodNode result = (MethodNode)asyncRunnableClass.visitMethod(
             ACC_PROTECTED, "doRun", "()V", null, new String[]{"java/lang/Throwable"}
@@ -144,7 +146,9 @@ public class AsyncTaskMethodTransformer extends AbstractAsyncMethodTransformer {
                 VarInsnNode vin = (VarInsnNode) insn;
                 // "this" -> outer class "this"
                 if (!isStatic && vin.getOpcode() == ALOAD && vin.var == 0) {
-                    log.debug("Found " + BytecodeTraceUtil.toString(vin));
+                    if (log.isTraceEnabled()) {
+                        log.trace("Found " + BytecodeTraceUtil.toString(vin));
+                    }
 
                     newInstructions.add(new VarInsnNode(ALOAD, 0));
                     newInstructions.add(new FieldInsnNode(GETFIELD, asyncRunnableClass.name, outerClassField.name, outerClassField.desc));
@@ -153,7 +157,9 @@ public class AsyncTaskMethodTransformer extends AbstractAsyncMethodTransformer {
 
                 // original method had arguments
                 if (vin.getOpcode() != RET && (vin.var > 0 || isStatic)) {
-                    log.debug("Found " + BytecodeTraceUtil.toString(vin));
+                    if (log.isTraceEnabled()) {
+                        log.trace("Found " + BytecodeTraceUtil.toString(vin));
+                    }
                     // method argument -> inner class field
                     int argIdx = findOriginalArgumentIndex(originalArgTypes, vin.var, isStatic);
                     Type argType = argIdx < 0 ? null : originalArgTypes[argIdx];
@@ -237,7 +243,10 @@ public class AsyncTaskMethodTransformer extends AbstractAsyncMethodTransformer {
                     ) && 
                     (accessMethod = getAccessMethod(min.owner, min.name, min.desc, "M")) != null) {
                     
-                    log.debug("Found " + BytecodeTraceUtil.toString(min));
+                    if (log.isTraceEnabled()) {
+                        log.trace("Found " + BytecodeTraceUtil.toString(min));
+                    }
+                    
                     newInstructions.add(
                         new MethodInsnNode(INVOKESTATIC, classNode.name, accessMethod.name, accessMethod.desc, false)
                     );

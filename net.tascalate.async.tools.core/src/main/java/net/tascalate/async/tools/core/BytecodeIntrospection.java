@@ -143,7 +143,9 @@ class BytecodeIntrospection {
         while (hasInnerClass(classNode, name = createInnerClassName(classNode, index))) {
             index++;
         }
-        log.debug("Generated new inner class name: " + name);
+        if (log.isDebugEnabled()) {
+            log.debug("Generated new inner class name: " + name);
+        }
         return name;
     }
 
@@ -153,7 +155,9 @@ class BytecodeIntrospection {
         while (hasMethod(name = createAccessMethodName(index), methods)) {
             index++;
         }
-        log.trace("Generated new method name: " + name);
+        if (log.isDebugEnabled()) {
+            log.trace("Generated new method name: " + name);
+        }
         return name;
     }
 
@@ -207,7 +211,7 @@ class BytecodeIntrospection {
                 annotationPresent(invisibleAnnotationsOf(methodNode), ASYNC_ANNOTATION_DESCRIPTOR) || 
                 annotationPresent(visibleAnnotationsOf(methodNode), ASYNC_ANNOTATION_DESCRIPTOR);
 
-        if (found) {
+        if (found && log.isDebugEnabled()) {
             log.debug("@Async annotation found, method: " + methodNode);
         }
 

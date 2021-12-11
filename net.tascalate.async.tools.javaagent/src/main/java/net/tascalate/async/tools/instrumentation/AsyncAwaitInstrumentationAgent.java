@@ -24,11 +24,14 @@
  */
 package net.tascalate.async.tools.instrumentation;
 
+import java.lang.instrument.ClassFileTransformer;
 import java.lang.instrument.Instrumentation;
+import java.util.HashSet;
+import java.util.Set;
 
 import org.apache.commons.javaflow.instrumentation.JavaFlowClassTransformer;
 
-public class AsyncAwaitInstrumentationAgent {
+public class AsyncAwaitInstrumentationAgent extends AbstractInstrumentationAgent {
     /**
      * JVM hook to statically load the javaagent at startup.
      * 
@@ -40,9 +43,9 @@ public class AsyncAwaitInstrumentationAgent {
      * @throws Exception thrown when agent is unable to start
      */
     public static void premain(String args, Instrumentation instrumentation) throws Exception {
-        setupInstrumentation(instrumentation);
+        new AsyncAwaitInstrumentationAgent().install(args, instrumentation);
+        System.setProperty(JavaFlowClassTransformer.class.getName(), "true");
         System.setProperty(AsyncAwaitInstrumentationAgent.class.getName(), "true");
-        System.setProperty("org.apache.commons.javaflow.instrumentation.JavaFlowInstrumentationAgent", "true");
     }
 
     /**
@@ -56,22 +59,17 @@ public class AsyncAwaitInstrumentationAgent {
      * @throws Exception thrown when agent is unable to start
      */
     public static void agentmain(String args, Instrumentation instrumentation) throws Exception {
-        setupInstrumentation(instrumentation);
-        for (Class<?> clazz : instrumentation.getAllLoadedClasses()) {
-            if (instrumentation.isModifiableClass(clazz) && 
-                !AsyncAwaitClassFileTransformer.skipClassByName(clazz.getName())) {
-                try {
-                    instrumentation.retransformClasses(clazz);
-                } catch (Throwable e) {
-                    e.printStackTrace();
-                }
-            }
-        }
+        Set<String> ownPackages = new HashSet<>(BASE_OWN_PACKAGES);
+        ownPackages.add("net.tascalate.async.tools.");
+        
+        new AsyncAwaitInstrumentationAgent().attach(args, instrumentation, ownPackages);
+        
+        System.setProperty(JavaFlowClassTransformer.class.getName(), "true");
         System.setProperty(AsyncAwaitInstrumentationAgent.class.getName(), "true");
-        System.setProperty("org.apache.commons.javaflow.instrumentation.JavaFlowInstrumentationAgent", "true");
     }
 
-    private static void setupInstrumentation(final Instrumentation instrumentation) {
-        instrumentation.addTransformer(new AsyncAwaitClassFileTransformer(new JavaFlowClassTransformer()), true);
+    @Override
+    protected ClassFileTransformer createRetransformableTransformer(String args, Instrumentation instrumentation) {
+        return new AsyncAwaitClassFileTransformer(new JavaFlowClassTransformer(), instrumentation);
     }
 }

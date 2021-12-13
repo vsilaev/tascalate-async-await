@@ -9,7 +9,7 @@
 
 	<name>Tascalate Async/Await</name>
 	<url>https://github.com/vsilaev/tascalate-async-await</url>    
-	<description>Async / Await asynchronous programming model for Java similar to the functionality available in C# 5. 
+	<description>Async / Await asynchronous programming model for Java 1.8 - 17+ similar to the functionality available in C# 5. 
         The implementation is based on continuations for Java (see tascalate-javaflow).</description>
 
 	<licenses>

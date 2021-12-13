@@ -16,7 +16,9 @@
 
 	<properties>
 		<project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+		<java-agent.class>net.tascalate.async.tools.instrumentation.AsyncAwaitInstrumentationAgent</java-agent.class>
 	</properties>
+
 	<dependencies>
 		<dependency>
 			<groupId>net.tascalate.javaflow</groupId>
@@ -49,6 +51,7 @@
 				<groupId>org.moditect</groupId>
 				<artifactId>moditect-maven-plugin</artifactId>
 			</plugin>
+<!--
 			<plugin>
 				<groupId>org.apache.maven.plugins</groupId>
 				<artifactId>maven-assembly-plugin</artifactId>
@@ -58,10 +61,6 @@
 						<index>true</index>
 						<compress>true</compress>
 						<manifest>
-							<!-- 
-							<addDefaultImplementationEntries>true</addDefaultImplementationEntries>
-							<addDefaultSpecificationEntries>true</addDefaultSpecificationEntries>
-							 -->
 						</manifest>
 						<manifestEntries>
 							<Premain-Class>net.tascalate.async.tools.instrumentation.AsyncAwaitInstrumentationAgent</Premain-Class>
@@ -89,6 +88,62 @@
 					</execution>
 				</executions>
 			</plugin>
+-->
+			<plugin>
+				<groupId>org.apache.maven.plugins</groupId>
+				<artifactId>maven-jar-plugin</artifactId>
+				<configuration>
+					<archive>
+						<manifestEntries>
+							<Premain-Class>${java-agent.class}</Premain-Class>
+							<Agent-Class>${java-agent.class}</Agent-Class>
+							<Can-Redefine-Classes>false</Can-Redefine-Classes>
+							<Can-Retransform-Classes>true</Can-Retransform-Classes>
+						</manifestEntries>
+					</archive>
+				</configuration>
+			</plugin>
+			<plugin>
+				<groupId>org.apache.maven.plugins</groupId>
+				<artifactId>maven-shade-plugin</artifactId>
+				<executions>
+					<execution>
+						<phase>package</phase>
+						<goals>
+							<goal>shade</goal>
+						</goals>
+						<configuration>
+							<createDependencyReducedPom>true</createDependencyReducedPom>
+							<finalName>tascalate.instrument-async</finalName>
+							<minimizeJar>true</minimizeJar>
+							<filters>
+								<filter>
+									<artifact>*:*</artifact>
+									<excludes>
+										<exclude>META-INF/maven/**/*.*</exclude>
+										<exclude>**/module-info.class</exclude>
+									</excludes>
+								</filter>
+								<filter>
+									<artifact>org.slf4j:slf4j-simple</artifact>
+									<includes>
+										<include>**</include>
+									</includes>
+								</filter>  
+							</filters>
+							<transformers>
+								<transformer implementation="org.apache.maven.plugins.shade.resource.ManifestResourceTransformer">
+									<manifestEntries>
+										<Automatic-Module-Name>net.tascalate.async.tools.javaagent.shaded</Automatic-Module-Name>
+										<Multi-Release>false</Multi-Release>
+									</manifestEntries>
+								</transformer>
+							</transformers>
+						</configuration>
+					</execution>
+				</executions>
+			</plugin> 
+
 		</plugins>
 	</build>
 </project>

@@ -98,7 +98,7 @@ The list of the supported return types for the async methods is:
 
 For non-void results the actual result type class also implements `java.util.concurrent.Future` (even for the case [2] with `CompletionStage`). This means that you can safely upcast the result promise to the `java.util.concurrent.Future` and use blocking methods if necessary. Most importantly, you can use the `cancel(...)` method cancel the future returned.
 
-To return a result from the asynchronous method you have to use syntatic construct `return async(value)`. You must always treat both of these statements (calling `async` method and `return`-ing its result) as the single syntatic construct and don't call `async` method separately or store it return value to variable while these will lead to unpredicatble results. It's especially important if your method body is not linear. Depending on your established coding practice how to deal with multiple returns you should use either...
+To return a result from the asynchronous method you have to use syntactic construct `return async(value)`. You must always treat both of these statements (calling `async` method and `return`-ing its result) as the single syntactic construct and don't call `async` method separately or store it return value to variable while these will lead to unpredicatble results. It's especially important if your method body is not linear. Depending on your established coding practice how to deal with multiple returns you should use either...
 ```java
 public @async CompletionStage<String> foo(int i) {
   switch (i) {

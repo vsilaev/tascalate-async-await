@@ -91,11 +91,12 @@ class MyClass {
 ```
 Thanks to statically imported methods of `net.tascalate.async.CallСontext` the code looks very close to the one developed with languages having native support for async/await. Both `mergeStrings` and `decorateStrings` are asynchronous methods -- they are marked with `net.tascalate.async.async` annotation and returns `CompletionStage<T>`. Inside these methods you may call `await` to suspend the method till the `CompletionStage<T>` supplied as the argument is resolved (either sucessfully or exceptionally). Please notice, that you can await for any `CompletionStage<T>` implementation obtained from different libraries - like inside the `decorateStrings` method, including pending result of another asynchronous method - like in `mergeStrings`. 
 The list of the supported return types for the async methods is:
-1. `java.util.concurrent.CompletionStage`
-2. `java.util.concurrent.CompletableFuture`
-3. `net.tascalate.concurrent.Promise` (see my other project [Tascalate Concurrent](https://github.com/vsilaev/tascalate-concurrent))
+1. `void`
+2. `java.util.concurrent.CompletionStage`
+3. `java.util.concurrent.CompletableFuture`
+4. `net.tascalate.concurrent.Promise` (see my other project [Tascalate Concurrent](https://github.com/vsilaev/tascalate-concurrent))
 
-In all three cases the actual result type class also implements `java.util.concurrent.Future` (even for the case [1]). This means that you can safely upcast the result promise to the `java.util.concurrent.Future` and use blocking methods if necessary. Most importantly, you can use the `cancel(...)` method cancel the future returned.
+For non-void results the actual result type class also implements `java.util.concurrent.Future` (even for the case [1]). This means that you can safely upcast the result promise to the `java.util.concurrent.Future` and use blocking methods if necessary. Most importantly, you can use the `cancel(...)` method cancel the future returned.
 
 To return a result from the asynchronous method you have to use syntatic construct `return async(value)`. You must always treat both of these statements (calling `async` method and `return`-ing its result) as the single syntatic construct and don't call `async` method separately or store it return value to variable while these will lead to unpredicatble results. It's especially important if your method body is not linear. Depending on your established coding practice how to deal with multiple returns you should use either...
 ```java

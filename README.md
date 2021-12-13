@@ -90,6 +90,7 @@ class MyClass {
 }
 ```
 Thanks to statically imported methods of `net.tascalate.async.CallСontext` the code looks very close to the one developed with languages having native support for async/await. Both `mergeStrings` and `decorateStrings` are asynchronous methods -- they are marked with `net.tascalate.async.async` annotation and returns `CompletionStage<T>`. Inside these methods you may call `await` to suspend the method till the `CompletionStage<T>` supplied as the argument is resolved (either sucessfully or exceptionally). Please notice, that you can await for any `CompletionStage<T>` implementation obtained from different libraries - like inside the `decorateStrings` method, including pending result of another asynchronous method - like in `mergeStrings`. 
+
 The list of the supported return types for the async methods is:
 1. `void`
 2. `java.util.concurrent.CompletionStage`
@@ -156,8 +157,51 @@ public @async CompletionStage<Long> calculateTotalPrice(Order order) {
 ```
 This way all inner async operations are started (almost) simualtenously and are running in parallel, unlike in the first example.
 
+# Suspendable methods
+Sometimes it is necessary to await for asynchronous result in some helper method that per se should not be asynchronous. To support this use case Tascalate Async/Await provides `@suspendable` annotation. The original example above hence can be rewritten as following:
+```java
+import static net.tascalate.async.CallСontext.async;
+import static net.tascalate.async.CallСontext.await;
+import net.tascalate.async.async;
+import net.tascalate.async.suspendable; // NEW ANNOTATION IMPORT
+
+import java.util.concurrent.CompletionStage;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+
+class MyClass {
+    public @async CompletionStage<String> mergeStrings() {
+        StringBuilder result = new StringBuilder();
+        for (int i = 1; i <= 10; i++) {
+	  // No await here -- moved to helper method
+          String v = decorateStrings(i, "async ", " awaited"); 
+          result.append(v).append('\n');
+        }
+        return async(result.toString());
+    }
+    
+    // Async method refactored to suspendable
+    private @suspendable String decorateStrings(int i, String prefix, String suffix) {
+        String value = prefix + await( produceString("value " + i) ) + suffix;
+        return value; // Just regular "return <value>" instead of "return async(<value>)"
+    }
+    
+    // Emulate some asynchronous business service call
+    private static CompletionStage<String> produceString(String value) {
+        return CompletableFuture.supplyAsync(() -> value, executor);
+    }
+    
+    private static final ExecutorService executor = Executors.newFixedThreadPool(4);
+}
+```
+As you see, suspendable methods are just like regular ones but with special annotation - `@suspendable`. You should follow regular rules about returning results from this methods, moreover - it's an error to call `return async(<value>)` inside these methods. The important thing about `@suspendable` methods is that they may be called only from `@async` methods or from other `@suspendable` methods.
+
+Performance-wise suspendable methods behaves the same as asynchronous task methods, so the question "which kind should be used" is justy a matter of orginizing and structuring your code . The recommended approach is to use asynchronous task methods when they are exposed to outside clients and suspendable ones for internal implementation details. However, the final decision is up to library user till s/he holds the rule that suspendable methods may be called only from asynchronous context (`@async` methods or other `@suspendable` methods) as stated above.
+
+Implemenation notes: technically suspendable methods are implemented as continuable methods that follow rules defined by [Tascalate JavaFlow](https://github.com/vsilaev/tascalate-javaflow) library, so you may use any continuable annotation that is supported by Tascalate JavaFlow, not only `@suspendable`.
+
 # Generators
 
-# Suspendable methods
 # Scheduler - where is my code executed?
 # SchedulerResolver - what Scheduler to use?

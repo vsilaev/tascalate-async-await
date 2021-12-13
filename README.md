@@ -70,8 +70,8 @@ class MyClass {
     public @async CompletionStage<String> mergeStrings() {
         StringBuilder result = new StringBuilder();
         for (int i = 1; i <= 10; i++) {
-          String v = await( decorateStrings(i, "async ", " awaited") );
-          result.append(v).append('\n');
+            String v = await( decorateStrings(i, "async ", " awaited") );
+            result.append(v).append('\n');
         }
         return async(result.toString());
     }
@@ -102,25 +102,25 @@ For non-void results the actual result type class also implements `java.util.con
 To return a result from the asynchronous method you have to use syntactic construct `return async(value)`. You must always treat both of these statements (calling `async` method and `return`-ing its result) as the single syntactic construct and don't call `async` method separately or store it return value to variable while these will lead to unpredicatble results. It's especially important if your method body is not linear. Depending on your established coding practice how to deal with multiple returns you should use either...
 ```java
 public @async CompletionStage<String> foo(int i) {
-  switch (i) {
-    case 1: return async("A");
-    case 2: return async("B");
-    case 3: return async("C");
-    default:
-      return async("<UNKNOWN>");
-  }
+    switch (i) {
+        case 1: return async("A");
+        case 2: return async("B");
+        case 3: return async("C");
+        default:
+            return async("<UNKNOWN>");
+    }
 }
 ```
 ...or...
 ```java
 public @async CompletionStage<String> bar(int i) {
-  String result;
+    String result;
     switch (i) {
-      case 1: result = "A"; break;
-      case 2: result = "B"; break;
-      case 3: result = "C"; break;
-      default:
-        result = "<UNKNOWN>";
+        case 1: result = "A"; break;
+        case 2: result = "B"; break;
+        case 3: result = "C"; break;
+        default:
+            result = "<UNKNOWN>";
     }
     return async(result);
 }
@@ -128,31 +128,31 @@ public @async CompletionStage<String> bar(int i) {
 It's worth to mention, that when developing code with async/await you should avoid so-called ["async/await hell"](https://medium.com/@7genblogger/escaping-so-called-async-await-hell-in-node-js-b5f5ba5fa9ca). In short, pay special attention what parts of your code may be executed in parallel and what parts require serial execution. Consider the following example:
 ```java
 public @async CompletionStage<Long> calculateTotalPrice(Order order) {
-   Long rawItemsPrice = await( calculateRawItemsPrice(order) );  
-   Long shippingCost  = await( calculateShippingCost(order) );  
-   Long taxes         = await( calculateTaxes(order) );  
-   return async(rawItemsPrice + shippingCost + taxes);
+    Long rawItemsPrice = await( calculateRawItemsPrice(order) );  
+    Long shippingCost  = await( calculateShippingCost(order) );  
+    Long taxes         = await( calculateTaxes(order) );  
+    return async(rawItemsPrice + shippingCost + taxes);
 }
 
 protected @async CompletionStage<Long> calculateRawItemsPrice(Order order) {
-  ...
+    ...
 }
 
 protected @async CompletionStage<Long> calculateShippingCost(Order order) {
-  ...
+    ...
 }
 
 protected @async CompletionStage<Long> calculateTaxes(Order order) {
-  ...
+    ...
 }
 ```
 In the above example all async methods `calculateRawItemsPrice`, `calculateShippingCost`, `calculateTaxes` are executed serially, one by one, hence the performance is degraded comparing to the following parallelized solution:
 ```java
 public @async CompletionStage<Long> calculateTotalPrice(Order order) {
-   CompletionStage<Long> rawItemsPrice = calculateRawItemsPrice(order);  
-   CompletionStage<Long> shippingCost  = calculateShippingCost(order);  
-   CompletionStage<Long> taxes         = calculateTaxes(order);  
-   return async( await(rawItemsPrice) + await(shippingCost) + await(taxes) );
+    CompletionStage<Long> rawItemsPrice = calculateRawItemsPrice(order);  
+    CompletionStage<Long> shippingCost  = calculateShippingCost(order);  
+    CompletionStage<Long> taxes         = calculateTaxes(order);  
+    return async( await(rawItemsPrice) + await(shippingCost) + await(taxes) );
 }
 ```
 This way all inner async operations are started (almost) simualtenously and are running in parallel, unlike in the first example.
@@ -174,9 +174,9 @@ class MyClass {
     public @async CompletionStage<String> mergeStrings() {
         StringBuilder result = new StringBuilder();
         for (int i = 1; i <= 10; i++) {
-	  // No await here -- moved to helper method
-          String v = decorateStrings(i, "async ", " awaited"); 
-          result.append(v).append('\n');
+	    // No await here -- moved to helper method
+            String v = decorateStrings(i, "async ", " awaited"); 
+            result.append(v).append('\n');
         }
         return async(result.toString());
     }

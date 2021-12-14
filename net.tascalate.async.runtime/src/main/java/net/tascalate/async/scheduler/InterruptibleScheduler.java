@@ -83,6 +83,6 @@ public class InterruptibleScheduler extends AbstractExecutorScheduler<ExecutorSe
         if (null != characteristics && characteristics.contains(Characteristics.INTERRUPTIBLE)) {
             return characteristics;
         }
-        throw new IllegalArgumentException("Characteristics must contains " + Characteristics.INTERRUPTIBLE);
+        throw new IllegalArgumentException("Characteristics must contain " + Characteristics.INTERRUPTIBLE);
     }
 }

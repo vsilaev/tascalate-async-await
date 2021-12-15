@@ -27,6 +27,7 @@ package net.tascalate.async.tools.core;
 import static net.tascalate.async.tools.core.BytecodeIntrospection.isAsyncMethod;
 import static net.tascalate.async.tools.core.BytecodeIntrospection.methodsOf;
 
+import java.io.PrintWriter;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -41,10 +42,13 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import net.tascalate.asmx.ClassReader;
+import net.tascalate.asmx.ClassVisitor;
 import net.tascalate.asmx.ClassWriter;
 import net.tascalate.asmx.Type;
 import net.tascalate.asmx.tree.ClassNode;
 import net.tascalate.asmx.tree.MethodNode;
+import net.tascalate.asmx.util.CheckClassAdapter;
+import net.tascalate.asmx.util.TraceClassVisitor;
 
 public class AsyncAwaitClassFileGenerator {
 
@@ -70,17 +74,25 @@ public class AsyncAwaitClassFileGenerator {
     // Original method's "method name + method desc" -> Access method's
     // MethodNode
     private final Map<String, MethodNode> accessMethods = new HashMap<String, MethodNode>();
-    private final ResourceLoader resourceLoader;
+    private final ClassHierarchy classHierarchy;
+    private final boolean verify;
+    private final boolean trace;
     
     public AsyncAwaitClassFileGenerator(ResourceLoader resourceLoader) {
-        this.resourceLoader = resourceLoader;
+        this(resourceLoader, true, false);
+    }
+    
+    public AsyncAwaitClassFileGenerator(ResourceLoader resourceLoader, boolean verify, boolean trace) {
+        this.classHierarchy = new ClassHierarchy(resourceLoader);
+        this.verify = verify;
+        this.trace = trace;
     }
     
     public byte[] transform(byte[] classfileBuffer) {
         // Read
         ClassReader classReader = new ClassReader(classfileBuffer);
         ClassNode classNode = new ClassNode();
-        classReader.accept(classNode, ClassReader.EXPAND_FRAMES);
+        classReader.accept(classNode, ClassReader.SKIP_FRAMES);
 
         // Transform
         if (!transform(classNode)) {
@@ -101,8 +113,8 @@ public class AsyncAwaitClassFileGenerator {
         // Write
         byte[] generatedClassBytes;
         {
-            ClassWriter cw = new ComputeClassWriter(0, resourceLoader);
-            classNode.accept(cw);
+            ClassWriter cw = new OfflineClassWriter(classHierarchy, ClassWriter.COMPUTE_FRAMES);
+            classNode.accept(decorate(cw));
             generatedClassBytes = cw.toByteArray();
         }
         return generatedClassBytes;
@@ -111,8 +123,8 @@ public class AsyncAwaitClassFileGenerator {
     public Map<String, byte[]> getGeneratedClasses() {
         Map<String, byte[]> result = new HashMap<String, byte[]>();
         for (ClassNode classNode : newClasses) {
-            ClassWriter cw = new ComputeClassWriter(ClassWriter.COMPUTE_FRAMES, resourceLoader);
-            classNode.accept(cw);
+            ClassWriter cw = new OfflineClassWriter(classHierarchy, ClassWriter.COMPUTE_FRAMES);
+            classNode.accept(decorate(cw));
             result.put(classNode.name, cw.toByteArray());
         }
         return result;
@@ -121,6 +133,17 @@ public class AsyncAwaitClassFileGenerator {
     public void reset() {
         accessMethods.clear();
         newClasses.clear();
+    }
+    
+    public ClassVisitor decorate(ClassVisitor classVisitor) {
+        ClassVisitor result = classVisitor;
+        if (verify) {
+            result = new CheckClassAdapter(result, true);
+        }
+        if (trace) {
+            result = new TraceClassVisitor(result, new PrintWriter(System.out));
+        }
+        return result;
     }
 
     protected boolean transform(ClassNode classNode) {

@@ -96,10 +96,10 @@ public class StreamTest {
     public CompletionStage<String> asyncOperation(int outerDiv) {
         produceMergedStrings()
             .stream()  
-            //.mapAwaitable(f -> await(f))      // -- worked, static
-            //.mapAwaitable(this::waitFuture)   // -- worked, instance ref
-            //.mapAwaitable(f -> waitFuture(f)) // -- worked, instance
-            .map$(f -> await(f))
+            //.map$(f -> await(f))      // -- worked, static
+            //.map$(this::waitFuture)   // -- worked, instance ref
+            .map$(f -> waitFuture(f)) // -- worked, instance
+            //.map$(awaitValue())
             .filter(v -> Integer.parseInt(v.substring(0, 3)) % div == 0) 
             .filter(this::isEven)
             .map(v -> "000" + v) 

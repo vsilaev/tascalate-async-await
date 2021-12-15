@@ -24,7 +24,9 @@
  */
 package net.tascalate.async.tools.instrumentation;
 
+import java.io.PrintStream;
 import java.lang.instrument.ClassFileTransformer;
+import java.lang.instrument.IllegalClassFormatException;
 import java.lang.instrument.Instrumentation;
 import java.util.HashSet;
 import java.util.Set;
@@ -32,6 +34,9 @@ import java.util.Set;
 import org.apache.commons.javaflow.instrumentation.JavaFlowClassTransformer;
 
 public class AsyncAwaitInstrumentationAgent extends AbstractInstrumentationAgent {
+    
+    private ClassFileTransformer continuationsTransformer = new JavaFlowClassTransformer();
+    
     /**
      * JVM hook to statically load the javaagent at startup.
      * 
@@ -43,9 +48,30 @@ public class AsyncAwaitInstrumentationAgent extends AbstractInstrumentationAgent
      * @throws Exception thrown when agent is unable to start
      */
     public static void premain(String args, Instrumentation instrumentation) throws Exception {
-        new AsyncAwaitInstrumentationAgent().install(args, instrumentation);
+        AsyncAwaitInstrumentationAgent agent = new AsyncAwaitInstrumentationAgent();
+        agent.install(args, instrumentation);
         System.setProperty(JavaFlowClassTransformer.class.getName(), "true");
         System.setProperty(AsyncAwaitInstrumentationAgent.class.getName(), "true");
+        
+        instrumentation.redefineClasses(RuntimeBytecodeInjector.modifyLambdaMetafactory());
+        
+        System.setOut(new PrintStream(System.out, true) {
+            @Override
+            public void println(Object o) {
+                if (o instanceof Object[]) {
+                    Object[] params = (Object[])o;
+                    if (params.length == 4 &&
+                        RuntimeBytecodeInjector.isValidCaller(params[0]) &&    
+                        params[1] instanceof Class &&
+                        params[2] instanceof byte[] && (params[3] == null || params[3] instanceof byte[])) {
+                        
+                        agent.enhanceLambdaClass((Class<?>)params[1], (byte[])params[2], params);
+                        return;
+                    }
+                }
+                super.println(o);
+            }
+        });
     }
 
     /**
@@ -70,6 +96,20 @@ public class AsyncAwaitInstrumentationAgent extends AbstractInstrumentationAgent
 
     @Override
     protected ClassFileTransformer createRetransformableTransformer(String args, Instrumentation instrumentation) {
-        return new AsyncAwaitClassFileTransformer(new JavaFlowClassTransformer(), instrumentation);
+        return new AsyncAwaitClassFileTransformer(continuationsTransformer, instrumentation);
+    }
+    
+    void enhanceLambdaClass(Class<?> lambdaOwningClass, byte[] input, Object[] output) {
+        try {
+            byte[] altered = continuationsTransformer.transform(lambdaOwningClass.getClassLoader(), 
+                                                                null, null, // Neither name, nor class 
+                                                                lambdaOwningClass.getProtectionDomain(), 
+                                                                input);
+            output[3] = null == altered ? input : altered;
+        } catch (Throwable ex) {
+            ex.printStackTrace();
+            output[3] = input;
+        }
+        
     }
 }

@@ -22,17 +22,31 @@
  * OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
-module net.tascalate.async.tools.javaagent {
-    requires org.slf4j;
+package net.tascalate.async.tools.core;
+
+import net.tascalate.asmx.ClassReader;
+import net.tascalate.asmx.ClassWriter;
+
+public class OfflineClassWriter extends ClassWriter {
+    private final ClassHierarchy classHierarchy;
     
-    requires transitive java.instrument;
+    public OfflineClassWriter(ClassHierarchy classHierarchy, int flags) {
+        super(flags);
+        this.classHierarchy = classHierarchy;
+    }
     
-    requires net.tascalate.instrument.emitter;
+    public OfflineClassWriter(ClassHierarchy classHierarchy, ClassReader reader, int flags) {
+        super(reader, flags);
+        this.classHierarchy = classHierarchy;
+    }
     
-    requires net.tascalate.async.tools.core;
-    requires net.tascalate.javaflow.tools.javaagent;
+    @Override
+    protected String getCommonSuperClass(final String type1, final String type2) {
+        return classHierarchy.getCommonSuperClass(type1, type2);
+    }
     
-    requires net.tascalate.asmx.commons;
-    
-    exports net.tascalate.async.tools.instrumentation;
+    @Override
+    protected ClassLoader getClassLoader() {
+        throw new UnsupportedOperationException();
+    }
 }

@@ -233,7 +233,7 @@ abstract public class AbstractAsyncMethodTransformer {
         );
 
         result.visitInsn(RETURN);
-        result.visitMaxs(hasDWordParam ? 3 : 2 /* stack */, paramVarIdx /* locals */);
+        result.visitMaxs(hasDWordParam ? 3 : 2 /* stack */, paramVarIdx + 1 /* locals */);
         result.visitEnd();
 
         return result;        
@@ -400,8 +400,8 @@ abstract public class AbstractAsyncMethodTransformer {
         }
 
         result.visitMaxs(
-            Math.max(3 /*to resolve scheduler*/, methodVarIdx + 1), // for constructor call (incl. scheduler + DUP)
-            methodVarIdx // params count + outer this (for non static) + resolved scheduler + methodRunnable
+            Math.max(4 /*to resolve scheduler*/, methodVarIdx + 2), // for constructor call (incl. scheduler + DUP)
+            methodVarIdx + 1 // params count + outer this (for non static) + resolved scheduler + methodRunnable
         );
 
         result.visitEnd();
@@ -514,8 +514,7 @@ abstract public class AbstractAsyncMethodTransformer {
             if (instruction instanceof InvokeDynamicInsnNode) {
                 Object[] result = findOwnerInvokeDynamic(instruction, methods);
                 if (null != result) {
-                    MethodNode method = (MethodNode)result[1];
-                    createAccessLambda((InvokeDynamicInsnNode)instruction, (Handle)result[0], (method.access & ACC_STATIC) != 0, methods);
+                    createAccessLambda((InvokeDynamicInsnNode)instruction, (Handle)result[0], true, methods);
                 }
             }            
         }
@@ -546,22 +545,26 @@ abstract public class AbstractAsyncMethodTransformer {
 
         int publicFlag = (classNode.access & ACC_INTERFACE) != 0 ? ACC_PUBLIC : 0;
         accessMethodNode = new MethodNode(ACC_STATIC + ACC_SYNTHETIC + publicFlag, name, desc, null, null);
+        accessMethodNode.visitAnnotation(SUSPENDABLE_ANNOTATION_TYPE.getDescriptor(), true).visitEnd();
         accessMethodNode.visitCode();
 
         // load all method arguments into stack
+        int paramVarIdx = 0;
         int arity = argTypes.length;
         for (int i = 0; i < arity; i++) {
-            int opcode = argTypes[i].getOpcode(ILOAD);
+            Type argType = argTypes[i];
+            int opcode = argType.getOpcode(ILOAD);
             if (log.isTraceEnabled()) {
-                log.trace("Using opcode " + opcode + " for loading " + argTypes[i]);
+                log.trace("Using opcode " + opcode + " for loading " + argType);
             }
-            accessMethodNode.visitVarInsn(opcode, i);
+            accessMethodNode.visitVarInsn(opcode, paramVarIdx);
+            paramVarIdx += argType.getSize();
         }
         accessMethodNode.visitInvokeDynamicInsn(
             dynNode.name, dynNode.desc, dynNode.bsm, dynNode.bsmArgs
         );
         accessMethodNode.visitInsn(returnType.getOpcode(IRETURN));
-        accessMethodNode.visitMaxs(argTypes.length, argTypes.length);
+        accessMethodNode.visitMaxs(Math.max(paramVarIdx, returnType.getSize()), paramVarIdx);
         accessMethodNode.visitEnd();
 
         // Register mapping
@@ -586,24 +589,30 @@ abstract public class AbstractAsyncMethodTransformer {
         Type[] argTypes = isStatic ? originalArgTypes : prependArray(originalArgTypes, Type.getObjectType(classNode.name));
         Type returnType = Type.getReturnType(targetMethodNode.desc);
         String desc = Type.getMethodDescriptor(returnType, argTypes);
+        
+        int publicFlag = (classNode.access & ACC_INTERFACE) != 0 ? ACC_PUBLIC : 0;
 
-        accessMethodNode = new MethodNode(ACC_STATIC + ACC_SYNTHETIC, name, desc, null, null);
+        accessMethodNode = new MethodNode(ACC_STATIC + ACC_SYNTHETIC + publicFlag, name, desc, null, null);
+        accessMethodNode.visitAnnotation(SUSPENDABLE_ANNOTATION_TYPE.getDescriptor(), true).visitEnd();
         accessMethodNode.visitCode();
 
         // load all method arguments into stack
+        int paramVarIdx = 0;
         int arity = argTypes.length;
         for (int i = 0; i < arity; i++) {
-            int opcode = argTypes[i].getOpcode(ILOAD);
+            Type argType = argTypes[i];
+            int opcode = argType.getOpcode(ILOAD);
             if (log.isTraceEnabled()) {
-                log.trace("Using opcode " + opcode + " for loading " + argTypes[i]);
+                log.trace("Using opcode " + opcode + " for loading " + argType);
             }
-            accessMethodNode.visitVarInsn(opcode, i);
+            accessMethodNode.visitVarInsn(opcode, paramVarIdx);
+            paramVarIdx += argType.getSize();
         }
         accessMethodNode.visitMethodInsn(
             isStatic ? INVOKESTATIC : INVOKESPECIAL, targetMethodNode.owner, targetMethodNode.name, targetMethodNode.desc, targetMethodNode.itf
         );
         accessMethodNode.visitInsn(returnType.getOpcode(IRETURN));
-        accessMethodNode.visitMaxs(argTypes.length, argTypes.length);
+        accessMethodNode.visitMaxs(Math.max(paramVarIdx, returnType.getSize()), paramVarIdx);
         accessMethodNode.visitEnd();
 
         // Register mapping
@@ -624,27 +633,24 @@ abstract public class AbstractAsyncMethodTransformer {
         }
 
         String name = createAccessMethodName(methods);
-        Type[] argTypes = isStatic ? new Type[0] : new Type[] { Type.getObjectType(classNode.name) };
         Type returnType = Type.getType(targetFieldNode.desc);
-        String desc = Type.getMethodDescriptor(returnType, argTypes);
-
-        accessMethodNode = new MethodNode(ACC_STATIC + ACC_SYNTHETIC, name, desc, null, null);
-        accessMethodNode.visitCode();
-
-        // load all method arguments into stack
-        int arity = argTypes.length;
-        for (int i = 0; i < arity; i++) {
-            int opcode = argTypes[i].getOpcode(ILOAD);
-            if (log.isTraceEnabled()) {
-                log.trace("Using opcode " + opcode + " for loading " + argTypes[i]);
-            }
-            accessMethodNode.visitVarInsn(opcode, i);
+        if (isStatic) {
+            String desc = Type.getMethodDescriptor(returnType);   
+            accessMethodNode = new MethodNode(ACC_STATIC + ACC_SYNTHETIC, name, desc, null, null);
+            accessMethodNode.visitCode();
+            accessMethodNode.visitFieldInsn(GETSTATIC, targetFieldNode.owner, targetFieldNode.name, targetFieldNode.desc);
+            accessMethodNode.visitInsn(returnType.getOpcode(IRETURN));
+            accessMethodNode.visitMaxs(1, 0);
+        } else {
+            Type objectType = Type.getObjectType(classNode.name);
+            String desc = Type.getMethodDescriptor(returnType, objectType);   
+            accessMethodNode = new MethodNode(ACC_STATIC + ACC_SYNTHETIC, name, desc, null, null);
+            accessMethodNode.visitCode();
+            accessMethodNode.visitVarInsn(objectType.getOpcode(ILOAD), 0);
+            accessMethodNode.visitFieldInsn(GETFIELD, targetFieldNode.owner, targetFieldNode.name, targetFieldNode.desc);
+            accessMethodNode.visitInsn(returnType.getOpcode(IRETURN));
+            accessMethodNode.visitMaxs(1, 1);
         }
-        accessMethodNode.visitFieldInsn(
-            isStatic ? GETSTATIC : GETFIELD, targetFieldNode.owner, targetFieldNode.name, targetFieldNode.desc
-        );
-        accessMethodNode.visitInsn(returnType.getOpcode(IRETURN));
-        accessMethodNode.visitMaxs(1, argTypes.length);
         accessMethodNode.visitEnd();
 
         // Register mapping
@@ -665,30 +671,27 @@ abstract public class AbstractAsyncMethodTransformer {
         }
 
         String name = createAccessMethodName(methods);
-        Type[] argTypes = isStatic ? 
-                new Type[] { Type.getType(targetFieldNode.desc) } : 
-                new Type[] { Type.getObjectType(classNode.name), Type.getType(targetFieldNode.desc) };                
-                
-        Type returnType = Type.VOID_TYPE;
-        String desc = Type.getMethodDescriptor(returnType, argTypes);
-
-        accessMethodNode = new MethodNode(ACC_STATIC + ACC_SYNTHETIC, name, desc, null, null);
-        accessMethodNode.visitCode();
-
-        // load all method arguments into stack
-        int arity = argTypes.length;
-        for (int i = 0; i < arity; i++) {
-            int opcode = argTypes[i].getOpcode(ILOAD);
-            if (log.isTraceEnabled()) {
-                log.trace("Using opcode " + opcode + " for loading " + argTypes[i]);
-            }
-            accessMethodNode.visitVarInsn(opcode, i);
+        Type fieldType = Type.getType(targetFieldNode.desc); 
+        if (isStatic) {
+            String desc = Type.getMethodDescriptor(Type.VOID_TYPE, fieldType);
+            accessMethodNode = new MethodNode(ACC_STATIC + ACC_SYNTHETIC, name, desc, null, null);
+            accessMethodNode.visitCode();
+            accessMethodNode.visitVarInsn(fieldType.getOpcode(ILOAD), 0);
+            accessMethodNode.visitFieldInsn(PUTSTATIC, targetFieldNode.owner, targetFieldNode.name, targetFieldNode.desc);
+            accessMethodNode.visitInsn(RETURN);     
+            accessMethodNode.visitMaxs(1, 1);
+            
+        } else {
+            Type objectType = Type.getObjectType(classNode.name);
+            String desc = Type.getMethodDescriptor(Type.VOID_TYPE, objectType, fieldType);
+            accessMethodNode = new MethodNode(ACC_STATIC + ACC_SYNTHETIC, name, desc, null, null);
+            accessMethodNode.visitCode();
+            accessMethodNode.visitVarInsn(objectType.getOpcode(ILOAD), 0);
+            accessMethodNode.visitVarInsn(fieldType.getOpcode(ILOAD), 1);
+            accessMethodNode.visitFieldInsn(PUTFIELD, targetFieldNode.owner, targetFieldNode.name, targetFieldNode.desc);
+            accessMethodNode.visitInsn(RETURN);
+            accessMethodNode.visitMaxs(1 + fieldType.getSize(), 1 + fieldType.getSize());
         }
-        accessMethodNode.visitFieldInsn(
-            isStatic ? PUTSTATIC : PUTFIELD, targetFieldNode.owner, targetFieldNode.name, targetFieldNode.desc
-        );
-        accessMethodNode.visitInsn(RETURN);
-        accessMethodNode.visitMaxs(argTypes.length, argTypes.length);
         accessMethodNode.visitEnd();
 
         // Register mapping
@@ -696,7 +699,6 @@ abstract public class AbstractAsyncMethodTransformer {
         methods.add(accessMethodNode);
         return accessMethodNode;
     }
-
     private void registerAccessMethod(String owner, String name, String desc, String kind, MethodNode methodNode) {
         accessMethods.put(owner + name + desc + "-" + kind, methodNode);
     }

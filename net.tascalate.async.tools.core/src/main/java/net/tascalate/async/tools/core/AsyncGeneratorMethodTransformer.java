@@ -231,7 +231,7 @@ public class AsyncGeneratorMethodTransformer extends AbstractAsyncMethodTransfor
                     }
                     
                     newInstructions.add(
-                        new MethodInsnNode(INVOKESTATIC, classNode.name, accessMethod.name, accessMethod.desc, false)
+                        new MethodInsnNode(INVOKESTATIC, classNode.name, accessMethod.name, accessMethod.desc, (classNode.access & ACC_INTERFACE) != 0)
                     );
                     continue;
 
@@ -298,7 +298,7 @@ public class AsyncGeneratorMethodTransformer extends AbstractAsyncMethodTransfor
                     Handle h = (Handle)opts[0];
                     MethodNode lambdaAccess = getAccessMethod(h.getOwner(), h.getName(), h.getDesc(), "L");
                     newInstructions.add(
-                        new MethodInsnNode(INVOKESTATIC, classNode.name, lambdaAccess.name, lambdaAccess.desc, false)
+                        new MethodInsnNode(INVOKESTATIC, classNode.name, lambdaAccess.name, lambdaAccess.desc, (classNode.access & ACC_INTERFACE) != 0)
                     );
                     continue;
                 }

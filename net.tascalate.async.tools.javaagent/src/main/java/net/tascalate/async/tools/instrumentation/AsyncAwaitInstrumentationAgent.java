@@ -26,14 +26,18 @@ package net.tascalate.async.tools.instrumentation;
 
 import java.io.PrintStream;
 import java.lang.instrument.ClassFileTransformer;
-import java.lang.instrument.IllegalClassFormatException;
 import java.lang.instrument.Instrumentation;
 import java.util.HashSet;
 import java.util.Set;
 
 import org.apache.commons.javaflow.instrumentation.JavaFlowClassTransformer;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
+import net.tascalate.instrument.emitter.spi.ClassEmitters;
 
 public class AsyncAwaitInstrumentationAgent extends AbstractInstrumentationAgent {
+    private static final Logger log = LoggerFactory.getLogger(AsyncAwaitClassFileTransformer.class);
     
     private ClassFileTransformer continuationsTransformer = new JavaFlowClassTransformer();
     
@@ -53,25 +57,35 @@ public class AsyncAwaitInstrumentationAgent extends AbstractInstrumentationAgent
         System.setProperty(JavaFlowClassTransformer.class.getName(), "true");
         System.setProperty(AsyncAwaitInstrumentationAgent.class.getName(), "true");
         
-        instrumentation.redefineClasses(RuntimeBytecodeInjector.modifyLambdaMetafactory());
+        if (getJdkVersion() < 9) {
+            return;
+        }
         
-        System.setOut(new PrintStream(System.out, true) {
-            @Override
-            public void println(Object o) {
-                if (o instanceof Object[]) {
-                    Object[] params = (Object[])o;
-                    if (params.length == 4 &&
-                        RuntimeBytecodeInjector.isValidCaller(params[0]) &&    
-                        params[1] instanceof Class &&
-                        params[2] instanceof byte[] && (params[3] == null || params[3] instanceof byte[])) {
-                        
-                        agent.enhanceLambdaClass((Class<?>)params[1], (byte[])params[2], params);
-                        return;
+        // Need to patch lambda metafactory to support agent instrumentation for lambda classes
+        // in JDK 9+
+        try {
+            instrumentation.redefineClasses(RuntimeBytecodeInjector.modifyLambdaMetafactory());
+            System.setOut(new PrintStream(System.out, true) {
+                @Override
+                public void println(Object o) {
+                    if (o instanceof Object[]) {
+                        Object[] params = (Object[])o;
+                        if (params.length == 4 &&
+                            RuntimeBytecodeInjector.isValidCaller(params[0]) &&    
+                            params[1] instanceof Class &&
+                            params[2] instanceof byte[] && 
+                            (params[3] == null || params[3] instanceof byte[])) {
+                            
+                            agent.enhanceLambdaClass((Class<?>)params[1], (byte[])params[2], params);
+                            return;
+                        }
                     }
+                    super.println(o);
                 }
-                super.println(o);
-            }
-        });
+            });
+        } catch (Throwable ex) {
+            log.warn("Unable to apply lambda instrumentation patch (unsupported JVM)", ex);
+        }
     }
 
     /**
@@ -101,10 +115,18 @@ public class AsyncAwaitInstrumentationAgent extends AbstractInstrumentationAgent
     
     void enhanceLambdaClass(Class<?> lambdaOwningClass, byte[] input, Object[] output) {
         try {
+            if (log.isDebugEnabled()) {
+                log.debug("Start transforming lambda class " + ClassEmitters.classNameOf(input) + ", defined in " + lambdaOwningClass);
+            }
             byte[] altered = continuationsTransformer.transform(lambdaOwningClass.getClassLoader(), 
                                                                 null, null, // Neither name, nor class 
                                                                 lambdaOwningClass.getProtectionDomain(), 
                                                                 input);
+            if (input != altered && altered != null) {
+                if (log.isDebugEnabled()) {
+                    log.debug("Done transforming lambda class " + ClassEmitters.classNameOf(input) + ", defined in " + lambdaOwningClass);
+                }                
+            }
             output[3] = null == altered ? input : altered;
         } catch (Throwable ex) {
             ex.printStackTrace();
@@ -112,4 +134,20 @@ public class AsyncAwaitInstrumentationAgent extends AbstractInstrumentationAgent
         }
         
     }
+    
+    private static int getJdkVersion() {
+        String version = System.getProperty("java.version");
+        
+        if (version.startsWith("1.")) {
+            version = version.substring(2, version.indexOf('.', 2));
+        } else {
+            int dot = version.indexOf(".");
+            if (dot > 0) { 
+                version = version.substring(0, dot); 
+            }
+        } 
+        int javaVersion = Integer.parseInt(version);
+        return javaVersion;
+    }
+
 }

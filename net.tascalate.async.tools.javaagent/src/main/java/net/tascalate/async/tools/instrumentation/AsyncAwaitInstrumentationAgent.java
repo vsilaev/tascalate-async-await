@@ -24,7 +24,6 @@
  */
 package net.tascalate.async.tools.instrumentation;
 
-import java.io.PrintStream;
 import java.lang.instrument.ClassFileTransformer;
 import java.lang.instrument.Instrumentation;
 import java.util.HashSet;
@@ -57,30 +56,28 @@ public class AsyncAwaitInstrumentationAgent extends AbstractInstrumentationAgent
         System.setProperty(JavaFlowClassTransformer.class.getName(), "true");
         System.setProperty(AsyncAwaitInstrumentationAgent.class.getName(), "true");
         
-        if (getJdkVersion() < 9) {
+        int jdkVersion = getJdkVersion(); 
+        if (jdkVersion < 9) {
+            if (log.isDebugEnabled()) {
+                log.debug("JDK verion " + jdkVersion + " is less than 9, no lambda instrumentation patch required.");
+            }
             return;
         }
         
         // Need to patch lambda metafactory to support agent instrumentation for lambda classes
         // in JDK 9+
         try {
-            instrumentation.redefineClasses(RuntimeBytecodeInjector.modifyLambdaMetafactory());
-            System.setOut(new PrintStream(System.out, true) {
+            if (!RuntimeBytecodeInjector.isInjectionApplied()) {
+                log.debug("Applying lambda post-processing injection...");
+                instrumentation.redefineClasses(RuntimeBytecodeInjector.modifyLambdaMetafactory());
+                log.debug("Lambda post-processing injection is applied.");
+            } else {
+                log.warn("Lambda post-processing injection was already applied, probably by some other agent.");
+            }
+            RuntimeBytecodeInjector.installTransformer(new RuntimeBytecodeInjector.LambdaClassTransformer() {
                 @Override
-                public void println(Object o) {
-                    if (o instanceof Object[]) {
-                        Object[] params = (Object[])o;
-                        if (params.length == 4 &&
-                            RuntimeBytecodeInjector.isValidCaller(params[0]) &&    
-                            params[1] instanceof Class &&
-                            params[2] instanceof byte[] && 
-                            (params[3] == null || params[3] instanceof byte[])) {
-                            
-                            agent.enhanceLambdaClass((Class<?>)params[1], (byte[])params[2], params);
-                            return;
-                        }
-                    }
-                    super.println(o);
+                public byte[] transform(Class<?> lambdaOwningClass, byte[] lambdaClassBytes) throws Throwable {
+                    return agent.transformLambdaClass(lambdaOwningClass, lambdaClassBytes);
                 }
             });
         } catch (Throwable ex) {
@@ -113,24 +110,26 @@ public class AsyncAwaitInstrumentationAgent extends AbstractInstrumentationAgent
         return new AsyncAwaitClassFileTransformer(continuationsTransformer, instrumentation);
     }
     
-    void enhanceLambdaClass(Class<?> lambdaOwningClass, byte[] input, Object[] output) {
+    byte[] transformLambdaClass(Class<?> lambdaOwningClass, byte[] input) throws Throwable {
         try {
+            String className = null;            
             if (log.isDebugEnabled()) {
-                log.debug("Start transforming lambda class " + ClassEmitters.classNameOf(input) + ", defined in " + lambdaOwningClass);
+                className = ClassEmitters.classNameOf(input);
+                log.debug("Start transforming lambda class " + className + ", defined in " + lambdaOwningClass.getName());
             }
-            byte[] altered = continuationsTransformer.transform(lambdaOwningClass.getClassLoader(), 
-                                                                null, null, // Neither name, nor class 
-                                                                lambdaOwningClass.getProtectionDomain(), 
-                                                                input);
-            if (input != altered && altered != null) {
-                if (log.isDebugEnabled()) {
-                    log.debug("Done transforming lambda class " + ClassEmitters.classNameOf(input) + ", defined in " + lambdaOwningClass);
-                }                
-            }
-            output[3] = null == altered ? input : altered;
+            byte[] output = continuationsTransformer.transform(lambdaOwningClass.getClassLoader(), 
+                                                               null, null, // Neither name, nor class
+                                                               lambdaOwningClass.getProtectionDomain(), 
+                                                               input);
+            if (log.isDebugEnabled()) {
+                log.debug("Done transforming lambda class " + className + 
+                           ", defined in " + lambdaOwningClass.getName() + 
+                           ", modified = " + (input != output && output != null));
+            }                
+            return output;
         } catch (Throwable ex) {
-            ex.printStackTrace();
-            output[3] = input;
+            log.error("Error transforming lambda class defined in " + lambdaOwningClass.getName(), ex);
+            throw ex;
         }
         
     }

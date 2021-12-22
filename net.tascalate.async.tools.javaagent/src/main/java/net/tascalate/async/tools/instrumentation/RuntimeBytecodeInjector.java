@@ -31,6 +31,7 @@ import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.PrintStream;
+import java.lang.annotation.Documented;
 import java.lang.instrument.ClassDefinition;
 
 import net.tascalate.asmx.ClassReader;
@@ -43,29 +44,22 @@ import net.tascalate.asmx.commons.LocalVariablesSorter;
 class RuntimeBytecodeInjector {
     
     private static final String CLASS = "java.lang.invoke.InnerClassLambdaMetafactory";
-
-    private static ClassDefinition loadClassDefinition(Class<?> clazz) throws IOException {
-        ByteArrayOutputStream out = new ByteArrayOutputStream();
-        byte[] buff = new byte[1024];
-        try (InputStream in = Object.class.getResourceAsStream('/' + clazz.getName().replace('.', '/') + ".class")) {
-            int c = 0;
-            while ((c= in.read(buff)) > 0) {
-                out.write(buff, 0, c);
-            }
+    
+    static interface LambdaClassTransformer {
+        byte[] transform(Class<?> lambdaOwningClass, byte[] lambdaClassBytes) throws Throwable;
+    }
+    
+    static boolean isInjectionApplied() {
+        Class<?> cls;
+        try {
+            cls = ClassLoader.getSystemClassLoader().loadClass(CLASS);
+        } catch (ClassNotFoundException ex) {
+            throw new RuntimeException(ex);
         }
-        out.close();
-        byte[] bytes = out.toByteArray();
-        return new ClassDefinition(clazz, bytes);
+        Documented anno = cls.getAnnotation(Documented.class);
+        return anno != null;
     }
-    
-    private static ClassDefinition loadClassDefinition(String className) throws ClassNotFoundException, IOException {
-        return loadClassDefinition(Class.forName(className));
-    }
-    
-    static boolean isValidCaller(Object o) {
-        return o != null && CLASS.equals(o.getClass().getName());
-    }
-    
+
     static ClassDefinition modifyLambdaMetafactory() throws ClassNotFoundException, IOException {
         ClassDefinition original = loadClassDefinition(CLASS);
         ClassReader classReader = new ClassReader(new ByteArrayInputStream(original.getDefinitionClassFile()));
@@ -93,14 +87,7 @@ class RuntimeBytecodeInjector {
                     super.visitMethodInsn(opcode, owner, name, descriptor, isInterface);
                     visitVarInsn(bytesType.getOpcode(ISTORE), bytesVar);
                     
-                    /*
-                    Type stringType = Type.getType(String.class);
-                    visitFieldInsn(GETSTATIC, systemType.getInternalName(), "out", printStreamType.getDescriptor());
-                    visitLdcInsn("HERE WE ARE: ");
-                    visitMethodInsn(INVOKEVIRTUAL, printStreamType.getInternalName(), "print", Type.getMethodDescriptor(Type.VOID_TYPE, stringType), false);
-                    */
-                    
-                    visitInsn(ICONST_4);
+                    visitInsn(ICONST_3);
                     visitTypeInsn(ANEWARRAY, objectType.getInternalName());
                     visitVarInsn(objectsType.getOpcode(ISTORE), params);
                     
@@ -117,30 +104,19 @@ class RuntimeBytecodeInjector {
                     visitFieldInsn(GETFIELD, "java/lang/invoke/AbstractValidatingLambdaMetafactory", "targetClass", classType.getDescriptor());
                     visitInsn(AASTORE);
                     
-                    // params[2] = inBytes
+                    // params[2] = inBytes, after call replaced by outBytes
                     visitVarInsn(objectsType.getOpcode(ILOAD), params);
                     visitInsn(ICONST_2);
                     visitVarInsn(bytesType.getOpcode(ILOAD), bytesVar);
                     visitInsn(AASTORE);
                     
-                    // params[3] = inBytes, after call replaced by outBytes
-                    visitVarInsn(objectsType.getOpcode(ILOAD), params);
-                    visitInsn(ICONST_3);
-                    visitVarInsn(bytesType.getOpcode(ILOAD), bytesVar);
-                    visitInsn(AASTORE);
-                    
                     visitFieldInsn(GETSTATIC, systemType.getInternalName(), "out", printStreamType.getDescriptor());
                     visitVarInsn(objectsType.getOpcode(ILOAD), params);
-                    visitMethodInsn(INVOKEVIRTUAL, printStreamType.getInternalName(), "println", Type.getMethodDescriptor(Type.VOID_TYPE, objectType), false);
-                    
-                    /*
-                    visitFieldInsn(GETSTATIC, systemType.getInternalName(), "out", printStreamType.getDescriptor());
-                    visitMethodInsn(INVOKEVIRTUAL, printStreamType.getInternalName(), "println", Type.getMethodDescriptor(Type.VOID_TYPE), false);
-                    */
+                    visitMethodInsn(INVOKEVIRTUAL, printStreamType.getInternalName(), "print", Type.getMethodDescriptor(Type.VOID_TYPE, objectType), false);
 
-                    // get outBytes, params[3]
+                    // get outBytes, params[2]
                     visitVarInsn(objectsType.getOpcode(ILOAD), params);
-                    visitInsn(ICONST_3);
+                    visitInsn(ICONST_2);
                     visitInsn(AALOAD);
                 } else {
                     super.visitMethodInsn(opcode, owner, name, descriptor, isInterface);
@@ -149,6 +125,18 @@ class RuntimeBytecodeInjector {
         };
 
         ClassVisitor cv = new ClassVisitor(ASM9, classWriter) {
+            @Override
+            public void visit(int version,
+                              int access,
+                              String name,
+                              String signature,
+                              String superName,String[] interfaces) {
+                super.visit(version, access, name, signature, superName, interfaces);
+                Type annoType = Type.getType(Documented.class);
+                visitAnnotation(annoType.getDescriptor(), true).visitEnd();
+            }
+            
+            @Override
             public MethodVisitor visitMethod(int access, String name, String desc, String signature, String[] exceptions) {
                 MethodVisitor mv = super.visitMethod(access, name, desc, signature, exceptions);
                 if ("spinInnerClass".equals(name) || "generateInnerClass".equals(name)) {
@@ -162,4 +150,54 @@ class RuntimeBytecodeInjector {
         classReader.accept(cv, ClassReader.EXPAND_FRAMES);
         return new ClassDefinition(original.getDefinitionClass(), classWriter.toByteArray());
     }
+    
+    static void installTransformer(final LambdaClassTransformer transformer) {
+        System.setOut(new PrintStream(System.out, true) {
+            @Override
+            public void print(Object o) {
+                if (o instanceof Object[]) {
+                    Object[] params = (Object[])o;
+                    if (params.length == 3 &&
+                        RuntimeBytecodeInjector.isValidCaller(params[0]) &&    
+                        params[1] instanceof Class &&
+                        params[2] instanceof byte[]) {
+                        
+                        byte[] inBytes = (byte[])params[2];
+                        byte[] outBytes = inBytes;
+                        try {
+                            outBytes = transformer.transform((Class<?>)params[1], inBytes);
+                        } catch (Throwable ex) {
+                            
+                        }
+                        params[2] = outBytes == null ? inBytes : outBytes;
+                        return;
+                    }
+                }
+                super.println(o);
+            }
+        });        
+    }
+    
+    private static boolean isValidCaller(Object o) {
+        return o != null && CLASS.equals(o.getClass().getName());
+    }
+    
+    private static ClassDefinition loadClassDefinition(Class<?> clazz) throws IOException {
+        ByteArrayOutputStream out = new ByteArrayOutputStream();
+        byte[] buff = new byte[1024];
+        try (InputStream in = Object.class.getResourceAsStream('/' + clazz.getName().replace('.', '/') + ".class")) {
+            int c = 0;
+            while ((c= in.read(buff)) > 0) {
+                out.write(buff, 0, c);
+            }
+        }
+        out.close();
+        byte[] bytes = out.toByteArray();
+        return new ClassDefinition(clazz, bytes);
+    }
+    
+    private static ClassDefinition loadClassDefinition(String className) throws ClassNotFoundException, IOException {
+        return loadClassDefinition(Class.forName(className));
+    }
+
 }

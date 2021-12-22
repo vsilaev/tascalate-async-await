@@ -44,7 +44,7 @@ import org.slf4j.LoggerFactory;
 
 public abstract class AbstractInstrumentationAgent {
 
-    private final Logger log = LoggerFactory.getLogger(getClass());
+    protected final Logger log = LoggerFactory.getLogger(getClass());
     
     protected AbstractInstrumentationAgent() {
     }

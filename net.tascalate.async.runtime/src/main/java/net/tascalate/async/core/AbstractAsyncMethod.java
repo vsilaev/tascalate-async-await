@@ -34,7 +34,7 @@ import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Function;
 
-import net.tascalate.async.AsyncValue;
+import net.tascalate.async.AsyncResult;
 import net.tascalate.async.Scheduler;
 import net.tascalate.async.suspendable;
 
@@ -190,7 +190,7 @@ abstract public class AbstractAsyncMethod implements Runnable {
         }
     }
     
-    final class ResultPromise<T> extends CompletableFuture<T> implements AsyncValue<T> {
+    final class ResultPromise<T> extends CompletableFuture<T> implements AsyncResult<T> {
         
         ResultPromise() {}
         

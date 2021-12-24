@@ -41,7 +41,7 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 
 import net.tascalate.async.AsyncGenerator;
-import net.tascalate.async.AsyncValue;
+import net.tascalate.async.AsyncResult;
 import net.tascalate.async.Sequence;
 import net.tascalate.async.YieldReply;
 import net.tascalate.async.async;
@@ -98,7 +98,7 @@ public class GeneratorExample {
     }
     
     @async
-    AsyncValue<String> iterateStringsEx(int z) {
+    AsyncResult<String> iterateStringsEx(int z) {
         z += 2;
         System.out.println(z);
         int x = 3;

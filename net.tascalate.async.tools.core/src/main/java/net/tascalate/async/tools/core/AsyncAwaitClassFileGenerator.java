@@ -45,6 +45,8 @@ import net.tascalate.asmx.ClassReader;
 import net.tascalate.asmx.ClassVisitor;
 import net.tascalate.asmx.ClassWriter;
 import net.tascalate.asmx.Type;
+import net.tascalate.asmx.plus.ClassHierarchy;
+import net.tascalate.asmx.plus.OfflineClassWriter;
 import net.tascalate.asmx.tree.ClassNode;
 import net.tascalate.asmx.tree.MethodNode;
 import net.tascalate.asmx.util.CheckClassAdapter;
@@ -83,7 +85,7 @@ public class AsyncAwaitClassFileGenerator {
     }
     
     public AsyncAwaitClassFileGenerator(ResourceLoader resourceLoader, boolean verify, boolean trace) {
-        this.classHierarchy = new ClassHierarchy(resourceLoader);
+        this.classHierarchy = new ClassHierarchy(new AsmxResourceLoader(resourceLoader));
         this.verify = verify;
         this.trace = trace;
     }

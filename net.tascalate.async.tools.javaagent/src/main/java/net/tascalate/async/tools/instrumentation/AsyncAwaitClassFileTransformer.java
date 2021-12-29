@@ -41,14 +41,14 @@ import net.tascalate.async.tools.core.AsyncAwaitClassFileGenerator;
 import net.tascalate.instrument.emitter.spi.ClassEmitter;
 import net.tascalate.instrument.emitter.spi.PortableClassFileTransformer;
 
-class AsyncAwaitClassFileTransformer extends PortableClassFileTransformer {
+public class AsyncAwaitClassFileTransformer extends PortableClassFileTransformer {
 
     private static final Logger log = LoggerFactory.getLogger(AsyncAwaitClassFileTransformer.class);
     
     private final ClassLoader systemClassLoader = ClassLoader.getSystemClassLoader();
     private final ClassFileTransformer postProcessor;
 
-    AsyncAwaitClassFileTransformer(ClassFileTransformer postProcessor, Instrumentation instrumentation) {
+    protected AsyncAwaitClassFileTransformer(ClassFileTransformer postProcessor, Instrumentation instrumentation) {
         super(instrumentation);
         this.postProcessor = postProcessor;
     }

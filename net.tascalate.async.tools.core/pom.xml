@@ -5,7 +5,7 @@
 	<parent>
 		<groupId>net.tascalate.async</groupId>
 		<artifactId>net.tascalate.async.parent</artifactId>
-		<version>1.1.0</version>
+		<version>1.2.0</version>
 		<relativePath>../</relativePath>
 	</parent>
 
@@ -23,6 +23,11 @@
 			<groupId>net.tascalate.javaflow</groupId>
 			<artifactId>net.tascalate.javaflow.spi</artifactId>
 		</dependency>
+		<dependency>
+			<groupId>net.tascalate</groupId>
+			<artifactId>net.tascalate.asmx.plus</artifactId>
+			<version>${tascalate.asmx.version}</version>
+		</dependency>		
 		<dependency>
 			<groupId>net.tascalate</groupId>
 			<artifactId>net.tascalate.asmx.util</artifactId>

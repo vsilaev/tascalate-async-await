@@ -5,7 +5,7 @@
 	<parent>
 		<groupId>net.tascalate.async</groupId>
 		<artifactId>net.tascalate.async.parent</artifactId>
-		<version>1.1.0</version>
+		<version>1.2.0</version>
 		<relativePath>../</relativePath>
 	</parent>
 
@@ -29,6 +29,12 @@
 			<artifactId>net.tascalate.async.tools.core</artifactId>
 			<version>${project.version}</version>
 		</dependency>
+		<dependency>
+			<groupId>net.tascalate.instrument</groupId>
+			<artifactId>net.tascalate.instrument.agent</artifactId>
+			<version>${tascalate.instrument.version}</version>
+			<scope>provided</scope>
+		</dependency>		
 		<dependency>
 			<groupId>net.tascalate.instrument</groupId>
 			<artifactId>net.tascalate.instrument.emitter</artifactId>

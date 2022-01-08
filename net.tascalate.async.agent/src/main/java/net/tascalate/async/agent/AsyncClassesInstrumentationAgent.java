@@ -22,7 +22,7 @@
  * OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
-package net.tascalate.async.tools.instrumentation;
+package net.tascalate.async.agent;
 
 import java.lang.instrument.ClassFileTransformer;
 import java.lang.instrument.Instrumentation;
@@ -31,17 +31,16 @@ import java.util.Collections;
 import java.util.HashSet;
 import java.util.Set;
 
-import org.apache.commons.javaflow.instrumentation.JavaFlowClassTransformer;
 import org.apache.commons.javaflow.spi.InstrumentationUtils;
 
 import net.tascalate.instrument.agent.AbstractLambdaAwareInstrumentationAgent;
 
-public class AsyncAwaitInstrumentationAgent extends AbstractLambdaAwareInstrumentationAgent {
+public class AsyncClassesInstrumentationAgent extends AbstractLambdaAwareInstrumentationAgent {
 
-    private final ClassFileTransformer continuationsTransformer = new JavaFlowClassTransformer();
+    private final ClassFileTransformer continuationsTransformer = new ContinuableClassBytecodeTransformer();
     
     
-    protected AsyncAwaitInstrumentationAgent(String arguments, Instrumentation instrumentation) {
+    protected AsyncClassesInstrumentationAgent(String arguments, Instrumentation instrumentation) {
         super(arguments, instrumentation);
     }
 
@@ -56,7 +55,7 @@ public class AsyncAwaitInstrumentationAgent extends AbstractLambdaAwareInstrumen
      * @throws Exception thrown when agent is unable to start
      */
     public static void premain(String args, Instrumentation instrumentation) throws Exception {
-        AsyncAwaitInstrumentationAgent agent = new AsyncAwaitInstrumentationAgent(args, instrumentation);
+        AsyncClassesInstrumentationAgent agent = new AsyncClassesInstrumentationAgent(args, instrumentation);
         agent.attachDefaultLambdaInstrumentationHook();
         agent.install();
     }
@@ -72,7 +71,7 @@ public class AsyncAwaitInstrumentationAgent extends AbstractLambdaAwareInstrumen
      * @throws Exception thrown when agent is unable to start
      */
     public static void agentmain(String args, Instrumentation instrumentation) throws Exception {
-        AsyncAwaitInstrumentationAgent agent = new AsyncAwaitInstrumentationAgent(args, instrumentation);
+        AsyncClassesInstrumentationAgent agent = new AsyncClassesInstrumentationAgent(args, instrumentation);
         agent.attachDefaultLambdaInstrumentationHook();
         Set<String> nonRetransformPackages = new HashSet<String>(BASE_OWN_PACKAGES);
         nonRetransformPackages.addAll(
@@ -85,7 +84,7 @@ public class AsyncAwaitInstrumentationAgent extends AbstractLambdaAwareInstrumen
     @Override
     protected Collection<ClassFileTransformer> createTransformers(boolean canRetransform) {
         if (canRetransform) {
-            ClassFileTransformer transformer = new AsyncAwaitClassFileTransformer(continuationsTransformer, instrumentation);
+            ClassFileTransformer transformer = new AsyncClassBytecodeTransformer(continuationsTransformer, instrumentation);
             return Collections.singleton(transformer);
         } else {
             return Collections.emptySet();

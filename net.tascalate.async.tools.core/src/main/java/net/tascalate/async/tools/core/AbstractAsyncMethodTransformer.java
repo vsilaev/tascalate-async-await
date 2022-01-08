@@ -105,9 +105,9 @@ abstract public class AbstractAsyncMethodTransformer {
     }
 
     
-    abstract public ClassNode transform();
+    abstract protected ClassNode transform();
     
-    public ClassNode transform(Type superClassType) {
+    protected ClassNode transform(Type superClassType) {
         if (log.isDebugEnabled()) {
             log.debug("Transforming blocking method: " + classNode.name + "." + originalAsyncMethod.name + 
                       originalAsyncMethod.desc);

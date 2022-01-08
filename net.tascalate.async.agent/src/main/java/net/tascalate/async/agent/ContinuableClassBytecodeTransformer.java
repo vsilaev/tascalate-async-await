@@ -22,29 +22,21 @@
  * OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
-package net.tascalate.async.tools.core;
+package net.tascalate.async.agent;
 
-import java.io.IOException;
-import java.io.InputStream;
+import org.apache.commons.javaflow.agent.common.ConfigurableClassFileTransformer;
+import org.apache.commons.javaflow.providers.core.ContinuableClassTransformationFactory;
 
-import org.apache.commons.javaflow.spi.ResourceLoader;
+import net.tascalate.instrument.agent.IdentifiableInstrumentationObject;
 
-class AsmxResourceLoader implements net.tascalate.asmx.plus.ResourceLoader {
-    private final ResourceLoader loader;
-    
-    public AsmxResourceLoader(ResourceLoader loader) {
-        this.loader = loader;
+class ContinuableClassBytecodeTransformer extends ConfigurableClassFileTransformer 
+                                          implements IdentifiableInstrumentationObject {
+    public ContinuableClassBytecodeTransformer() {
+        super(new ContinuableClassTransformationFactory());
     }
 
     @Override
-    public boolean hasResource(String name) {
-        return loader.hasResource(name);
+    public String id() {
+        return "org.apache.commons.javaflow.agent.core" + getClass().getSimpleName();
     }
-
-    @Override
-    public InputStream getResourceAsStream(String name) throws IOException {
-        return loader.getResourceAsStream(name);
-    }
-    
-    
 }

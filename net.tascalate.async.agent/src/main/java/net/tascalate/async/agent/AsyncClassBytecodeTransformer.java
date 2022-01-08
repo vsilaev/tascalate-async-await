@@ -22,7 +22,7 @@
  * OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
-package net.tascalate.async.tools.instrumentation;
+package net.tascalate.async.agent;
 
 import java.lang.instrument.ClassFileTransformer;
 import java.lang.instrument.IllegalClassFormatException;
@@ -41,14 +41,14 @@ import net.tascalate.async.tools.core.AsyncAwaitClassFileGenerator;
 import net.tascalate.instrument.emitter.spi.ClassEmitter;
 import net.tascalate.instrument.emitter.spi.PortableClassFileTransformer;
 
-public class AsyncAwaitClassFileTransformer extends PortableClassFileTransformer {
+public class AsyncClassBytecodeTransformer extends PortableClassFileTransformer {
 
-    private static final Logger log = LoggerFactory.getLogger(AsyncAwaitClassFileTransformer.class);
+    private static final Logger log = LoggerFactory.getLogger(AsyncClassBytecodeTransformer.class);
     
     private final ClassLoader systemClassLoader = ClassLoader.getSystemClassLoader();
     private final ClassFileTransformer postProcessor;
 
-    protected AsyncAwaitClassFileTransformer(ClassFileTransformer postProcessor, Instrumentation instrumentation) {
+    protected AsyncClassBytecodeTransformer(ClassFileTransformer postProcessor, Instrumentation instrumentation) {
         super(instrumentation);
         this.postProcessor = postProcessor;
     }

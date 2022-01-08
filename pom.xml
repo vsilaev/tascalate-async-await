@@ -42,7 +42,7 @@
 		<module>net.tascalate.async.resolver.swing</module>
 		<module>net.tascalate.async.tools.core</module>
 		<module>net.tascalate.async.tools.maven</module>
-		<module>net.tascalate.async.tools.javaagent</module>
+		<module>net.tascalate.async.agent</module>
 		<module>net.tascalate.async.extras</module>
 		<module>net.tascalate.async.examples</module>
 	</modules>
@@ -76,7 +76,12 @@
 			</dependency>
 			<dependency>
 				<groupId>net.tascalate.javaflow</groupId>
-				<artifactId>net.tascalate.javaflow.tools.javaagent</artifactId>
+				<artifactId>net.tascalate.javaflow.agent.common</artifactId>
+				<version>${tascalate.javaflow.version}</version>
+			</dependency>
+			<dependency>
+				<groupId>net.tascalate.javaflow</groupId>
+				<artifactId>net.tascalate.javaflow.providers.core</artifactId>
 				<version>${tascalate.javaflow.version}</version>
 			</dependency>
 			<dependency>
@@ -231,6 +236,11 @@
 		</plugins>
 		<pluginManagement>
 			<plugins>
+				<plugin>
+					<groupId>org.apache.maven.plugins</groupId>
+					<artifactId>maven-jar-plugin</artifactId>
+					<version>3.2.0</version>
+				</plugin>
 				<plugin>
 					<groupId>org.moditect</groupId>
 					<artifactId>moditect-maven-plugin</artifactId>

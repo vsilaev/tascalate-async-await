@@ -24,12 +24,14 @@
  */
 module net.tascalate.async.tools.core {
     requires org.slf4j;
-    requires transitive net.tascalate.javaflow.spi;
-    
+
     requires net.tascalate.asmx;
     requires net.tascalate.asmx.plus;
-    requires transitive net.tascalate.asmx.tree;
+    requires net.tascalate.asmx.tree;
     requires net.tascalate.asmx.util;
 
+    requires transitive net.tascalate.javaflow.spi;
+    
     exports net.tascalate.async.tools.core;
+
 }

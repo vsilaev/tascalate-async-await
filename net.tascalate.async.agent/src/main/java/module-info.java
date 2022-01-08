@@ -23,16 +23,17 @@
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 module net.tascalate.async.tools.javaagent {
-    requires org.slf4j;
-    
     requires transitive java.instrument;
-    
+
+    requires org.slf4j;
+
+    requires net.tascalate.instrument.agent;
     requires net.tascalate.instrument.emitter;
-    
+
+    requires net.tascalate.javaflow.providers.core;
+    requires net.tascalate.javaflow.agent.common;
+
     requires net.tascalate.async.tools.core;
-    requires net.tascalate.javaflow.tools.javaagent;
     
-    requires net.tascalate.asmx.commons;
-    
-    exports net.tascalate.async.tools.instrumentation;
+    exports net.tascalate.async.agent;
 }

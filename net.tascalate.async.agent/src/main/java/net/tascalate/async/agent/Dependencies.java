@@ -22,18 +22,21 @@
  * OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
-package net.tascalate.async.tools.instrumentation;
+package net.tascalate.async.agent;
 
 import java.util.Set;
 
-import org.apache.commons.javaflow.instrumentation.JavaFlowClassTransformer;
-import org.apache.commons.javaflow.instrumentation.common.ConfigurableClassFileTransformer;
+import org.apache.commons.javaflow.providers.core.ContinuableClassTransformationFactory;
+import org.apache.commons.javaflow.agent.common.ConfigurableClassFileTransformer;
 import org.apache.commons.javaflow.spi.InstrumentationUtils;
+
+import net.tascalate.async.tools.core.AsyncAwaitClassFileGenerator;
 
 class Dependencies {
     static final Set<String> PACKAGES = InstrumentationUtils.packagePrefixesOf(
         InstrumentationUtils.class,
-        JavaFlowClassTransformer.class,
-        ConfigurableClassFileTransformer.class
+        ContinuableClassTransformationFactory.class,
+        ConfigurableClassFileTransformer.class,
+        AsyncAwaitClassFileGenerator.class
     );
 }

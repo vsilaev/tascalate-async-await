@@ -137,7 +137,7 @@ public class AsyncAwaitClassFileGenerator {
         newClasses.clear();
     }
     
-    public ClassVisitor decorate(ClassVisitor classVisitor) {
+    protected ClassVisitor decorate(ClassVisitor classVisitor) {
         ClassVisitor result = classVisitor;
         if (verify) {
             result = new CheckClassAdapter(result, true);

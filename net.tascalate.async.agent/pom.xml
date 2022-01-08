@@ -9,31 +9,21 @@
 		<relativePath>../</relativePath>
 	</parent>
 
-	<artifactId>net.tascalate.async.tools.javaagent</artifactId>
+	<artifactId>net.tascalate.async.agent</artifactId>
 	<packaging>jar</packaging>
 
 	<name>Tascalate Async/Await - Bytecode Enhancer Java Agent</name>
 
 	<properties>
 		<project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
-		<java-agent.class>net.tascalate.async.tools.instrumentation.AsyncAwaitInstrumentationAgent</java-agent.class>
+		<java-agent.class>net.tascalate.async.agent.AsyncClassesInstrumentationAgent</java-agent.class>
 	</properties>
 
 	<dependencies>
 		<dependency>
-			<groupId>net.tascalate.javaflow</groupId>
-			<artifactId>net.tascalate.javaflow.tools.javaagent</artifactId>
-		</dependency>
-		<dependency>
-			<groupId>net.tascalate.async</groupId>
-			<artifactId>net.tascalate.async.tools.core</artifactId>
-			<version>${project.version}</version>
-		</dependency>
-		<dependency>
 			<groupId>net.tascalate.instrument</groupId>
 			<artifactId>net.tascalate.instrument.agent</artifactId>
 			<version>${tascalate.instrument.version}</version>
-			<scope>provided</scope>
 		</dependency>		
 		<dependency>
 			<groupId>net.tascalate.instrument</groupId>
@@ -42,14 +32,27 @@
 			<scope>provided</scope>
 		</dependency>
 		<dependency>
-			<groupId>net.tascalate</groupId>
-			<artifactId>net.tascalate.asmx.commons</artifactId>
-			<version>${tascalate.asmx.version}</version>
+			<groupId>net.tascalate.javaflow</groupId>
+			<artifactId>net.tascalate.javaflow.providers.core</artifactId>
+		</dependency>		
+		<dependency>
+			<groupId>net.tascalate.javaflow</groupId>
+			<artifactId>net.tascalate.javaflow.agent.common</artifactId>
+		</dependency>
+		<dependency>
+			<groupId>net.tascalate.async</groupId>
+			<artifactId>net.tascalate.async.tools.core</artifactId>
+			<version>${project.version}</version>
 		</dependency>
 		<dependency>
 			<groupId>org.slf4j</groupId>
 			<artifactId>slf4j-api</artifactId>
 		</dependency>
+		<dependency>
+			<groupId>org.slf4j</groupId>
+			<artifactId>slf4j-simple</artifactId>
+			<scope>runtime</scope>
+		</dependency>		
 		<dependency>
 			<groupId>junit</groupId>
 			<artifactId>junit</artifactId>
@@ -62,44 +65,6 @@
 				<groupId>org.moditect</groupId>
 				<artifactId>moditect-maven-plugin</artifactId>
 			</plugin>
-<!--
-			<plugin>
-				<groupId>org.apache.maven.plugins</groupId>
-				<artifactId>maven-assembly-plugin</artifactId>
-				<configuration>
-					<finalName>tascalate.instrument-async</finalName>
-					<archive>
-						<index>true</index>
-						<compress>true</compress>
-						<manifest>
-						</manifest>
-						<manifestEntries>
-							<Premain-Class>net.tascalate.async.tools.instrumentation.AsyncAwaitInstrumentationAgent</Premain-Class>
-							<Agent-Class>net.tascalate.async.tools.instrumentation.AsyncAwaitInstrumentationAgent</Agent-Class>
-							<Can-Redefine-Classes>true</Can-Redefine-Classes>
-							<Can-Retransform-Classes>true</Can-Retransform-Classes>
-							<Automatic-Module-Name>net.tascalate.async.tools.javaagent.shaded</Automatic-Module-Name>
-							<Multi-Release>true</Multi-Release>
-						</manifestEntries>
-					</archive>
-					<descriptorRefs>
-						<descriptorRef>jar-with-dependencies</descriptorRef>
-					</descriptorRefs>
-				</configuration>
-				<executions>
-					<execution>
-						<id>make-assembly</id>
-						<configuration>
-							<appendAssemblyId>false</appendAssemblyId>
-						</configuration>						
-						<phase>package</phase>
-						<goals>
-							<goal>single</goal>
-						</goals>
-					</execution>
-				</executions>
-			</plugin>
--->
 			<plugin>
 				<groupId>org.apache.maven.plugins</groupId>
 				<artifactId>maven-jar-plugin</artifactId>

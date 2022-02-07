@@ -63,8 +63,8 @@ class AsyncTaskMethodTransformer extends AbstractAsyncMethodTransformer {
     private final static Type COMPLETABLE_FUTURE_TYPE = Type.getObjectType("java/util/concurrent/CompletableFuture");
     
     AsyncTaskMethodTransformer(ClassNode               classNode,
-                                      MethodNode              originalAsyncMethodNode,
-                                      Map<String, MethodNode> accessMethods) {
+                               MethodNode              originalAsyncMethodNode,
+                               Map<String, MethodNode> accessMethods) {
         super(classNode, originalAsyncMethodNode, accessMethods);
     }
     

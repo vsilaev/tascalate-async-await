@@ -153,7 +153,7 @@ public class AsyncAwaitEnhancerMojo extends AbstractMojo {
                     for (File source : RecursiveFilesIterator.scanClassFiles(testInputDirectory)) {
                         if (source.lastModified() <= now) {
                             log.debug("Applying async/await support: " + source);
-                            final boolean rewritten = rewriteClassFile(source, null, source);
+                            final boolean rewritten = rewriteClassFile(source, generator, source);
                             if (rewritten) {
                                 log.info("Rewritten async-enabled class file: " + source);
                             }
@@ -191,7 +191,9 @@ public class AsyncAwaitEnhancerMojo extends AbstractMojo {
                 return false;
             }
         } finally {
-            generator.reset();
+            if (null != generator) {
+                generator.reset();
+            }
         }
     }
 

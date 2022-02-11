@@ -44,8 +44,10 @@ import java.util.Map;
 
 import org.apache.commons.javaflow.spi.ClasspathResourceLoader;
 import org.apache.maven.plugin.AbstractMojo;
+import org.apache.maven.plugin.MojoExecution;
 import org.apache.maven.plugin.MojoExecutionException;
 import org.apache.maven.plugin.logging.Log;
+import org.apache.maven.plugins.annotations.Component;
 import org.apache.maven.plugins.annotations.LifecyclePhase;
 import org.apache.maven.plugins.annotations.Mojo;
 import org.apache.maven.plugins.annotations.Parameter;
@@ -71,7 +73,7 @@ import net.tascalate.async.tools.core.AsyncAwaitClassFileGenerator;
  * </pre>
  * 
  */
-@Mojo(name = "tascalate-async-enhance", defaultPhase = LifecyclePhase.PROCESS_CLASSES, requiresDependencyResolution = ResolutionScope.COMPILE_PLUS_RUNTIME)
+@Mojo(name = "tascalate-async-enhance", defaultPhase = LifecyclePhase.PROCESS_CLASSES, requiresDependencyResolution = ResolutionScope.TEST /* ALL DEPENDENCIES */)
 public class AsyncAwaitEnhancerMojo extends AbstractMojo {
 
     @Parameter(defaultValue = "${project}", property = "tascalate-async.enhancer.project", required = true, readonly = true)
@@ -102,6 +104,9 @@ public class AsyncAwaitEnhancerMojo extends AbstractMojo {
      */
     @Parameter(property = "tascalate-async.enhancer.testBuildDir", required = false)
     private String testBuildDir;
+    
+    @Component
+    private MojoExecution execution;
 
     public void execute() throws MojoExecutionException {
         Log log = getLog();
@@ -110,64 +115,58 @@ public class AsyncAwaitEnhancerMojo extends AbstractMojo {
             return;
         }
 
-        ClassLoader originalContextClassLoader = currentThread().getContextClassLoader();
         try {
-            List<URL> classPath = new ArrayList<URL>();
-
-            for (String runtimeResource : project.getRuntimeClasspathElements()) {
-                classPath.add(resolveUrl(new File(runtimeResource)));
-            }
-
-            File inputDirectory = buildDir == null ? 
+            File mainInputDirectory = buildDir == null ? 
                 new File(project.getBuild().getOutputDirectory()) : computeDir(buildDir);
 
-            classPath.add(resolveUrl(inputDirectory));
-
-            ClassLoader effectiveClassLoader = loadAdditionalClassPath(classPath);
-            AsyncAwaitClassFileGenerator generator = new AsyncAwaitClassFileGenerator(
-                new ClasspathResourceLoader(effectiveClassLoader)
-            );
-
-            // final ResourceTransformer dirTransformer =
-            // RewritingUtils.createTransformer(
-            // classPath.toArray(new URL[]{}), TransformerType.ASM5
-            // );
-
-            long now = System.currentTimeMillis();
-
-            for (File source : RecursiveFilesIterator.scanClassFiles(inputDirectory)) {
-                if (source.lastModified() <= now) {
-                    log.debug("Applying async/await support: " + source);
-                    boolean rewritten = rewriteClassFile(source, generator, source);
-                    if (rewritten) {
-                        log.info("Rewritten async-enabled class file: " + source);
-                    }
-                }
+            if (mainInputDirectory.exists()) {
+                // Use runtime instead of compile - runtime contains non less than compile
+                transformFiles(mainInputDirectory, project.getRuntimeClasspathElements()); 
+            } else {
+                log.warn("No main build output directory available, skip enhancing main classes");
             }
 
             if (includeTestClasses) {
                 File testInputDirectory = testBuildDir == null ? 
                     new File(project.getBuild().getTestOutputDirectory()) : computeDir(testBuildDir);
-
+                
                 if (testInputDirectory.exists()) {
-                    for (File source : RecursiveFilesIterator.scanClassFiles(testInputDirectory)) {
-                        if (source.lastModified() <= now) {
-                            log.debug("Applying async/await support: " + source);
-                            final boolean rewritten = rewriteClassFile(source, generator, source);
-                            if (rewritten) {
-                                log.info("Rewritten async-enabled class file: " + source);
-                            }
-
-                        }
-                    }
-                }
+                    transformFiles(testInputDirectory, project.getTestClasspathElements()); 
+                } else if ("process-test-classes".equals(execution.getLifecyclePhase())) {
+                    log.warn("No test build output directory available, skip enhancing test classes");
+                }                
             }
         } catch (Exception e) {
             getLog().error(e.getMessage(), e);
             throw new MojoExecutionException(e.getMessage(), e);
-        } finally {
-            currentThread().setContextClassLoader(originalContextClassLoader);
         }
+    }
+    
+    private void transformFiles(File inputDirectory, List<String> classPathEntries) 
+                                throws IOException, IllegalClassFormatException {
+        Log log = getLog();
+        List<URL> classPath = new ArrayList<URL>();
+        for (String classPathEntry : classPathEntries) {
+            classPath.add(resolveUrl(new File(classPathEntry)));
+        }
+        classPath.add(resolveUrl(inputDirectory));      
+        ClassLoader effectiveClassLoader = loadAdditionalClassPath(classPath);
+        AsyncAwaitClassFileGenerator generator = new AsyncAwaitClassFileGenerator(
+            new ClasspathResourceLoader(effectiveClassLoader)
+        );
+
+        long now = System.currentTimeMillis();
+
+        for (File source : RecursiveFilesIterator.scanClassFiles(inputDirectory)) {
+            if (source.lastModified() <= now) {
+                log.debug("Applying async/await support: " + source);
+                boolean rewritten = rewriteClassFile(source, generator, source);
+                if (rewritten) {
+                    log.info("Rewritten async-enabled class file: " + source);
+                }
+            }
+        }
+        
     }
 
     protected boolean rewriteClassFile(File source, AsyncAwaitClassFileGenerator generator, File target)
@@ -199,6 +198,9 @@ public class AsyncAwaitEnhancerMojo extends AbstractMojo {
 
     private ClassLoader loadAdditionalClassPath(List<URL> classPath) {
         ClassLoader contextClassLoader = currentThread().getContextClassLoader();
+        if (null == contextClassLoader) {
+            contextClassLoader = ClassLoader.getSystemClassLoader();
+        }
 
         if (classPath.isEmpty()) {
             return contextClassLoader;
@@ -208,7 +210,6 @@ public class AsyncAwaitEnhancerMojo extends AbstractMojo {
             classPath.toArray(new URL[classPath.size()]), contextClassLoader
         );
 
-        currentThread().setContextClassLoader(pluginClassLoader);
         return pluginClassLoader;
     }
 

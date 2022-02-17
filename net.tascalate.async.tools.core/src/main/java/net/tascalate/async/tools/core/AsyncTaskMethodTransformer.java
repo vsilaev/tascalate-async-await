@@ -64,8 +64,9 @@ class AsyncTaskMethodTransformer extends AbstractAsyncMethodTransformer {
     
     AsyncTaskMethodTransformer(ClassNode               classNode,
                                MethodNode              originalAsyncMethodNode,
-                               Map<String, MethodNode> accessMethods) {
-        super(classNode, originalAsyncMethodNode, accessMethods);
+                               Map<String, MethodNode> accessMethods,
+                               Helper                  helper) {
+        super(classNode, originalAsyncMethodNode, accessMethods, helper);
     }
     
     @Override

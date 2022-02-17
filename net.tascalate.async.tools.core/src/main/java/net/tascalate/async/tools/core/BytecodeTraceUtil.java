@@ -31,6 +31,7 @@ import net.tascalate.asmx.ClassReader;
 import net.tascalate.asmx.ClassVisitor;
 import net.tascalate.asmx.Opcodes;
 import net.tascalate.asmx.tree.ClassNode;
+import net.tascalate.asmx.tree.FieldInsnNode;
 import net.tascalate.asmx.tree.MethodInsnNode;
 import net.tascalate.asmx.tree.MethodNode;
 import net.tascalate.asmx.tree.VarInsnNode;
@@ -73,14 +74,14 @@ class BytecodeTraceUtil {
     }
 
     public static String toString(VarInsnNode vin) {
-        // return AbstractVisitor.OPCODES[vin.getOpcode()] + " " + vin.var;
         return vin.getOpcode() + " " + vin.var;
     }
 
     public static String toString(MethodInsnNode min) {
-        // return AbstractVisitor.OPCODES[min.getOpcode()] + " " + min.owner + "
-        // " + min.name + " " + min.desc;
         return min.getOpcode() + " " + min.owner + " " + min.name + " " + min.desc;
     }
 
+    public static String toString(FieldInsnNode fin) {
+        return fin.getOpcode() + " " + fin.owner + " " + fin.name + " " + fin.desc;
+    }
 }

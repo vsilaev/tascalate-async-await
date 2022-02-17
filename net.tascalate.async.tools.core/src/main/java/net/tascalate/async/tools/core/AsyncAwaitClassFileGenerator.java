@@ -27,6 +27,8 @@ package net.tascalate.async.tools.core;
 import static net.tascalate.async.tools.core.BytecodeIntrospection.isAsyncMethod;
 import static net.tascalate.async.tools.core.BytecodeIntrospection.methodsOf;
 
+import java.io.IOException;
+import java.io.InputStream;
 import java.io.PrintWriter;
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -75,7 +77,8 @@ public class AsyncAwaitClassFileGenerator {
 
     // Original method's "method name + method desc" -> Access method's
     // MethodNode
-    private final Map<String, MethodNode> accessMethods = new HashMap<String, MethodNode>();
+    private final Map<String, MethodNode> accessMethods = new HashMap<>();
+    private final Map<String, ClassNode> superclasses = new HashMap<>();
     private final ClassHierarchy classHierarchy;
     private final boolean verify;
     private final boolean trace;
@@ -151,14 +154,35 @@ public class AsyncAwaitClassFileGenerator {
     protected boolean transform(ClassNode classNode) {
         boolean transformed = false;
         
+        AbstractAsyncMethodTransformer.Helper helper = new AbstractAsyncMethodTransformer.Helper() {
+            @Override
+            public ClassNode resolveClass(String cn) {
+                return superclasses.computeIfAbsent(cn, className -> {
+                    try (InputStream in = classHierarchy.loader().getResourceAsStream(className + ".class")) {
+                        ClassReader classReader = new ClassReader(in);
+                        ClassNode classNode = new ClassNode();
+                        classReader.accept(classNode, ClassReader.SKIP_FRAMES);
+                        return classNode;
+                    } catch (IOException ex) {
+                        throw new RuntimeException(ex);
+                    }
+                });
+            }            
+            
+            @Override
+            public boolean isSubClass(String maybeSubclass, String gmaybeParentClass) {
+                return classHierarchy.isSubClass(maybeSubclass, gmaybeParentClass);
+            }
+        };
+        
         for (MethodNode methodNode : new ArrayList<MethodNode>(methodsOf(classNode))) {
             if (isAsyncMethod(methodNode)) {
                 Type returnType = Type.getReturnType(methodNode.desc);
                 AbstractAsyncMethodTransformer transformer = null;
                 if (ASYNC_TASK_RETURN_TYPES.contains(returnType)) {
-                    transformer = new AsyncTaskMethodTransformer(classNode, methodNode, accessMethods);
+                    transformer = new AsyncTaskMethodTransformer(classNode, methodNode, accessMethods, helper);
                 } else if (ASYNC_GENERATOR_TYPE.equals(returnType)) {
-                    transformer = new AsyncGeneratorMethodTransformer(classNode, methodNode, accessMethods);
+                    transformer = new AsyncGeneratorMethodTransformer(classNode, methodNode, accessMethods, helper);
                 } else {
                     // throw ex?
                 }
@@ -173,4 +197,5 @@ public class AsyncAwaitClassFileGenerator {
         }
         return transformed;
     }
+
 }

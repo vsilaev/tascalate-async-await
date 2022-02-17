@@ -20,7 +20,7 @@ import net.tascalate.async.extras.TaskScheduler;
 import net.tascalate.concurrent.Promise;
 import net.tascalate.concurrent.Promises;
 
-public class SimpleArgs {
+public class SimpleArgs extends SamePackageSubclass {
     final private static AtomicLong idx = new AtomicLong(0);
     final private static ExecutorService executor = Executors.newFixedThreadPool(4, new ThreadFactory() {
         @Override
@@ -48,6 +48,12 @@ public class SimpleArgs {
         x.hashCode();
         System.out.println(Thread.currentThread().getName());
         System.out.println(abs + " -- " + x + ", " + scheduler);
+        System.out.println("Inherited method (other package) " + inheritedMethod(10));
+        System.out.println("Inherited method (same package) " + samePackageMethod(10));
+        System.out.println("Inherited method (public method) " + super.publicMethod());
+        System.out.println("Inherited field (other package) " + inheritedField);
+        System.out.println("Inherited field (same package) " + samePackageField);
+        System.out.println("Inherited field (public field) " + publicField);
         return async(new Date());
     }
 

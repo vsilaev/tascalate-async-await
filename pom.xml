@@ -4,7 +4,7 @@
 
 	<groupId>net.tascalate.async</groupId>
 	<artifactId>net.tascalate.async.parent</artifactId>
-	<version>1.2.1</version>
+	<version>1.2.2</version>
 	<packaging>pom</packaging>
 
 	<name>Tascalate Async/Await</name>

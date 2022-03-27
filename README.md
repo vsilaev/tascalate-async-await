@@ -24,32 +24,53 @@ Second, add the following build plugins in the specified order:
 ```xml
 <build>
   <plugins>
+	  
     <plugin>
       <groupId>net.tascalate.async</groupId>
       <artifactId>net.tascalate.async.tools.maven</artifactId>
       <version>1.2.2</version>
       <executions>
         <execution>
-	  <phase>process-classes</phase>
-	  <goals>
-	    <goal>tascalate-async-enhance</goal>
-	  </goals>
-	</execution>
+          <id>tascalate-async-enhance-main-classes</id> 
+          <phase>process-classes</phase>
+          <goals>
+            <goal>tascalate-async-enhance</goal>
+          </goals>
+        </execution>
+	<!-- Only if you need to enhance test classes -->      
+        <execution>
+          <id>tascalate-async-enhance-test-classes</id> 
+          <phase>process-test-classes</phase>
+          <goals>
+            <goal>tascalate-async-enhance</goal>
+          </goals>
+        </execution>
       </executions>
     </plugin>
+	  
     <plugin>
       <groupId>net.tascalate.javaflow</groupId>
       <artifactId>net.tascalate.javaflow.tools.maven</artifactId>
       <version>2.7.1</version>
       <executions>
         <execution>
-	  <phase>process-classes</phase>
-	  <goals>
-	    <goal>javaflow-enhance</goal>
-	  </goals>
-	</execution>
+          <id>javaflow-enhance-main-classes</id> 
+          <phase>process-classes</phase>
+          <goals>
+            <goal>javaflow-enhance</goal>
+          </goals>
+        </execution>
+        <!-- Only if you need to enhance test classes -->		
+        <execution>
+          <id>javaflow-enhance-test-classes</id> 
+          <phase>process-test-classes</phase>
+          <goals>
+            <goal>javaflow-enhance</goal>
+          </goals>
+        </execution>
       </executions>
     </plugin>
+	  
   </plugins>
 </build>
 ```

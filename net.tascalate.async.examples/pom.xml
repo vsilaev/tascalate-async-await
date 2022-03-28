@@ -30,6 +30,20 @@
 			<artifactId>net.tascalate.async.extras</artifactId>
 			<version>${project.version}</version>
 		</dependency>
+		
+		<dependency>
+			<groupId>net.tascalate.async</groupId>
+			<artifactId>net.tascalate.async.resolver.propagated</artifactId>
+			<scope>runtime</scope>
+			<version>${project.version}</version>
+		</dependency>
+		
+		<dependency>
+			<groupId>net.tascalate.async</groupId>
+			<artifactId>net.tascalate.async.resolver.provided</artifactId>
+			<scope>runtime</scope>
+			<version>${project.version}</version>
+		</dependency>		
 
 		<!-- ONLY TO SUPPORT SHADOWED JavaAgent -->		
 		<dependency>
@@ -69,7 +83,15 @@
 				<version>${project.version}</version>
 				<executions>
 					<execution>
+						<id>tascalate-async-enhance-main-classes</id>
 						<phase>process-classes</phase>
+						<goals>
+							<goal>tascalate-async-enhance</goal>
+						</goals>
+					</execution>
+					<execution>
+						<id>tascalate-async-enhance-test-classes</id>
+						<phase>process-test-classes</phase>
 						<goals>
 							<goal>tascalate-async-enhance</goal>
 						</goals>
@@ -79,6 +101,23 @@
 			<plugin>
 				<groupId>net.tascalate.javaflow</groupId>
 				<artifactId>net.tascalate.javaflow.tools.maven</artifactId>
+				<executions>
+					<execution>
+						<id>javaflow-enhance-main-classes</id> 
+						<phase>process-classes</phase>
+						<goals>
+							<goal>javaflow-enhance</goal>
+						</goals>
+					</execution>
+    				<!-- Only if you need to enhance test classes -->		
+					<execution>
+						<id>javaflow-enhance-test-classes</id> 
+						<phase>process-test-classes</phase>
+						<goals>
+							<goal>javaflow-enhance</goal>
+						</goals>
+					</execution>
+				</executions>				
 			</plugin>
 		</plugins>
 	</build>

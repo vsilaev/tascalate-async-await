@@ -48,12 +48,18 @@ public class InternalCallContext {
     
     private static AbstractAsyncMethod asyncMethod(boolean mustBeAvailable) {
         StackRecorder stackRecorder = StackRecorder.get();
-        if (null == stackRecorder && mustBeAvailable) {
-            throw new InvalidCallContextException(
-                "Continuation was continued incorrectly - are your classes instrumented for javaflow?"
-            );
+        Runnable result;
+        if (null == stackRecorder) {
+            if (mustBeAvailable) {
+                throw new InvalidCallContextException(
+                    "Continuation was continued incorrectly - are your classes instrumented for javaflow?"
+                );
+            } else {
+                result = null;
+            }
+        } else {
+            result = stackRecorder.getRunnable();
         }
-        Runnable result = stackRecorder.getRunnable();
         if (result instanceof AbstractAsyncMethod) {
             return (AbstractAsyncMethod)result;
         } else if (mustBeAvailable) {

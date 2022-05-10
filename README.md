@@ -11,7 +11,7 @@ To alleviate aforementioned readability and maintainability issues some language
 
 Tascalate Async/Await library enables `async/await` model for projects built with the Java 8 and beyond. The implementation is based on [continuations for Java](https://github.com/vsilaev/tascalate-javaflow) and provides runtime API + bytecode enchancement tools to let developers use syntax constructs similar to C# 5 or ECMAScript 2017/2018 with pure Java.
 
-# How to use?
+# How to use ?
 First, add Maven dependency to the library runtime:
 ```xml
 <dependency>

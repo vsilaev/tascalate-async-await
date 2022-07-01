@@ -5,7 +5,7 @@
 	<parent>
 		<groupId>net.tascalate.async</groupId>
 		<artifactId>net.tascalate.async.parent</artifactId>
-		<version>1.2.2</version>
+		<version>1.2.3</version>
 		<relativePath>../</relativePath>
 	</parent>
 

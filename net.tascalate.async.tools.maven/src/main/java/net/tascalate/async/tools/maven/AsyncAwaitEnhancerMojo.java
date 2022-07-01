@@ -73,7 +73,10 @@ import net.tascalate.async.tools.core.AsyncAwaitClassFileGenerator;
  * </pre>
  * 
  */
-@Mojo(name = "tascalate-async-enhance", defaultPhase = LifecyclePhase.PROCESS_CLASSES, requiresDependencyResolution = ResolutionScope.TEST /* ALL DEPENDENCIES */)
+@Mojo(name = "tascalate-async-enhance", 
+      threadSafe = true,
+      defaultPhase = LifecyclePhase.PROCESS_CLASSES, 
+      requiresDependencyResolution = ResolutionScope.TEST /* ALL DEPENDENCIES */)
 public class AsyncAwaitEnhancerMojo extends AbstractMojo {
 
     @Parameter(defaultValue = "${project}", property = "tascalate-async.enhancer.project", required = true, readonly = true)

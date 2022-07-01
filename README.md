@@ -223,9 +223,9 @@ Performance-wise suspendable methods behaves the same as asynchronous task metho
 Implemenation notes: technically suspendable methods are implemented as continuable methods that follow rules defined by [Tascalate JavaFlow](https://github.com/vsilaev/tascalate-javaflow) library, so you may use any continuable annotation that is supported by Tascalate JavaFlow, not only `@suspendable`.
 
 # Generators
+TDB
 
 # Scheduler & SchedulerResolver - where is my code executed?
-# SchedulerResolver - what Scheduler to use?
 ## Introducing schedulers
 When executing asynchronous code with `CompletionStage` / `CompletableFuture` it's critical to know where the code is resumed once the corresponding completion stage is settled. With regular `CompletionStage` API the answer is pretty straightforward: the code will be resumed with the `Executor` supplied as an additional parameter to the API method like below:
 ```java

@@ -494,3 +494,6 @@ Last but not least is a visibility of the `Scheduler` provider (field / getter-l
 
 ## Scoped SchedulerResolver -- overriding schedulers, providing own schedulers in DI environment
 TBD
+
+# Interruptions/cancelation of @async methods & exception handling
+TBD

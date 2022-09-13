@@ -1,5 +1,5 @@
 /**
- * ﻿Copyright 2015-2021 Valery Silaev (http://vsilaev.com)
+ * ﻿Copyright 2015-2022 Valery Silaev (http://vsilaev.com)
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
@@ -96,10 +96,11 @@ public class StreamTest {
     public CompletionStage<String> asyncOperation(int outerDiv) {
         produceMergedStrings()
             .stream()  
+            // REQUIRES JVM ARGS: -javaagent:../net.tascalate.async.agent/target/tascalate.instrument-async.jar
             //.map$(f -> await(f))      // -- worked, static
             //.map$(this::waitFuture)   // -- worked, instance ref
-            .map$(f -> waitFuture(f)) // -- worked, instance
-            //.map$(awaitValue())
+            //.map$(f -> waitFuture(f)) // -- worked, instance
+            .map$(awaitValue())
             .filter(v -> Integer.parseInt(v.substring(0, 3)) % div == 0) 
             .filter(this::isEven)
             .map(v -> "000" + v) 

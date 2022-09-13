@@ -1,5 +1,5 @@
 /**
- * ﻿Copyright 2015-2021 Valery Silaev (http://vsilaev.com)
+ * ﻿Copyright 2015-2022 Valery Silaev (http://vsilaev.com)
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
@@ -24,25 +24,13 @@
  */
 package net.tascalate.async.tools.maven;
 
-import static java.lang.Thread.currentThread;
-
-import java.io.ByteArrayOutputStream;
 import java.io.File;
-import java.io.FileInputStream;
-import java.io.FileOutputStream;
 import java.io.IOException;
-import java.io.InputStream;
-import java.io.OutputStream;
-import java.lang.instrument.IllegalClassFormatException;
 import java.net.MalformedURLException;
 import java.net.URL;
-import java.net.URLClassLoader;
 import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.List;
-import java.util.Map;
 
-import org.apache.commons.javaflow.spi.ClasspathResourceLoader;
 import org.apache.maven.plugin.AbstractMojo;
 import org.apache.maven.plugin.MojoExecution;
 import org.apache.maven.plugin.MojoExecutionException;
@@ -54,7 +42,7 @@ import org.apache.maven.plugins.annotations.Parameter;
 import org.apache.maven.plugins.annotations.ResolutionScope;
 import org.apache.maven.project.MavenProject;
 
-import net.tascalate.async.tools.core.AsyncAwaitClassFileGenerator;
+import net.tascalate.async.tools.core.ToolsHelper;
 
 /**
  * Maven plugin that will apply Tascalate Async class transformations on
@@ -124,7 +112,7 @@ public class AsyncAwaitEnhancerMojo extends AbstractMojo {
 
             if (mainInputDirectory.exists()) {
                 // Use runtime instead of compile - runtime contains non less than compile
-                transformFiles(mainInputDirectory, project.getRuntimeClasspathElements()); 
+                instrument(mainInputDirectory, project.getRuntimeClasspathElements()); 
             } else {
                 log.warn("No main build output directory available, skip enhancing main classes");
             }
@@ -134,7 +122,7 @@ public class AsyncAwaitEnhancerMojo extends AbstractMojo {
                     new File(project.getBuild().getTestOutputDirectory()) : computeDir(testBuildDir);
                 
                 if (testInputDirectory.exists()) {
-                    transformFiles(testInputDirectory, project.getTestClasspathElements()); 
+                    instrument(testInputDirectory, project.getTestClasspathElements()); 
                 } else if ("process-test-classes".equals(execution.getLifecyclePhase())) {
                     log.warn("No test build output directory available, skip enhancing test classes");
                 }                
@@ -145,75 +133,17 @@ public class AsyncAwaitEnhancerMojo extends AbstractMojo {
         }
     }
     
-    private void transformFiles(File inputDirectory, List<String> classPathEntries) 
-                                throws IOException, IllegalClassFormatException {
+    private void instrument(File inputDirectory, List<String> classPathEntries) throws IOException {
         Log log = getLog();
         List<URL> classPath = new ArrayList<URL>();
         for (String classPathEntry : classPathEntries) {
             classPath.add(resolveUrl(new File(classPathEntry)));
         }
-        classPath.add(resolveUrl(inputDirectory));      
-        ClassLoader effectiveClassLoader = loadAdditionalClassPath(classPath);
-        AsyncAwaitClassFileGenerator generator = new AsyncAwaitClassFileGenerator(
-            new ClasspathResourceLoader(effectiveClassLoader)
-        );
+        classPath.add(resolveUrl(inputDirectory));
 
-        long now = System.currentTimeMillis();
-
-        for (File source : RecursiveFilesIterator.scanClassFiles(inputDirectory)) {
-            if (source.lastModified() <= now) {
-                log.debug("Applying async/await support: " + source);
-                boolean rewritten = rewriteClassFile(source, generator, source);
-                if (rewritten) {
-                    log.info("Rewritten async-enabled class file: " + source);
-                }
-            }
-        }
-        
-    }
-
-    protected boolean rewriteClassFile(File source, AsyncAwaitClassFileGenerator generator, File target)
-                                       throws IOException, IllegalClassFormatException {
-        
-        byte[] original = toByteArray(source);
-
-        try {
-            byte[] transformed = generator.transform(original);
-            if (transformed != original
-                    /* Exact equality means not transformed */ || !source.equals(target)) {
-                writeFile(target, transformed != null ? transformed : original);
-                if (transformed != original) {
-                    Map<String, byte[]> extraClasses = generator.getGeneratedClasses();
-                    for (Map.Entry<String, byte[]> e : renameInMemoryResources(extraClasses).entrySet()) {
-                        writeFile(new File(target.getParentFile(), e.getKey()), e.getValue());
-                    }
-                }
-                return true;
-            } else {
-                return false;
-            }
-        } finally {
-            if (null != generator) {
-                generator.reset();
-            }
-        }
-    }
-
-    private ClassLoader loadAdditionalClassPath(List<URL> classPath) {
-        ClassLoader contextClassLoader = currentThread().getContextClassLoader();
-        if (null == contextClassLoader) {
-            contextClassLoader = ClassLoader.getSystemClassLoader();
-        }
-
-        if (classPath.isEmpty()) {
-            return contextClassLoader;
-        }
-
-        URLClassLoader pluginClassLoader = URLClassLoader.newInstance(
-            classPath.toArray(new URL[classPath.size()]), contextClassLoader
-        );
-
-        return pluginClassLoader;
+        ToolsHelper.transformFiles(inputDirectory, 
+                                   ToolsHelper.createGenerator(classPath), 
+                                   log::debug, log::info);
     }
 
     private File computeDir(String dir) {
@@ -231,48 +161,6 @@ public class AsyncAwaitEnhancerMojo extends AbstractMojo {
         } catch (MalformedURLException e) {
             throw new RuntimeException(e.getMessage(), e);
         }
-    }
-
-    private static Map<String, byte[]> renameInMemoryResources(Map<String, byte[]> generatedClasses) {
-        Map<String, byte[]> resources = new HashMap<String, byte[]>();
-        for (Map.Entry<String, byte[]> e : generatedClasses.entrySet()) {
-            String name = e.getKey();
-            int idx = name.lastIndexOf('/');
-            if (idx >= 0 && idx < name.length() - 1) {
-                name = name.substring(idx + 1);
-            }
-            resources.put(name + ".class", e.getValue());
-        }
-        return resources;
-    }
-
-    private static void writeFile(File target, byte[] content) throws IOException {
-        try (FileOutputStream os = new FileOutputStream(target)) {
-            os.write(content);
-        }
-    }
-
-    private static byte[] toByteArray(File f) throws IOException {
-        try (InputStream in = new FileInputStream(f)) {
-            return toByteArray(in);
-        }
-    }
-
-    private static byte[] toByteArray(InputStream in) throws IOException {
-        ByteArrayOutputStream baos = new ByteArrayOutputStream();
-        copy(in, baos);
-        return baos.toByteArray();
-    }
-
-    private static int copy(InputStream in, OutputStream out) throws IOException {
-        byte[] buf = new byte[8192];
-        int n;
-        int total = 0;
-        while ((n = in.read(buf)) >= 0) {
-            out.write(buf, 0, n);
-            total += n;
-        }
-        return total;
     }
 
     public boolean isSkip() {

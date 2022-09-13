@@ -5,7 +5,7 @@
 	<parent>
 		<groupId>net.tascalate.async</groupId>
 		<artifactId>net.tascalate.async.parent</artifactId>
-		<version>1.2.3</version>
+		<version>1.2.4</version>
 		<relativePath>../</relativePath>
 	</parent>
 
@@ -40,8 +40,8 @@
 			<artifactId>net.tascalate.javaflow.agent.common</artifactId>
 		</dependency>
 		<dependency>
-			<groupId>net.tascalate.async</groupId>
-			<artifactId>net.tascalate.async.tools.core</artifactId>
+			<groupId>${project.groupId}</groupId>
+			<artifactId>${project.groupId}.tools.core</artifactId>
 			<version>${project.version}</version>
 		</dependency>
 		<dependency>
@@ -89,6 +89,8 @@
 							<goal>shade</goal>
 						</goals>
 						<configuration>
+							<shadedArtifactAttached>true</shadedArtifactAttached>
+							<shadedClassifierName>shaded</shadedClassifierName>
 							<createDependencyReducedPom>true</createDependencyReducedPom>
 							<finalName>tascalate.instrument-async</finalName>
 							<minimizeJar>true</minimizeJar>
@@ -111,7 +113,7 @@
 							<transformers>
 								<transformer implementation="org.apache.maven.plugins.shade.resource.ManifestResourceTransformer">
 									<manifestEntries>
-										<Automatic-Module-Name>net.tascalate.async.tools.javaagent.shaded</Automatic-Module-Name>
+										<Automatic-Module-Name>${project.artifactId}.shaded</Automatic-Module-Name>
 										<Multi-Release>false</Multi-Release>
 									</manifestEntries>
 								</transformer>

@@ -1,0 +1,145 @@
+<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+	xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+	<modelVersion>4.0.0</modelVersion>
+
+	<parent>
+		<groupId>net.tascalate.async</groupId>
+		<artifactId>net.tascalate.async.parent</artifactId>
+		<version>1.2.4</version>
+		<relativePath>../</relativePath>
+	</parent>
+
+	<artifactId>net.tascalate.async.tools.gradle</artifactId>
+	<packaging>jar</packaging>
+
+	<name>Tascalate Async/Await - Bytecode Enhancer Gradle Plugin</name>
+
+	<properties>
+		<gradle.version>5.6</gradle.version>
+		<license.header>../LICENSE</license.header>
+	</properties>
+
+	<repositories>
+		<repository>
+			<id>gradle-public</id>
+			<name>Gradle Public</name>
+			<url>https://repo.gradle.org/gradle/libs-releases-local</url>
+			<releases>
+				<enabled>true</enabled>
+				<updatePolicy>always</updatePolicy>
+			</releases>
+			<snapshots>
+				<enabled>false</enabled>
+				<updatePolicy>always</updatePolicy>
+			</snapshots>
+		</repository>
+	</repositories>
+
+	<dependencies>
+		<dependency>
+			<groupId>${project.groupId}</groupId>
+			<artifactId>${project.groupId}.tools.core</artifactId>
+			<version>${project.version}</version>
+		</dependency>
+
+		<dependency>
+			<groupId>org.codehaus.groovy</groupId>
+			<artifactId>groovy</artifactId>
+			<version>2.4.21</version>
+			<scope>provided</scope>
+		</dependency>
+		
+		<dependency>
+			<groupId>org.gradle</groupId>
+			<artifactId>gradle-core-api</artifactId>
+			<version>${gradle.version}</version>
+			<scope>provided</scope>
+		</dependency>		
+		<dependency>
+    		<groupId>org.gradle</groupId>
+    		<artifactId>gradle-base-services</artifactId>
+			<version>${gradle.version}</version>    
+			<scope>provided</scope>
+		</dependency>		
+		<dependency>
+			<groupId>org.gradle</groupId>
+			<artifactId>gradle-plugins</artifactId>
+			<version>${gradle.version}</version>  
+			<scope>provided</scope>
+		</dependency>
+		<dependency>
+		<groupId>org.gradle</groupId>
+			<artifactId>gradle-logging</artifactId>
+			<version>${gradle.version}</version>  
+			<scope>provided</scope>
+		</dependency>
+
+		<dependency>
+			<groupId>junit</groupId>
+			<artifactId>junit</artifactId>
+			<scope>test</scope>
+		</dependency>
+	</dependencies>
+	<build>
+		<plugins>
+			<plugin>
+				<groupId>org.apache.maven.plugins</groupId>
+				<artifactId>maven-shade-plugin</artifactId>
+				<executions>
+					<execution>
+						<phase>package</phase>
+						<goals>
+							<goal>shade</goal>
+						</goals>
+						<configuration>
+							<shadedArtifactAttached>true</shadedArtifactAttached>
+							<shadedClassifierName>shaded</shadedClassifierName>
+							<createDependencyReducedPom>true</createDependencyReducedPom>
+							<finalName>javaflow.gradle-plugin</finalName>
+							<minimizeJar>false</minimizeJar>
+							<filters>
+								<filter>
+									<artifact>*:*</artifact>
+									<excludes>
+										<exclude>META-INF/maven/**/*.*</exclude>
+										<exclude>**/module-info.class</exclude>
+									</excludes>
+								</filter>
+								<filter>
+									<artifact>org.slf4j:slf4j-simple</artifact>
+									<includes>
+										<include>**</include>
+									</includes>
+								</filter>  
+							</filters>
+							<transformer implementation="org.apache.maven.plugins.shade.resource.IncludeResourceTransformer">
+								<resource>simplelogger.properties</resource>
+								<file>src/shade/resources/simplelogger.properties</file>
+							</transformer>
+							<transformers>
+								<transformer implementation="org.apache.maven.plugins.shade.resource.ManifestResourceTransformer">
+									<manifestEntries>
+										<Multi-Release>false</Multi-Release>
+										<Automatic-Module-Name>${project.artifactId}.shaded</Automatic-Module-Name>
+									</manifestEntries>
+								</transformer>
+							</transformers>
+
+						</configuration>
+					</execution>
+				</executions>
+			</plugin>
+			<plugin>
+				<groupId>org.apache.maven.plugins</groupId>
+				<artifactId>maven-jar-plugin</artifactId>
+				<configuration>
+					<archive>
+						<manifestEntries>
+							<Automatic-Module-Name>${project.artifactId}</Automatic-Module-Name>
+						</manifestEntries>
+					</archive>
+				</configuration>
+			</plugin>
+		</plugins>
+	</build>
+</project>

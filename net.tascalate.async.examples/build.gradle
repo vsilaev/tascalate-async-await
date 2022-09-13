@@ -1,0 +1,74 @@
+buildscript {
+    repositories {
+        mavenCentral()
+    }
+
+    dependencies {
+      classpath 'net.tascalate.async:net.tascalate.async.tools.gradle:1.2.4'
+      classpath 'net.tascalate.javaflow:net.tascalate.javaflow.tools.gradle:2.7.3'
+    }
+}
+
+apply plugin: "java"
+apply plugin: "async-await"
+apply plugin: "continuations"
+apply plugin: "application"
+
+repositories {
+    mavenCentral()
+}
+
+dependencies {
+    implementation 'net.tascalate.async:net.tascalate.async.runtime:1.2.4'
+    implementation 'net.tascalate.async:net.tascalate.async.extras:1.2.4'
+
+    /* Necessary only for different providers */
+    runtimeOnly 'net.tascalate.async:net.tascalate.async.resolver.propagated:1.2.4'
+    runtimeOnly 'net.tascalate.async:net.tascalate.async.resolver.provided:1.2.4'
+
+    /* Promise<T> implementation */
+    /* Necessary because net.tascalate.async.extras uses it as an */
+    /* 'optional' dependency to avoid concrete version lock-in.   */
+    implementation 'net.tascalate:net.tascalate.concurrent:0.9.6'
+
+    /* When used with Async/Await Java Agent and dynamic open modules */
+    implementation 'net.tascalate.instrument:net.tascalate.instrument.emitter:1.3.0'
+
+    testImplementation 'junit:junit:4.13.2'
+}
+
+'async-await' {
+}
+
+'continuations' {
+}
+
+group = 'net.tascalate.async.examples'
+version = '1.2.4'
+description = 'Tascalate Async/Await - Simple Examples'
+java.sourceCompatibility = JavaVersion.VERSION_1_9
+
+application {
+    mainModule = 'net.tascalate.async.examples'
+    mainClass = 'net.tascalate.async.examples.bank.AsyncAwaitBusinessServicesExample'
+    /*
+    mainClass = 'net.tascalate.async.examples.bank.AsyncAwaitBusinessServicesExample'
+    mainClass = 'net.tascalate.async.examples.generator.ContextPassingExamples'
+    mainClass = 'net.tascalate.async.examples.generator.ExceptionsTest'
+    mainClass = 'net.tascalate.async.examples.generator.GeneratorExample'
+    mainClass = 'net.tascalate.async.examples.generator.RecursionTest'
+    mainClass = 'net.tascalate.async.examples.generator.SimpleArgs'
+    mainClass = 'net.tascalate.async.examples.generator.StreamTest'
+    mainClass = 'net.tascalate.async.examples.provider.ProviderTest'
+    */
+}
+
+task copyResources(type: Copy) {
+    from "${projectDir}/src/main/resources"
+    into "${buildDir}/classes/java/main"
+}
+processResources.dependsOn copyResources
+
+tasks.withType(JavaCompile) {
+    options.encoding = 'UTF-8'
+}

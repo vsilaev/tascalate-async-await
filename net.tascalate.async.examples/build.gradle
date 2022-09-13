@@ -4,8 +4,8 @@ buildscript {
     }
 
     dependencies {
-      classpath 'net.tascalate.async:net.tascalate.async.tools.gradle:1.2.4'
-      classpath 'net.tascalate.javaflow:net.tascalate.javaflow.tools.gradle:2.7.3'
+        classpath 'net.tascalate.async:net.tascalate.async.tools.gradle:1.2.4'
+        classpath 'net.tascalate.javaflow:net.tascalate.javaflow.tools.gradle:2.7.3'
     }
 }
 

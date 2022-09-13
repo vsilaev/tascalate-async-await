@@ -44,7 +44,10 @@ public class ToolsHelper {
         ClassLoader effectiveClassLoader = loadAdditionalClassPath(classPath);
         return new AsyncAwaitClassFileGenerator(
             new ClasspathResourceLoader(effectiveClassLoader)
-       );
+       ) {
+            @SuppressWarnings("unused")
+            private final Object hardRef = effectiveClassLoader;
+       };
     }
     
     private static ClassLoader loadAdditionalClassPath(List<URL> classPath) {

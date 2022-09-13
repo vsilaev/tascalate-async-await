@@ -1,4 +1,4 @@
-[![Maven Central](https://img.shields.io/maven-central/v/net.tascalate.async/net.tascalate.async.parent.svg)](https://search.maven.org/artifact/net.tascalate.async/net.tascalate.async.parent/1.2.3/pom) [![GitHub release](https://img.shields.io/github/release/vsilaev/tascalate-async-await.svg)](https://github.com/vsilaev/tascalate-async-await/releases/tag/1.2.3) [![license](https://img.shields.io/github/license/vsilaev/tascalate-async-await.svg)](https://github.com/vsilaev/tascalate-async-await/blob/master/LICENSE)
+[![Maven Central](https://img.shields.io/maven-central/v/net.tascalate.async/net.tascalate.async.parent.svg)](https://search.maven.org/artifact/net.tascalate.async/net.tascalate.async.parent/1.2.4/pom) [![GitHub release](https://img.shields.io/github/release/vsilaev/tascalate-async-await.svg)](https://github.com/vsilaev/tascalate-async-await/releases/tag/1.2.4) [![license](https://img.shields.io/github/license/vsilaev/tascalate-async-await.svg)](https://github.com/vsilaev/tascalate-async-await/blob/master/LICENSE)
 # Why async-await?
 Asynchronous programming has long been a useful way to perform operations that don’t necessarily need to hold up the flow or responsiveness of an application. Generally, these are either compute-bound operations or I/O bound operations. Compute-bound operations are those where computations can be done on a separate thread, leaving the main thread to continue its own processing, while I/O bound operations involve work that takes place externally and may not need to block a thread while such work takes place. Common examples of I/O bound operations are file and network operations. 
 
@@ -12,12 +12,13 @@ To alleviate aforementioned readability and maintainability issues some language
 Tascalate Async/Await library enables `async/await` model for projects built with the Java 8 and beyond. The implementation is based on [continuations for Java](https://github.com/vsilaev/tascalate-javaflow) and provides runtime API + bytecode enchancement tools to let developers use syntax constructs similar to C# 5 or ECMAScript 2017/2018 with pure Java.
 
 # How to use ?
+## ...with Maven
 First, add Maven dependency to the library runtime:
 ```xml
 <dependency>
     <groupId>net.tascalate.async</groupId>
     <artifactId>net.tascalate.async.runtime</artifactId>
-    <version>1.2.3</version>
+    <version>1.2.4</version>
 </dependency>
 ```
 Second, add the following build plugins in the specified order:
@@ -28,7 +29,7 @@ Second, add the following build plugins in the specified order:
     <plugin>
       <groupId>net.tascalate.async</groupId>
       <artifactId>net.tascalate.async.tools.maven</artifactId>
-      <version>1.2.3</version>
+      <version>1.2.4</version>
       <executions>
         <execution>
           <id>tascalate-async-enhance-main-classes</id> 
@@ -51,7 +52,7 @@ Second, add the following build plugins in the specified order:
     <plugin>
       <groupId>net.tascalate.javaflow</groupId>
       <artifactId>net.tascalate.javaflow.tools.maven</artifactId>
-      <version>2.7.1</version>
+      <version>2.7.3</version>
       <executions>
         <execution>
           <id>javaflow-enhance-main-classes</id> 
@@ -75,6 +76,9 @@ Second, add the following build plugins in the specified order:
 </build>
 ```
 You are ready to start coding!
+## ...with Gradle
+TBD
+
 # Asynchronous tasks
 The first type of functions the library supports is asycnhronous task. Asynchronous task is a method (either instance or class method) that is annotated with `net.tascalate.async.async` annotation and returns `CompletionStage<T>` or `void`. In the later case it is a "fire-and-forget" task that is intended primarly to be used for event handlers inside UI framework (like JavaFX or Swing). Let us write a simple example:
 ```java

@@ -77,7 +77,86 @@ Second, add the following build plugins in the specified order:
 ```
 You are ready to start coding!
 ## ...with Gradle
-TBD
+As with Maven, you have to specify both build plugins and runtime dependencies. The minimal Gradle scipt should have the following prologue:
+```groovy
+buildscript {
+    repositories {
+        mavenCentral()
+    }
+
+    dependencies {
+      classpath 'net.tascalate.async:net.tascalate.async.tools.gradle:1.2.4'
+      classpath 'net.tascalate.javaflow:net.tascalate.javaflow.tools.gradle:2.7.3'
+      /* other plugins */
+    }
+}
+
+apply plugin: "java"
+/* ORDER IS IMPORTANT: Async/Await before Continuations! */
+apply plugin: "async-await"
+apply plugin: "continuations"
+
+repositories {
+    mavenCentral()
+}
+
+dependencies {
+    implementation 'net.tascalate.async:net.tascalate.async.runtime:1.2.4'
+    /* other dependencies */
+}
+```
+The more advanced example with `Async/Await Extras` module + [Tascalate Concurrent](https://github.com/vsilaev/tascalate-concurrent) and `Async/Await Scheduler Providers` (discussed below) will be:
+```groovy
+buildscript {
+    repositories {
+        mavenCentral()
+    }
+
+    dependencies {
+      classpath 'net.tascalate.async:net.tascalate.async.tools.gradle:1.2.4'
+      classpath 'net.tascalate.javaflow:net.tascalate.javaflow.tools.gradle:2.7.3'
+      /* other plugins */
+    }
+}
+
+apply plugin: "java"
+/* ORDER IS IMPORTANT: Async/Await before Continuations! */
+apply plugin: "async-await"
+apply plugin: "continuations"
+
+repositories {
+    mavenCentral()
+}
+
+dependencies {
+    implementation 'net.tascalate.async:net.tascalate.async.runtime:1.2.4'
+    
+    /* Async/Await Extras */
+    implementation 'net.tascalate.async:net.tascalate.async.extras:1.2.4'
+    
+    /* Promise<T> implementation */
+    /* Necessary because net.tascalate.async.extras uses it as an */
+    /* 'optional' dependency to avoid concrete version lock-in.   */
+    implementation 'net.tascalate:net.tascalate.concurrent:0.9.6'
+    
+    /* Necessary only for different providers */
+    runtimeOnly 'net.tascalate.async:net.tascalate.async.resolver.provided:1.2.4'
+    /*
+    runtimeOnly 'net.tascalate.async:net.tascalate.async.resolver.propagated:1.2.4'
+    */
+
+    
+    /* other dependencies */
+}
+/* Optional config */
+'async-await' {
+    /* ... */
+}
+
+'continuations' {
+    /* ... */
+}
+```
 
 # Asynchronous tasks
 The first type of functions the library supports is asycnhronous task. Asynchronous task is a method (either instance or class method) that is annotated with `net.tascalate.async.async` annotation and returns `CompletionStage<T>` or `void`. In the later case it is a "fire-and-forget" task that is intended primarly to be used for event handlers inside UI framework (like JavaFX or Swing). Let us write a simple example:

@@ -85,9 +85,9 @@ buildscript {
     }
 
     dependencies {
-      classpath 'net.tascalate.async:net.tascalate.async.tools.gradle:1.2.4'
-      classpath 'net.tascalate.javaflow:net.tascalate.javaflow.tools.gradle:2.7.3'
-      /* other plugins */
+        classpath 'net.tascalate.async:net.tascalate.async.tools.gradle:1.2.4'
+        classpath 'net.tascalate.javaflow:net.tascalate.javaflow.tools.gradle:2.7.3'
+        /* other plugins */
     }
 }
 
@@ -105,7 +105,7 @@ dependencies {
     /* other dependencies */
 }
 ```
-The more advanced example with `Async/Await Extras` module + [Tascalate Concurrent](https://github.com/vsilaev/tascalate-concurrent) and `Async/Await Scheduler Providers` (discussed below) will be:
+The more advanced example with `Async/Await Extras` module + [Tascalate Concurrent](https://github.com/vsilaev/tascalate-concurrent) and `Async/Await SchedulerResolver-s` (discussed below) will be:
 ```groovy
 buildscript {
     repositories {
@@ -113,9 +113,9 @@ buildscript {
     }
 
     dependencies {
-      classpath 'net.tascalate.async:net.tascalate.async.tools.gradle:1.2.4'
-      classpath 'net.tascalate.javaflow:net.tascalate.javaflow.tools.gradle:2.7.3'
-      /* other plugins */
+        classpath 'net.tascalate.async:net.tascalate.async.tools.gradle:1.2.4'
+        classpath 'net.tascalate.javaflow:net.tascalate.javaflow.tools.gradle:2.7.3'
+        /* other plugins */
     }
 }
 

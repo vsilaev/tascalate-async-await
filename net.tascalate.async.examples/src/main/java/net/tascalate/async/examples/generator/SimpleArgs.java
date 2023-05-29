@@ -103,7 +103,7 @@ public class SimpleArgs extends SamePackageSubclass {
     }
 
     @async
-     Promise<String> outerCallExplicit(String delimeter, @SchedulerProvider Scheduler scheduler, int zz) {
+    Promise<String> outerCallExplicit(String delimeter, @SchedulerProvider Scheduler scheduler, int zz) {
         System.out.println("Outer call explicit, current scheduler - " + CurrentCallContext.scheduler());
         System.out.println("Outer call explicit, thread : " + Thread.currentThread().getName());
         await(innerCallImplicit());
@@ -125,7 +125,7 @@ public class SimpleArgs extends SamePackageSubclass {
     }
     
     @async
-     Promise<String> innerCallImplicit() {
+    Promise<String> innerCallImplicit() {
         System.out.println("Inner call explicit, current scheduler - " + CurrentCallContext.scheduler());
         String v = await(CompletableFuture.supplyAsync(() -> "XYZ", executor));
         System.out.println("Inner call explicit, thread : " + Thread.currentThread().getName());

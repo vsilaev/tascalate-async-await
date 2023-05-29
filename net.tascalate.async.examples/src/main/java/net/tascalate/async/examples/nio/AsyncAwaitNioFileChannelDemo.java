@@ -61,6 +61,7 @@ public class AsyncAwaitNioFileChannelDemo {
 				System.out.println("Result " +  LocalTime.now());
 				System.out.println(r);
 			}
+			executor.shutdown();
 		});
 		
 		// Need to wait because NIO uses daemon threads that do not prevent program exit

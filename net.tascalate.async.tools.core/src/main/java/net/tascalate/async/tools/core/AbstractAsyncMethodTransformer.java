@@ -471,11 +471,9 @@ abstract public class AbstractAsyncMethodTransformer {
             if (instruction instanceof MethodInsnNode) {
                 MethodInsnNode methodInstructionNode = (MethodInsnNode) instruction;
                 boolean isOwnMethod = methodInstructionNode.owner.equals(classNode.name);
+                int mopcode = methodInstructionNode.getOpcode();
                 if (
-                    (methodInstructionNode.getOpcode() == INVOKEVIRTUAL || 
-                     methodInstructionNode.getOpcode() == INVOKESPECIAL || 
-                     methodInstructionNode.getOpcode() == INVOKESTATIC
-                    ) && 
+                    (mopcode == INVOKEVIRTUAL || mopcode == INVOKESPECIAL || mopcode == INVOKESTATIC) && 
                     (isOwnMethod || helper.isSubClass(classNode.name, methodInstructionNode.owner))) {
                     
                     String actualClassName;
@@ -496,7 +494,7 @@ abstract public class AbstractAsyncMethodTransformer {
 
                     boolean samePackageAccessible = 
                         // Note that INVOKESPECIAL IS NOT ACCESSIBLE OTSIDE CLASS ITSELF AT ALL
-                        (methodInstructionNode.getOpcode() == INVOKEVIRTUAL || methodInstructionNode.getOpcode() == INVOKESTATIC) &&
+                        (mopcode == INVOKEVIRTUAL || mopcode == INVOKESTATIC || (mopcode == INVOKESPECIAL && "<init>".equals(methodInstructionNode.name))) &&
                         null != targetMethodNode &&
                         (targetMethodNode.access & ACC_PRIVATE) == 0 &&
                         ((targetMethodNode.access & ACC_PUBLIC) != 0 || samePackage(classNode.name, actualClassName));        
@@ -505,6 +503,7 @@ abstract public class AbstractAsyncMethodTransformer {
                         if (log.isTraceEnabled()) {
                             log.trace("Found private call " + BytecodeTraceUtil.toString(methodInstructionNode));
                         }
+                        // TODO Add special handling for private constructor calls
                         createAccessMethod(methodInstructionNode, methods);
                     }
                 }

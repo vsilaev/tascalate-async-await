@@ -4,8 +4,8 @@ buildscript {
     }
 
     dependencies {
-        classpath 'net.tascalate.async:net.tascalate.async.tools.gradle:1.2.5'
-        classpath 'net.tascalate.javaflow:net.tascalate.javaflow.tools.gradle:2.7.3'
+        classpath 'net.tascalate.async:net.tascalate.async.tools.gradle:1.2.6'
+        classpath 'net.tascalate.javaflow:net.tascalate.javaflow.tools.gradle:2.7.5'
     }
 }
 
@@ -19,12 +19,12 @@ repositories {
 }
 
 dependencies {
-    implementation 'net.tascalate.async:net.tascalate.async.runtime:1.2.5'
-    implementation 'net.tascalate.async:net.tascalate.async.extras:1.2.5'
+    implementation 'net.tascalate.async:net.tascalate.async.runtime:1.2.6'
+    implementation 'net.tascalate.async:net.tascalate.async.extras:1.2.6'
 
     /* Necessary only for different providers */
-    runtimeOnly 'net.tascalate.async:net.tascalate.async.resolver.propagated:1.2.5'
-    runtimeOnly 'net.tascalate.async:net.tascalate.async.resolver.provided:1.2.5'
+    runtimeOnly 'net.tascalate.async:net.tascalate.async.resolver.propagated:1.2.6'
+    runtimeOnly 'net.tascalate.async:net.tascalate.async.resolver.provided:1.2.6'
 
     /* Promise<T> implementation */
     /* Necessary because net.tascalate.async.extras uses it as an */
@@ -32,7 +32,7 @@ dependencies {
     implementation 'net.tascalate:net.tascalate.concurrent:0.9.6'
 
     /* When used with Async/Await Java Agent and dynamic open modules */
-    implementation 'net.tascalate.instrument:net.tascalate.instrument.emitter:1.3.0'
+    implementation 'net.tascalate.instrument:net.tascalate.instrument.emitter:1.3.2'
 
     testImplementation 'junit:junit:4.13.2'
 }
@@ -44,7 +44,7 @@ dependencies {
 }
 
 group = 'net.tascalate.async.examples'
-version = '1.2.5'
+version = '1.2.6'
 description = 'Tascalate Async/Await - Simple Examples'
 java.sourceCompatibility = JavaVersion.VERSION_1_9
 

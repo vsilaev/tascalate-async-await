@@ -15,9 +15,9 @@
 	<name>Tascalate Async/Await - Bytecode Enhancer Maven Plugin</name>
 
 	<properties>
-		<maven-plugin-api.version>3.3.9</maven-plugin-api.version>
-		<maven-plugin-annotations.version>3.5</maven-plugin-annotations.version>
-		<maven-core.version>3.8.1</maven-core.version>
+		<maven-plugin-api.version>3.9.4</maven-plugin-api.version>
+		<maven-plugin-annotations.version>3.9.0</maven-plugin-annotations.version>
+		<maven-core.version>3.9.4</maven-core.version>
 		<license.header>../LICENSE</license.header>
 	</properties>
 

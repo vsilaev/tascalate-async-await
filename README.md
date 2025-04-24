@@ -52,7 +52,7 @@ Second, add the following build plugins in the specified order:
     <plugin>
       <groupId>net.tascalate.javaflow</groupId>
       <artifactId>net.tascalate.javaflow.tools.maven</artifactId>
-      <version>2.7.6</version>
+      <version>2.7.8</version>
       <executions>
         <execution>
           <id>javaflow-enhance-main-classes</id> 
@@ -86,7 +86,7 @@ buildscript {
 
     dependencies {
         classpath 'net.tascalate.async:net.tascalate.async.tools.gradle:1.2.7'
-        classpath 'net.tascalate.javaflow:net.tascalate.javaflow.tools.gradle:2.7.6'
+        classpath 'net.tascalate.javaflow:net.tascalate.javaflow.tools.gradle:2.7.8'
         /* other plugins */
     }
 }
@@ -114,7 +114,7 @@ buildscript {
 
     dependencies {
         classpath 'net.tascalate.async:net.tascalate.async.tools.gradle:1.2.7'
-        classpath 'net.tascalate.javaflow:net.tascalate.javaflow.tools.gradle:2.7.6'
+        classpath 'net.tascalate.javaflow:net.tascalate.javaflow.tools.gradle:2.7.8'
         /* other plugins */
     }
 }

@@ -27,14 +27,16 @@ package net.tascalate.async.examples.generator;
 import static net.tascalate.async.CallContext.async;
 import static net.tascalate.async.CallContext.await;
 
+import java.math.BigDecimal;
 import java.time.Duration;
+import java.util.Date;
+import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
 import java.util.concurrent.CompletionStage;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
-import net.tascalate.async.ContextVar;
 import net.tascalate.async.Scheduler;
 import net.tascalate.async.SchedulerProvider;
 import net.tascalate.async.async;
@@ -42,15 +44,25 @@ import net.tascalate.async.extras.Generators;
 import net.tascalate.concurrent.CompletableTask;
 import net.tascalate.javaflow.SuspendableIterator;
 
+import net.tascalate.concurrent.var.ContextVar;
+import net.tascalate.concurrent.var.ThreadLocalVar;
+
 public class ContextPassingExamples {
     
     final private static ExecutorService foreignExecutor = Executors.newFixedThreadPool(4);
     final private static ExecutorService ownExecutor = Executors.newFixedThreadPool(4);
     
     private static final ThreadLocal<String> MY_CONTEXT_VAR = new ThreadLocal<>();
+    private static final ThreadLocal<Date> YOUR_CONTEXT_VAR = new ThreadLocal<>();
+    
+    private static final ThreadLocal<BigDecimal> VN_1 = new ThreadLocal<>();
+    private static final ThreadLocal<Double> VN_2 = new ThreadLocal<>();
 
     public static void main(String[] argv) {
-        Scheduler scheduler = Scheduler.interruptible(ownExecutor, ContextVar.relay(MY_CONTEXT_VAR));
+        @SuppressWarnings("unused")
+        ContextVar<List<? extends Number>> l = ThreadLocalVar.of(VN_1, VN_2);
+        
+        Scheduler scheduler = Scheduler.interruptible(ownExecutor, ThreadLocalVar.of(MY_CONTEXT_VAR, YOUR_CONTEXT_VAR).relay()::contextual);
         MY_CONTEXT_VAR.set("CORRECT");
         
         CompletableFuture<String> f = new ContextPassingExamples().asyncMethod(scheduler, 10);

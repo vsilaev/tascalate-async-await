@@ -4,7 +4,7 @@
 
 	<groupId>net.tascalate.async</groupId>
 	<artifactId>net.tascalate.async.parent</artifactId>
-	<version>1.2.7</version>
+	<version>1.2.8</version>
 	<packaging>pom</packaging>
 
 	<name>Tascalate Async/Await</name>
@@ -51,11 +51,11 @@
 
 	<properties>
 		<project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
-		<tascalate.concurrent.version>0.9.7</tascalate.concurrent.version>
-		<tascalate.javaflow.version>2.7.6</tascalate.javaflow.version>
-		<tascalate.javaflow.extras.version>2.4.3</tascalate.javaflow.extras.version>
-		<tascalate.asmx.version>9.7.0</tascalate.asmx.version>
-		<tascalate.instrument.version>1.5.0</tascalate.instrument.version>
+		<tascalate.concurrent.version>0.9.9</tascalate.concurrent.version>
+		<tascalate.javaflow.version>2.7.8</tascalate.javaflow.version>
+		<tascalate.javaflow.extras.version>2.4.5</tascalate.javaflow.extras.version>
+		<tascalate.asmx.version>9.8.0</tascalate.asmx.version>
+		<tascalate.instrument.version>1.6.0</tascalate.instrument.version>
 	</properties>
 
 	<dependencyManagement>

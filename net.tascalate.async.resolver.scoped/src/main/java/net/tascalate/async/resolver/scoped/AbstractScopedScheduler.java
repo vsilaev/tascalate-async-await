@@ -46,7 +46,7 @@ public class AbstractScopedScheduler implements SchedulerResolver {
 
     @Override
     public Scheduler resolve(Object owner, MethodHandles.Lookup ownerClassLookup) {
-        return scope.currentExecutor.get();
+        return scope.currentScheduler();
     }
 
     @Override

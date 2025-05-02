@@ -65,4 +65,8 @@ public enum SchedulerScope {
             }
         }
     }
+    
+    Scheduler currentScheduler() {
+        return currentExecutor.get();
+    }
 }

@@ -33,6 +33,7 @@ import java.util.stream.StreamSupport;
 import net.tascalate.async.Scheduler;
 import net.tascalate.async.spi.SchedulerResolver;
 import net.tascalate.async.util.Cache;
+import net.tascalate.async.util.ReferenceType;
 
 class SchedulerResolvers {
     private SchedulerResolvers() {}
@@ -91,7 +92,8 @@ class SchedulerResolvers {
     
     private static final Comparator<SchedulerResolver> SCHEDULER_RESOLVER_BY_PRIORITY = 
         Comparator.comparing(SchedulerResolver::priority).reversed();
+    
     private static final Cache<ClassLoader, ServiceLoader<SchedulerResolver>> SERVICE_LOADER_BY_CLASS_LOADER = 
-        new Cache<>();
+        new Cache<>(ReferenceType.WEAK, ReferenceType.SOFT);
 
 }

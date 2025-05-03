@@ -26,111 +26,83 @@ package net.tascalate.async.util;
 
 import java.lang.ref.Reference;
 import java.lang.ref.ReferenceQueue;
-import java.lang.ref.WeakReference;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
 import java.util.function.Function;
 
 public class Cache<K, V> {
-    private final ConcurrentMap<Reference<K>, Object> producerMutexes = new ConcurrentHashMap<>();
-    private final ConcurrentMap<Reference<K>, V> valueMap = new ConcurrentHashMap<>();
-    private final ReferenceQueue<K> queue = new ReferenceQueue<K>();
-
+    private final KeyedLocks<K> producerMutexes = new KeyedLocks<>();
+    private final ConcurrentMap<Object, Object> valueMap = new ConcurrentHashMap<>();
+    
+    private final ReferenceType keyRefType;
+    private final ReferenceType valueRefType;
+    private final ReferenceQueue<K> queue;
+    
+    public Cache() {
+        this(ReferenceType.WEAK, ReferenceType.SOFT);
+    }
+    
+    public Cache(ReferenceType keyRefType, ReferenceType valueRefType) {
+        this.keyRefType = keyRefType;
+        this.valueRefType = valueRefType;
+        this.queue = keyRefType.createKeyReferenceQueue();
+    }
+    
     public V get(K key, Function<? super K, ? extends V> producer) {
         expungeStaleEntries();
 
-        Reference<K> lookupKeyRef = new KeyReference<K>(key);
-        V value;
+        Object lookupKeyRef = keyRefType.createLookupKey(key);
+        Object valueRef;
 
         // Try to get a cached value.
-        value = valueMap.get(lookupKeyRef);
-
-        if (value != null) {
-            // A cached value was found.
-            return value;
-        }
-
-        Object mutex = getOrCreateMutex(lookupKeyRef);
-        synchronized (mutex) {
-            try {
-                // Double-check after getting mutex
-                value = valueMap.get(lookupKeyRef);
-                if (value == null) {
-                    value = producer.apply(key);
-                    final Reference<K> actualKeyRef = new KeyReference<K>(key, queue);
-                    valueMap.put(actualKeyRef, value);
-                }
-            } finally {
-                producerMutexes.remove(lookupKeyRef, mutex);
+        valueRef = valueMap.get(lookupKeyRef);
+        V value;
+        
+        if (valueRef != null) {
+            value = valueRefType.dereference(valueRef);
+            if (value != null) {
+                // A cached value was found.
+                return value;
             }
         }
 
+        try (KeyedLocks.Lock lock = producerMutexes.acquire(key)) {
+            // Double-check after getting mutex
+            valueRef = valueMap.get(lookupKeyRef);
+            value = valueRef == null ? null : valueRefType.dereference(valueRef);
+            if (value == null) {
+                value = producer.apply(key);
+                valueMap.put(
+                    keyRefType.createKeyReference(key, queue), 
+                    valueRefType.createValueReference(value)
+                );
+            }
+        } catch (InterruptedException ex) {
+            throw new RuntimeException(ex);
+        }
         return value;
     }
 
+
     public V remove(K key) {
-        Reference<K> lookupKeyRef = new KeyReference<K>(key);
-        Object mutex = getOrCreateMutex(lookupKeyRef);
-        synchronized (mutex) {
-            try {
-                final V value = valueMap.remove(lookupKeyRef);
-                return value;
-            } finally {
-                producerMutexes.remove(lookupKeyRef, mutex);
-            }
+        try (KeyedLocks.Lock lock = producerMutexes.acquire(key)) {
+            Object valueRef = valueMap.remove(keyRefType.createLookupKey(key));
+            return valueRef == null ? null : valueRefType.dereference(valueRef);            
+        } catch (InterruptedException ex) {
+            throw new RuntimeException(ex);
         }
     }
-
-    protected Object getOrCreateMutex(final Reference<K> keyRef) {
-        return producerMutexes.computeIfAbsent(keyRef, newProducerLock());
-    }
-
+    
     private void expungeStaleEntries() {
+        if (null == queue) {
+            return;
+        }
         for (Reference<? extends K> ref; (ref = queue.poll()) != null;) {
             @SuppressWarnings("unchecked")
             Reference<K> keyRef = (Reference<K>) ref;
-            // keyRef now is equal only to itself while referent is cleared
-            // already
-            // so it's safe to remove it without ceremony (like
-            // getOrCreateMutex(keyRef) usage)
+            // keyRef now is equal only to itself while referent is cleared already
+            // so it's safe to remove it without ceremony (like getOrCreateMutex(keyRef) usage)
             valueMap.remove(keyRef);
         }
     }
-    
-    
-    @SuppressWarnings("unchecked")
-    private static <K> Function<K, Object> newProducerLock() {
-        return (Function<K, Object>)NEW_PRODUCER_LOCK;
-    }
-
-    static class KeyReference<K> extends WeakReference<K> {
-        private final int referentHashCode;
-
-        KeyReference(K key) {
-            this(key, null);
-        }
-
-        KeyReference(K key, ReferenceQueue<K> queue) {
-            super(key, queue);
-            referentHashCode = key == null ? 0 : key.hashCode();
-        }
-
-        public int hashCode() {
-            return referentHashCode;
-        }
-
-        public boolean equals(Object other) {
-            if (this == other)
-                return true;
-            if (null == other || other.getClass() != KeyReference.class)
-                return false;
-            Object r1 = this.get();
-            Object r2 = ((KeyReference<?>) other).get();
-            return null == r1 ? null == r2 : r1.equals(r2);
-        }
-    }
-
-    
-    
-    private static final Function<Object, Object> NEW_PRODUCER_LOCK = k -> new Object(); 
 }

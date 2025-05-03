@@ -126,9 +126,16 @@ public class AsyncAwaitEnhancerPlugin  implements Plugin<Project> {
                     SourceSetContainer sourceSetsContainer = (SourceSetContainer)project.getProperties().get("sourceSets");
                     SourceSet sourceSet = sourceSetsContainer.getByName(sourceType);
                     if (null != sourceSet) {
-                        Set<File> compileClasspath = sourceSet.getCompileClasspath().getFiles();
                         SourceSetOutput output = sourceSet.getOutput();
                         Set<File> classesDirs = output.getClassesDirs().getFiles();
+
+                        // If runtime classpath would be necessary
+                        /*
+                        FileCollection compileClasspath = sourceSet.getCompileClasspath();
+                        FileCollection runtimeClasspath = sourceSet.getRuntimeClasspath();
+                        instrument(classesDirs, (null == runtimeClasspath ? compileClasspath : compileClasspath.plus(runtimeClasspath)).getFiles(), config);
+                        */
+                        Set<File> compileClasspath = sourceSet.getCompileClasspath().getFiles();
                         instrument(classesDirs, compileClasspath, config);
                     }
                 } catch (Exception e) {

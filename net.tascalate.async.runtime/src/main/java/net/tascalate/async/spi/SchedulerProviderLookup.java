@@ -43,6 +43,7 @@ import java.util.stream.Stream;
 import net.tascalate.async.Scheduler;
 import net.tascalate.async.SchedulerProvider;
 import net.tascalate.async.util.Cache;
+import net.tascalate.async.util.ReferenceType;
 
 public class SchedulerProviderLookup {
     
@@ -242,8 +243,8 @@ public class SchedulerProviderLookup {
         }
     }
     
-    private final Cache<Class<?>, Accessor> instanceAccessorsCache = new Cache<>();
-    private final Cache<Class<?>, Accessor> classAccessorsCache = new Cache<>();
+    private final Cache<Class<?>, Accessor> instanceAccessorsCache = new Cache<>(ReferenceType.WEAK, ReferenceType.SOFT);
+    private final Cache<Class<?>, Accessor> classAccessorsCache = new Cache<>(ReferenceType.WEAK, ReferenceType.SOFT);
     
     private final boolean inspectSuperclasses;
     private final boolean inspectInterfaces;

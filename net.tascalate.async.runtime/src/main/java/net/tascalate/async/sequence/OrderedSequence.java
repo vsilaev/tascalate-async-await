@@ -46,7 +46,7 @@ public class OrderedSequence<T> implements Sequence<T> {
         
         @Override
         public String toString() {
-            return "<empty-async-sequence>";
+            return "<empty-sequence>";
         }
         
     };

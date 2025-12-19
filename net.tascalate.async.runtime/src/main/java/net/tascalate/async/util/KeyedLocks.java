@@ -23,6 +23,7 @@ final class KeyedLocks<K> {
     private final ConcurrentMap<K, Lock> locksByKey = new ConcurrentHashMap<>();
 
     public Lock acquire(K key) throws InterruptedException {
+        @SuppressWarnings("resource")
         Lock ourLock = Lock.acquire(() -> locksByKey.remove(key));
         while (true) {
             Lock theirLock = locksByKey.putIfAbsent(key, ourLock);

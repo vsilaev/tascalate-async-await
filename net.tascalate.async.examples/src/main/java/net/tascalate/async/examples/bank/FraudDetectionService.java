@@ -1,5 +1,5 @@
 /**
- * ﻿Copyright 2015-2022 Valery Silaev (http://vsilaev.com)
+ * Copyright 2015-2025 Valery Silaev (http://vsilaev.com)
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
@@ -24,7 +24,8 @@
  */
 package net.tascalate.async.examples.bank;
 
-import static net.tascalate.async.CallContext.*;
+import static net.tascalate.async.CallContext.async;
+import static net.tascalate.async.CallContext.await;
 
 import java.math.BigDecimal;
 import java.util.concurrent.CompletionStage;
@@ -32,17 +33,16 @@ import java.util.concurrent.CompletionStage;
 import net.tascalate.async.async;
 
 public class FraudDetectionService {
-	
-	public enum Result {
-		ALLOW, DENY;
-	}
-	
-	
-	final private FraudDetectionWS ws = new FraudDetectionWS();
-	
-	@async public CompletionStage<Result> checkFraud(final BankAccount bankAccount, final BigDecimal amount) throws InterruptedException {
-		final Result resultFromWs = await( ws.checkFraud(bankAccount, amount) );
-		return async( resultFromWs );
-	}
 
+    public enum Result {
+        ALLOW, DENY;
+    }
+
+
+    final private FraudDetectionWS ws = new FraudDetectionWS();
+
+    @async public CompletionStage<Result> checkFraud(final BankAccount bankAccount, final BigDecimal amount) throws InterruptedException {
+        final Result resultFromWs = await( ws.checkFraud(bankAccount, amount) );
+        return async( resultFromWs );
+    }
 }

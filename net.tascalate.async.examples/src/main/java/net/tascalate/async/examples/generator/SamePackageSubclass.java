@@ -1,5 +1,5 @@
 /**
- * ﻿Copyright 2015-2022 Valery Silaev (http://vsilaev.com)
+ * Copyright 2015-2025 Valery Silaev (http://vsilaev.com)
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
@@ -28,7 +28,7 @@ import net.tascalate.async.examples.generator.base.BaseClass;
 
 public class SamePackageSubclass extends BaseClass {
     protected String samePackageField = "XYZ";
-    
+
     protected long samePackageMethod(long v) {
         return v * 1000;
     }

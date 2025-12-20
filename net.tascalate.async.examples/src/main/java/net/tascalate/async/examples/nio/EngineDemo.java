@@ -1,5 +1,5 @@
 /**
- * ﻿Copyright 2015-2022 Valery Silaev (http://vsilaev.com)
+ * Copyright 2015-2025 Valery Silaev (http://vsilaev.com)
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
@@ -33,24 +33,21 @@ import net.tascalate.async.async;
 
 public class EngineDemo implements Closeable {
 
-	
 	public static @async CompletionStage<String> run()  {
-		try{
-		try (
-				EngineDemo other = new EngineDemo();
-			) {
-			String x = "" + other.hashCode();
-			System.out.println(x);
-			return CallContext.async("Done");
-		} catch (final IOException ex) {
-			throw ex;
-		}
+		try {
+		    try (EngineDemo other = new EngineDemo();) {
+		        String x = "" + other.hashCode();
+	            System.out.println(x);
+	            return CallContext.async("Done");
+		    } catch (final IOException ex) {
+		        throw ex;
+		    }
 		} catch (final Throwable ex) {
 			"".toString();
 			return null;
 		}
 	}
-	
+
 	public void close() throws IOException {
 		System.out.println("closed");
 	}

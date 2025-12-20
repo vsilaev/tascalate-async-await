@@ -1,5 +1,5 @@
 /**
- * ﻿Copyright 2015-2022 Valery Silaev (http://vsilaev.com)
+ * Copyright 2015-2025 Valery Silaev (http://vsilaev.com)
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
@@ -48,23 +48,23 @@ import net.tascalate.javaflow.SuspendableStream;
 
 public class StreamTest {
 
-    final private static ExecutorService executor = Executors.newFixedThreadPool(4);
+    private static final ExecutorService executor = Executors.newFixedThreadPool(4);
 
     public static void main(String[] args) {
-        final StreamTest example = new StreamTest();
+        StreamTest example = new StreamTest();
         example.div = 2;
-        
+
         String v1 = example.asyncOperation(2).toCompletableFuture().join();
         System.out.println(v1);
-        
+
         String v2 = example.asyncFlatMap().toCompletableFuture().join();
         System.out.println(v2);
-        
+
         executor.shutdown();
     }
-    
+
     int div;
-    
+
     boolean isEven(String v) {
         return Integer.parseInt(v.substring(0, 3)) % 2 == 0;
     }
@@ -77,9 +77,8 @@ public class StreamTest {
     void print(Object v) {
         System.out.println(v);
     }*/
-    
-    @async
-    public CompletionStage<String> asyncFlatMap() {
+
+    @async public CompletionStage<String> asyncFlatMap() {
         String result = 
         produceAlphaStrings()
             .stream()
@@ -92,8 +91,7 @@ public class StreamTest {
         return async(result);
     }
 
-    @async
-    public CompletionStage<String> asyncOperation(int outerDiv) {
+    @async public CompletionStage<String> asyncOperation(int outerDiv) {
         produceMergedStrings()
             .stream()  
             // REQUIRES JVM ARGS: -javaagent:../net.tascalate.async.agent/target/tascalate.instrument-async.jar
@@ -107,7 +105,7 @@ public class StreamTest {
             .forEach(System.out::println)
             ; 
         System.out.println("Return after for each"); 
-       
+
         return async( 
             produceNumericStrings()
             .stream()
@@ -116,7 +114,7 @@ public class StreamTest {
             .orElse("<error-reduce")
         ); 
     }
-    
+
     @async AsyncGenerator<String> produceMergedStrings() {
         SuspendableStream<CompletionStage<String>> alphas = 
             produceAlphaStrings()
@@ -136,10 +134,9 @@ public class StreamTest {
         );
         return yield();
     }
-    
+
     // Private to ensure that generated accessor methods work 
-    @async
-    private AsyncGenerator<String> produceNumericStrings() {
+    @async private AsyncGenerator<String> produceNumericStrings() {
         try {
             yield(Sequence.empty());
             yield(waitString("111"));
@@ -151,9 +148,8 @@ public class StreamTest {
         }
         return yield();
     }
-    
-    @async
-    AsyncGenerator<String> produceAlphaStrings() {
+
+    @async AsyncGenerator<String> produceAlphaStrings() {
         try {
             for (String s : Arrays.asList("AAA", "BBB", "CCC", "DDD")) {
                 yield( waitString(s, 400) );
@@ -163,9 +159,8 @@ public class StreamTest {
         }
         return yield();
     }
-    
-    @async
-    AsyncGenerator<String> producePrefixedStrings(CompletionStage<String> prefix) {
+
+    @async AsyncGenerator<String> producePrefixedStrings(CompletionStage<String> prefix) {
         try {
             for (int i = 1; i <= 9; i++) {
                 YieldReply<String> r = yield( prefix.thenCombine(waitString(String.valueOf(i)), (px,v) -> px + v) );
@@ -176,13 +171,13 @@ public class StreamTest {
         }
         return yield();
     }
-    
-    static CompletionStage<String> waitString(final String value) {
+
+    static CompletionStage<String> waitString(String value) {
         return waitString(value, 250L);
     }
-    
-    static CompletionStage<String> waitString(final String value, final long delay) {
-        final CompletionStage<String> promise = CompletableTask.supplyAsync(() -> {
+
+    static CompletionStage<String> waitString(String value, long delay) {
+        CompletionStage<String> promise = CompletableTask.supplyAsync(() -> {
             try { 
                 Thread.sleep(delay);
             } catch (final InterruptedException ex) {

@@ -1,5 +1,5 @@
 /**
- * ﻿Copyright 2015-2022 Valery Silaev (http://vsilaev.com)
+ * Copyright 2015-2025 Valery Silaev (http://vsilaev.com)
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
@@ -42,15 +42,14 @@ import net.tascalate.async.SchedulerProvider;
 import net.tascalate.async.async;
 import net.tascalate.async.extras.Generators;
 import net.tascalate.concurrent.CompletableTask;
-import net.tascalate.javaflow.SuspendableIterator;
-
 import net.tascalate.concurrent.var.ContextVar;
 import net.tascalate.concurrent.var.ThreadLocalVar;
+import net.tascalate.javaflow.SuspendableIterator;
 
 public class ContextPassingExamples {
     
-    final private static ExecutorService foreignExecutor = Executors.newFixedThreadPool(4);
-    final private static ExecutorService ownExecutor = Executors.newFixedThreadPool(4);
+    private static final ExecutorService foreignExecutor = Executors.newFixedThreadPool(4);
+    private static final ExecutorService ownExecutor = Executors.newFixedThreadPool(4);
     
     private static final ThreadLocal<String> MY_CONTEXT_VAR = new ThreadLocal<>();
     private static final ThreadLocal<Date> YOUR_CONTEXT_VAR = new ThreadLocal<>();

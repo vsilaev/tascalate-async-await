@@ -1,5 +1,5 @@
 /**
- * ﻿Copyright 2015-2022 Valery Silaev (http://vsilaev.com)
+ * Copyright 2015-2025 Valery Silaev (http://vsilaev.com)
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
@@ -40,7 +40,7 @@ import net.tascalate.concurrent.CompletableTask;
 import net.tascalate.concurrent.Promise;
 
 public class ExceptionsTest {
-    final private static ExecutorService executor = Executors.newFixedThreadPool(4);
+    private static final ExecutorService executor = Executors.newFixedThreadPool(4);
     
     public static void main(String[] args) throws Exception {
         long start = System.currentTimeMillis();
@@ -91,11 +91,11 @@ public class ExceptionsTest {
     }
 
     
-    static CompletionStage<String> waitString(final String value, final long delay) {
-        final CompletionStage<String> promise = CompletableTask.supplyAsync(() -> {
+    static CompletionStage<String> waitString(String value, long delay) {
+        CompletionStage<String> promise = CompletableTask.supplyAsync(() -> {
             try { 
                 Thread.sleep(delay);
-            } catch (final InterruptedException ex) {
+            } catch (InterruptedException ex) {
                 Thread.currentThread().interrupt();
                 throw new CompletionException(ex);
             }
@@ -104,11 +104,11 @@ public class ExceptionsTest {
         return promise;
     }
     
-    static CompletionStage<String> waitError(final long delay) {
-        final CompletionStage<String> promise = CompletableTask.supplyAsync(() -> {
+    static CompletionStage<String> waitError(long delay) {
+        CompletionStage<String> promise = CompletableTask.supplyAsync(() -> {
             try { 
                 Thread.sleep(delay);
-            } catch (final InterruptedException ex) {
+            } catch (InterruptedException ex) {
                 Thread.currentThread().interrupt();
                 throw new CompletionException(ex);
             }

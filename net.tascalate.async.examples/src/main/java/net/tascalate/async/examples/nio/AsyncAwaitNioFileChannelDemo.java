@@ -1,5 +1,5 @@
 /**
- * ﻿Copyright 2015-2022 Valery Silaev (http://vsilaev.com)
+ * Copyright 2015-2025 Valery Silaev (http://vsilaev.com)
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
@@ -45,65 +45,61 @@ import net.tascalate.concurrent.TaskExecutors;
 import net.tascalate.concurrent.io.AsyncFileChannel;
 
 public class AsyncAwaitNioFileChannelDemo {
-    
-    final private static TaskExecutorService executor = TaskExecutors.newFixedThreadPool(4);
 
-	public static void main(final String[] argv) throws Exception {
-		final AsyncAwaitNioFileChannelDemo demo = new AsyncAwaitNioFileChannelDemo();
-		final CompletionStage<String> result = demo.processFile("./.project");
-		
-		System.out.println("Returned to caller " + LocalTime.now());
-		final CompletionStage<?> waiter = result.whenComplete((r, e) -> {
-			if ( e != null ) {
-				System.out.println("Error " +  LocalTime.now());
-				e.printStackTrace(System.out);
-			} else {
-				System.out.println("Result " +  LocalTime.now());
-				System.out.println(r);
-			}
-			executor.shutdown();
-		});
-		
-		// Need to wait because NIO uses daemon threads that do not prevent program exit
-		System.out.println("Start waiting for result to prevent program close...");
-		waiter.toCompletableFuture().join();
-		Thread.sleep(1000L);
-	}
+    private static final TaskExecutorService executor = TaskExecutors.newFixedThreadPool(4);
 
-	
-	
-	public @async CompletionStage<String> processFile(final String fileName) throws IOException {
-		final Path path = Paths.get(new File(fileName).toURI());
-		try (
-				final AsyncFileChannel file = AsyncFileChannel.open(path, executor, Collections.singleton(StandardOpenOption.READ));
-				final FileLock lock = await(file.lock(true))
-			) {
-			//System.out.println("In process, shared lock: " + lock);
-			final ByteBuffer buffer = ByteBuffer.allocateDirect((int)file.size());
-			
-			await( file.read(buffer, 0L) );
-			System.out.println("In process, bytes read: " + buffer);
-			buffer.rewind();
+    public static void main(final String[] argv) throws Exception {
+        AsyncAwaitNioFileChannelDemo demo = new AsyncAwaitNioFileChannelDemo();
+        CompletionStage<String> result = demo.processFile("./.project");
+        
+        System.out.println("Returned to caller " + LocalTime.now());
+        CompletionStage<?> waiter = result.whenComplete((r, e) -> {
+            if ( e != null ) {
+                System.out.println("Error " +  LocalTime.now());
+                e.printStackTrace(System.out);
+            } else {
+                System.out.println("Result " +  LocalTime.now());
+                System.out.println(r);
+            }
+            executor.shutdown();
+        });
+        
+        // Need to wait because NIO uses daemon threads that do not prevent program exit
+        System.out.println("Start waiting for result to prevent program close...");
+        waiter.toCompletableFuture().join();
+        Thread.sleep(1000L);
+    }
+
+    public @async CompletionStage<String> processFile(String fileName) throws IOException {
+        Path path = Paths.get(new File(fileName).toURI());
+        try (AsyncFileChannel file = AsyncFileChannel.open(path, executor, Collections.singleton(StandardOpenOption.READ));
+             FileLock lock = await(file.lock(true)) ) {
+            //System.out.println("In process, shared lock: " + lock);
+            ByteBuffer buffer = ByteBuffer.allocateDirect((int)file.size());
+            
+            await( file.read(buffer, 0L) );
+            System.out.println("In process, bytes read: " + buffer);
+            buffer.rewind();
    
-			final String result = processBytes(buffer);
-			 
-			return async(result);
-			
-		} catch (final IOException ex) {
-			ex.printStackTrace(System.out);
-			throw ex;
-		}
-	}
-	
-	private String processBytes(final ByteBuffer buffer) throws IOException {
-		final StringBuilder result = new StringBuilder();
-		final char[] chars = new char[4096];
-		try (final InputStreamReader in = new InputStreamReader(new ByteBufferInputStream(buffer))) {
-			int count = 0;
-			while( (count = in.read(chars)) > 0) {
-				result.append(chars, 0, count);
-			};
-			return result.toString();
-		}
-	}
+            String result = processBytes(buffer);
+             
+            return async(result);
+            
+        } catch (IOException ex) {
+            ex.printStackTrace(System.out);
+            throw ex;
+        }
+    }
+
+    private String processBytes(ByteBuffer buffer) throws IOException {
+        StringBuilder result = new StringBuilder();
+        char[] chars = new char[4096];
+        try (InputStreamReader in = new InputStreamReader(new ByteBufferInputStream(buffer))) {
+            int count = 0;
+            while( (count = in.read(chars)) > 0) {
+                result.append(chars, 0, count);
+            };
+            return result.toString();
+        }
+    }
 }

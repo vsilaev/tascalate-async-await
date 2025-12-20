@@ -1,5 +1,5 @@
 /**
- * ﻿Copyright 2015-2022 Valery Silaev (http://vsilaev.com)
+ * Copyright 2015-2025 Valery Silaev (http://vsilaev.com)
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
@@ -27,6 +27,7 @@ package net.tascalate.async.core;
 import java.lang.invoke.MethodHandles;
 import java.util.Comparator;
 import java.util.Objects;
+import java.util.Optional;
 import java.util.ServiceLoader;
 import java.util.stream.StreamSupport;
 
@@ -47,8 +48,8 @@ class SchedulerResolvers {
             .map(l -> l.resolve(owner, ownerClassLookup))
             .filter(Objects::nonNull)
             .findFirst()
-            .orElse(Scheduler.sameThreadContextless())
-        ;
+            .orElseGet(() -> Optional.ofNullable(Scheduler.defaultScheduler())
+                                     .orElse(Scheduler.sameThreadContextless()));
     }
     
     private static ClassLoader getServiceClassLoader(Class<?> ownerClassLoaderSource) {

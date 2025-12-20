@@ -1,5 +1,5 @@
 /**
- * ﻿Copyright 2015-2022 Valery Silaev (http://vsilaev.com)
+ * Copyright 2015-2025 Valery Silaev (http://vsilaev.com)
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
@@ -75,10 +75,12 @@ public class SwingDispatcherThreadScheduler extends AbstractScheduler {
     }
 
     private static Set<Characteristics> ensureNonInterruptibleCharacteristic(Set<Characteristics> characteristics) {
-        if (null == characteristics || !characteristics.contains(Characteristics.INTERRUPTIBLE)) {
+        if (null == characteristics) {
             return characteristics;
+        } else if (characteristics.contains(Characteristics.INTERRUPTIBLE)) {
+            throw new IllegalArgumentException("Characteristics must not contain " + Characteristics.INTERRUPTIBLE);
         }
-        throw new IllegalArgumentException("Characteristics must contains " + Characteristics.INTERRUPTIBLE);
+        return characteristics;
     }
     
     static final class SchedulePromise<T> extends CompletableFuture<T> {

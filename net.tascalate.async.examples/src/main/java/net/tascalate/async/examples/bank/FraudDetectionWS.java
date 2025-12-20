@@ -1,5 +1,5 @@
 /**
- * ﻿Copyright 2015-2022 Valery Silaev (http://vsilaev.com)
+ * Copyright 2015-2025 Valery Silaev (http://vsilaev.com)
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
@@ -31,7 +31,7 @@ import java.util.concurrent.CompletionStage;
 import net.tascalate.async.examples.bank.FraudDetectionService.Result;
 
 public class FraudDetectionWS {
-	
+
 	public CompletionStage<FraudDetectionService.Result> checkFraud(final BankAccount bankAccount, final BigDecimal amount) {
 		final CompletableFuture<FraudDetectionService.Result> result = new CompletableFuture<>();
 		new Thread(() -> {

@@ -1,5 +1,5 @@
 /**
- * ﻿Copyright 2015-2022 Valery Silaev (http://vsilaev.com)
+ * Copyright 2015-2025 Valery Silaev (http://vsilaev.com)
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
@@ -47,8 +47,8 @@ import net.tascalate.concurrent.Promise;
 import net.tascalate.concurrent.Promises;
 
 public class SimpleArgs extends SamePackageSubclass {
-    final private static AtomicLong idx = new AtomicLong(0);
-    final private static ExecutorService executor = Executors.newFixedThreadPool(4, new ThreadFactory() {
+    private static final AtomicLong idx = new AtomicLong(0);
+    private static final ExecutorService executor = Executors.newFixedThreadPool(4, new ThreadFactory() {
         @Override
         public Thread newThread(Runnable r) {
             Thread result = Executors.defaultThreadFactory().newThread(r);
@@ -59,8 +59,7 @@ public class SimpleArgs extends SamePackageSubclass {
 
     public static void main(String[] args) {
         Scheduler scheduler = Scheduler.interruptible(executor);
-        //SimpleArgs.scheduler = scheduler;
-        final SimpleArgs example = new SimpleArgs(scheduler);
+        SimpleArgs example = new SimpleArgs(scheduler);
         CompletionStage<?> f1 = example.outerCall("ABC"/*, scheduler*/);
         CompletionStage<?> f2 = example.outerCallExplicit("|", new TaskScheduler(executor), 10);
         f1.thenCombine(f2, (a, b) -> {
@@ -73,11 +72,11 @@ public class SimpleArgs extends SamePackageSubclass {
 
     @SchedulerProvider
     final Scheduler scheduler;
-    
+
     SimpleArgs(Scheduler scheduler) {
         this.scheduler = scheduler;
     }
-    
+
     @async CompletionStage<Date> outerCall(String abs/*, @SchedulerProvider Scheduler scheduler*/) {
         Integer x = Integer.valueOf(10);
         x.hashCode();
@@ -93,7 +92,7 @@ public class SimpleArgs extends SamePackageSubclass {
         await(innerCall());
         return async(new Date());
     }
-    
+
     @async CompletionStage<String> innerCall() {
         System.out.println("Inner call, current scheduler - " + CurrentCallContext.scheduler());
         String v = await(CompletableFuture.supplyAsync(() -> "XYZ", executor));
@@ -107,7 +106,7 @@ public class SimpleArgs extends SamePackageSubclass {
         System.out.println("Outer call explicit, current scheduler - " + CurrentCallContext.scheduler());
         System.out.println("Outer call explicit, thread : " + Thread.currentThread().getName());
         await(innerCallImplicit());
-        
+
         StringJoiner joiner = new StringJoiner(delimeter);
         try (Sequence<Promise<String>> generator = AsyncGenerator.from("ABC", "KLM", "XYZ").stream().map(Promises::from).convert(Sequence.fromStream())) {
             System.out.println("%%MergeStrings - before iterations");
@@ -123,7 +122,7 @@ public class SimpleArgs extends SamePackageSubclass {
 
         return async(joiner.toString());
     }
-    
+
     @async
     Promise<String> innerCallImplicit() {
         System.out.println("Inner call explicit, current scheduler - " + CurrentCallContext.scheduler());

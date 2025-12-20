@@ -4,7 +4,7 @@
 
 	<groupId>net.tascalate.async</groupId>
 	<artifactId>net.tascalate.async.parent</artifactId>
-	<version>1.2.8</version>
+	<version>1.2.9</version>
 	<packaging>pom</packaging>
 
 	<name>Tascalate Async/Await</name>
@@ -45,6 +45,7 @@
 		<module>net.tascalate.async.tools.gradle</module>
 		<module>net.tascalate.async.agent</module>
 		<module>net.tascalate.async.extras</module>
+		<module>net.tascalate.async.spring</module>
 		<module>net.tascalate.async.examples</module>
 	</modules>
 
@@ -56,6 +57,8 @@
 		<tascalate.javaflow.extras.version>2.4.5</tascalate.javaflow.extras.version>
 		<tascalate.asmx.version>9.8.0</tascalate.asmx.version>
 		<tascalate.instrument.version>1.6.0</tascalate.instrument.version>
+		<spring.version>3.1.0.RELEASE</spring.version>
+		<spring.boot.version>1.3.0.RELEASE</spring.boot.version>
 	</properties>
 
 	<dependencyManagement>
@@ -118,11 +121,11 @@
 	<distributionManagement>
 		<snapshotRepository>
 			<id>ossrh</id>
-			<url>https://oss.sonatype.org/content/repositories/snapshots</url>
+			<url>https://central.sonatype.com/snapshots</url>
 		</snapshotRepository>
 		<repository>
 			<id>ossrh</id>
-			<url>https://oss.sonatype.org/service/local/staging/deploy/maven2/</url>
+			<url>https://central.sonatype.com</url>
 		</repository>
 	</distributionManagement>
 
@@ -183,16 +186,14 @@
 	<build>
 		<plugins>
 			<plugin>
-				<groupId>org.sonatype.plugins</groupId>
-				<artifactId>nexus-staging-maven-plugin</artifactId>
-				<version>1.7.0</version>
+				<groupId>org.sonatype.central</groupId>
+				<artifactId>central-publishing-maven-plugin</artifactId>
+				<version>0.8.0</version>
 				<extensions>true</extensions>
 				<configuration>
-					<serverId>ossrh</serverId>
-					<nexusUrl>https://oss.sonatype.org/</nexusUrl>
-					<autoReleaseAfterClose>false</autoReleaseAfterClose>
+					<publishingServerId>ossrh</publishingServerId>
 				</configuration>
-			</plugin> 
+			</plugin>
 			<plugin>
 				<groupId>org.apache.maven.plugins</groupId>
 				<artifactId>maven-compiler-plugin</artifactId>

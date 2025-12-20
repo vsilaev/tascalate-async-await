@@ -1,5 +1,5 @@
 /**
- * ﻿Copyright 2015-2022 Valery Silaev (http://vsilaev.com)
+ * Copyright 2015-2025 Valery Silaev (http://vsilaev.com)
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
@@ -24,7 +24,7 @@
  */
 package net.tascalate.async.examples.bank;
 
-import static net.tascalate.async.CallContext.*;
+import static net.tascalate.async.CallContext.async;
 
 import java.math.BigDecimal;
 import java.util.concurrent.CompletionStage;
@@ -33,20 +33,19 @@ import net.tascalate.async.async;
 
 public class AccountTransactionService {
 
-	@async public CompletionStage<BigDecimal> deposit(final BankAccount account, final BigDecimal amount) throws InterruptedException {
-		Thread.sleep(2000L);
-		account.amount = account.amount.add(amount);
-		return async(account.amount);
-	}
-	
-	@async public CompletionStage<BigDecimal> withdraw(final BankAccount account, final BigDecimal amount) throws InterruptedException, InsufficientFundsException {
-		Thread.sleep(30L);
-		if (amount.compareTo(account.amount) < 0) {
-			account.amount = account.amount.subtract(amount);
-			return async(account.amount);
-		} else {
-			throw new InsufficientFundsException();
-		}
-	}
-	
+    @async public CompletionStage<BigDecimal> deposit(final BankAccount account, final BigDecimal amount) throws InterruptedException {
+        Thread.sleep(2000L);
+        account.amount = account.amount.add(amount);
+        return async(account.amount);
+    }
+    
+    @async public CompletionStage<BigDecimal> withdraw(final BankAccount account, final BigDecimal amount) throws InterruptedException, InsufficientFundsException {
+        Thread.sleep(30L);
+        if (amount.compareTo(account.amount) < 0) {
+            account.amount = account.amount.subtract(amount);
+            return async(account.amount);
+        } else {
+            throw new InsufficientFundsException();
+        }
+    }
 }

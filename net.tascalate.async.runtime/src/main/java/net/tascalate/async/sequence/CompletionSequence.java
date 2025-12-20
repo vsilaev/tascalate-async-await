@@ -1,5 +1,5 @@
 /**
- * ﻿Copyright 2015-2022 Valery Silaev (http://vsilaev.com)
+ * Copyright 2015-2025 Valery Silaev (http://vsilaev.com)
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
@@ -32,7 +32,6 @@ import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionStage;
 import java.util.concurrent.LinkedBlockingQueue;
-import java.util.concurrent.atomic.AtomicInteger;
 
 import java.util.stream.Stream;
 
@@ -44,7 +43,7 @@ public class CompletionSequence<T, F extends CompletionStage<T>> implements Sequ
     private final Iterator<? extends F> pendingPromises;
     private final int chunkSize;
     private final BlockingQueue<F> settledPromises = new LinkedBlockingQueue<>();
-    private final AtomicInteger remaining = new AtomicInteger(0);
+    private int inProgress = 0;
     
     private volatile CompletableFuture<Void> consumerLock = new CompletableFuture<>();
     private Sequence<F> current = Sequence.empty();
@@ -63,14 +62,14 @@ public class CompletionSequence<T, F extends CompletionStage<T>> implements Sequ
                 return resolvedValue;
             }
     
-            int unprocessed = remaining.get();
-            if (unprocessed < 0) {
+            if (inProgress < 0) {
                 // Forcibly closed
                 return null;
             } else {
                 final Collection<F> readyValues = new ArrayList<>(/*Math.max(0, chunkSize)*/);
                 settledPromises.drainTo(readyValues);
-    
+                inProgress -= readyValues.size();
+                
                 if (!readyValues.isEmpty()) {
                     // If we are consuming slower than producing 
                     // then use available results right away
@@ -79,7 +78,7 @@ public class CompletionSequence<T, F extends CompletionStage<T>> implements Sequ
                     continue; 
                 } else {
                     // Otherwise await for any result...            
-                    if (unprocessed > 0) {
+                    if (inProgress > 0) {
                         AsyncMethodExecutor.await(consumerLock);
                         consumerLock = new CompletableFuture<>();
                         // ... and try again
@@ -102,7 +101,7 @@ public class CompletionSequence<T, F extends CompletionStage<T>> implements Sequ
 
     @Override
     public void close() {
-        remaining.set(Integer.MIN_VALUE);
+        inProgress = Integer.MIN_VALUE;
         current.close();
         current = Sequence.empty();
     }
@@ -117,7 +116,7 @@ public class CompletionSequence<T, F extends CompletionStage<T>> implements Sequ
             // while stage may be completed already
             // we should increment step-by-step 
             // instead of setting the value at once
-            remaining.incrementAndGet(); 
+            inProgress++; 
             nextPromise.whenComplete((r, e) -> enlistResolved(nextPromise));
             enlisted = true;
             
@@ -135,8 +134,6 @@ public class CompletionSequence<T, F extends CompletionStage<T>> implements Sequ
         } catch (InterruptedException e) {
             throw new RuntimeException(e); // Shouldn't happen for the queue with an unlimited size
         }
-
-        remaining.decrementAndGet();
         consumerLock.complete(null);
     }
 
@@ -145,7 +142,7 @@ public class CompletionSequence<T, F extends CompletionStage<T>> implements Sequ
     public String toString() {
         return String.format(
             "%s[current=%s, consumer-lock=%s, remaining=%s, resolved-promises=%s]",
-            getClass().getSimpleName(), current, consumerLock, remaining, settledPromises
+            getClass().getSimpleName(), current, consumerLock, inProgress, settledPromises
         );
     }
 

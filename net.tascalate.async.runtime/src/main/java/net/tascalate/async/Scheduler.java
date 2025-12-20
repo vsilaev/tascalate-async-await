@@ -1,5 +1,5 @@
 /**
- * ﻿Copyright 2015-2022 Valery Silaev (http://vsilaev.com)
+ * Copyright 2015-2025 Valery Silaev (http://vsilaev.com)
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
@@ -49,6 +49,14 @@ public interface Scheduler {
     }
     
     abstract public CompletionStage<?> schedule(Runnable runnable);
+
+    public static void installDefaultScheduler(Scheduler scheduler) {
+        DefaultSchedulerHolder.setOnce(scheduler);
+    }
+    
+    public static Scheduler defaultScheduler() {
+        return DefaultSchedulerHolder.get();
+    }
     
     public static Scheduler sameThreadContextless() {
         return SimpleScheduler.SAME_THREAD_SCHEDULER;

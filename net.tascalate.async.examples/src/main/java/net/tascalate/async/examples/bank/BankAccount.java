@@ -1,5 +1,5 @@
 /**
- * ﻿Copyright 2015-2022 Valery Silaev (http://vsilaev.com)
+ * Copyright 2015-2025 Valery Silaev (http://vsilaev.com)
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
@@ -28,12 +28,12 @@ import java.math.BigDecimal;
 
 public class BankAccount {
 
-	public BigDecimal amount;
-	public String accountNumber;
-	
-	public BankAccount(final String accountNumber, final BigDecimal amount) {
-		this.accountNumber = accountNumber;
-		this.amount = amount;
-	}
-	
+    public BigDecimal amount;
+    public String accountNumber;
+    
+    public BankAccount(final String accountNumber, final BigDecimal amount) {
+        this.accountNumber = accountNumber;
+        this.amount = amount;
+    }
+
 }

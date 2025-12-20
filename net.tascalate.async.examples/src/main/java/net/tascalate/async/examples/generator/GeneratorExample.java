@@ -1,5 +1,5 @@
 /**
- * ﻿Copyright 2015-2022 Valery Silaev (http://vsilaev.com)
+ * Copyright 2015-2025 Valery Silaev (http://vsilaev.com)
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
@@ -53,7 +53,7 @@ import net.tascalate.javaflow.SuspendableIterator;
 
 public class GeneratorExample {
 
-    final private static ExecutorService executor = Executors.newFixedThreadPool(4);
+    private static final ExecutorService executor = Executors.newFixedThreadPool(4);
 
     public static void main(String[] args) {
         long startTime = System.currentTimeMillis();
@@ -63,28 +63,28 @@ public class GeneratorExample {
         final CompletionStage<String> result2 = example.iterateStringsEx(11);
         
         result2.thenCombine(result1, (v1, v2) -> "\n" + v1 + "\n" + v2)
-        .whenComplete((v, e) -> {
-            long finishTime = System.currentTimeMillis();
-            if (null == e) {
-                System.out.println("Calculates: " + v + "\nTask take " + (finishTime - startTime) + "ms");
-            } else {
-                e.printStackTrace(System.err);
-            }
-            executor.submit(executor::shutdown);
-        });
+               .whenComplete((v, e) -> {
+                   long finishTime = System.currentTimeMillis();
+                   if (null == e) {
+                       System.out.println("Calculates: " + v + "\nTask take " + (finishTime - startTime) + "ms");
+                   } else {
+                       e.printStackTrace(System.err);
+                   }
+                   executor.submit(executor::shutdown);
+               });
     }
 
     @async
     CompletableFuture<String> mergeStrings(String delimeter) {
         StringJoiner joiner = new StringJoiner(", ");
         try (AsyncGenerator<String> generator = produceStrings()) {
-        	System.out.println("%%MergeStrings - before iterations");
+            System.out.println("%%MergeStrings - before iterations");
             String param = "GO!";
             int i = 0;
             CompletionStage<String> singleResult; 
             while (null != (singleResult = generator.next(param))) {
-            	System.out.println(">>Future is ready: " + Future.class.cast(singleResult).isDone());
-            	String v = await(singleResult);
+                System.out.println(">>Future is ready: " + Future.class.cast(singleResult).isDone());
+                String v = await(singleResult);
                 System.out.println("Received: " + v);
                 ++i;
                 param = "VAL #" + i + "(AFTER " + v + ")";
@@ -139,7 +139,7 @@ public class GeneratorExample {
     @async
     AsyncGenerator<String> produceStrings() {
        
-    	System.out.println("%%ProduceStrings - starting + ");
+        System.out.println("%%ProduceStrings - starting + ");
         YieldReply<String> o;
         
         o = yield(Sequence.empty());
@@ -171,9 +171,9 @@ public class GeneratorExample {
         yield(chainedGenerator());
 
         try (AsyncGenerator<String> nested = moreStrings()) {
-        	CompletionStage<String> singleResult; 
+            CompletionStage<String> singleResult; 
             while (null != (singleResult = nested.next())) {
-            	String v = await(singleResult);
+                String v = await(singleResult);
                 System.out.println("Nested: " + v);
                 if (Integer.parseInt(v) % 2 == 0) {
                     o = yield(waitString("NESTED-" + v));
@@ -230,12 +230,12 @@ public class GeneratorExample {
         return yield();
     }
     
-    static CompletionStage<String> waitString(final String value) {
+    static CompletionStage<String> waitString(String value) {
         return waitString(value, 250L);
     }
     
-    static CompletionStage<String> waitString(final String value, final long delay) {
-        final CompletionStage<String> promise = CompletableTask.supplyAsync(() -> {
+    static CompletionStage<String> waitString(String value, long delay) {
+        CompletionStage<String> promise = CompletableTask.supplyAsync(() -> {
             try { 
                 Thread.sleep(delay);
             } catch (final InterruptedException ex) {
@@ -247,11 +247,11 @@ public class GeneratorExample {
         return promise;
     }
     
-    static CompletionStage<String> waitError(final long delay) {
-        final CompletionStage<String> promise = CompletableTask.supplyAsync(() -> {
+    static CompletionStage<String> waitError(long delay) {
+        CompletionStage<String> promise = CompletableTask.supplyAsync(() -> {
             try { 
                 Thread.sleep(delay);
-            } catch (final InterruptedException ex) {
+            } catch (InterruptedException ex) {
                 Thread.currentThread().interrupt();
                 throw new CompletionException(ex);
             }

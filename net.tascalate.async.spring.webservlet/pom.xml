@@ -63,7 +63,7 @@
 		<dependency>
 			<groupId>org.springframework.security</groupId>
 			<artifactId>spring-security-core</artifactId>
-			<version>3.2.0.RELEASE</version>
+			<version>5.7.14</version>
 			<optional>true</optional>
 		</dependency>
 		<dependency>

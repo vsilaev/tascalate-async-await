@@ -22,28 +22,23 @@
  * OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
-package net.tascalate.async.spring;
+package net.tascalate.async.spring.webflux;
 
-import org.springframework.boot.ApplicationArguments;
-import org.springframework.boot.ApplicationRunner;
-import org.springframework.boot.autoconfigure.condition.ConditionalOnNotWebApplication;
-import org.springframework.stereotype.Component;
+import java.lang.invoke.MethodHandles.Lookup;
 
 import net.tascalate.async.Scheduler;
+import net.tascalate.async.spi.SchedulerResolver;
 
-@Component
-@ConditionalOnNotWebApplication
-class ApplicationStartup implements ApplicationRunner {
-    
-    private final Scheduler defaultAsyncAwaitScheduler;
+public class WebFluxScheduleResolver implements SchedulerResolver {
 
-    ApplicationStartup(@DefaultAsyncAwaitScheduler Scheduler scheduler) {
-        defaultAsyncAwaitScheduler = scheduler;
-        // It's very tempting to install the scheduler right here
+    @Override
+    public int priority() {
+        return 0;
     }
 
     @Override
-    public void run(ApplicationArguments args) throws Exception {
-        Scheduler.installDefaultScheduler(defaultAsyncAwaitScheduler);
+    public Scheduler resolve(Object owner, Lookup ownerClassLookup) {
+        return WebFluxData.safeGet().asyncAwaitScheduler();
     }
+
 }

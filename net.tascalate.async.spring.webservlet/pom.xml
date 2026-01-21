@@ -9,10 +9,10 @@
 		<relativePath>../</relativePath>
 	</parent>
 
-	<artifactId>net.tascalate.async.spring</artifactId>
+	<artifactId>net.tascalate.async.spring.webservlet</artifactId>
 	<packaging>jar</packaging>
 
-	<name>Tascalate Async/Await - Spring (Standalone, Web &amp; Spring WebFlux Support common code)</name>
+	<name>Tascalate Async/Await - Spring -&gt; Spring WebServlet Support</name>
 
 	<properties>
 		<project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
@@ -20,16 +20,26 @@
 
 	<dependencies>
 		<dependency>
+			<groupId>jakarta.servlet</groupId>
+			<artifactId>jakarta.servlet-api</artifactId>
+			<version>5.0.0</version>
+			<scope>provided</scope>
+		</dependency>
+		<dependency>
+			<groupId>javax.servlet</groupId>
+			<artifactId>javax.servlet-api</artifactId>
+			<version>3.0.1</version>
+			<scope>provided</scope>
+		</dependency>
+		<dependency>
 			<groupId>${project.groupId}</groupId>
-			<artifactId>${project.groupId}.runtime</artifactId>
+			<artifactId>${project.groupId}.spring</artifactId>
 			<version>${project.version}</version>
 		</dependency>
 		<dependency>
 			<groupId>${project.groupId}</groupId>
-			<artifactId>${project.groupId}.spring-java21</artifactId>
+			<artifactId>${project.groupId}.resolver.scoped</artifactId>
 			<version>${project.version}</version>
-			<scope>compile</scope>
-			<optional>true</optional>
 		</dependency>
 		<dependency>
 			<groupId>org.springframework</groupId>
@@ -38,9 +48,22 @@
 			<optional>true</optional>
 		</dependency>
 		<dependency>
+			<groupId>org.springframework</groupId>
+			<artifactId>spring-web</artifactId>
+			<version>${spring.web.version}</version>
+			<optional>true</optional>
+		</dependency>
+
+		<dependency>
 			<groupId>org.springframework.boot</groupId>
 			<artifactId>spring-boot-autoconfigure</artifactId>
 			<version>${spring.boot.version}</version>
+			<optional>true</optional>
+		</dependency>
+		<dependency>
+			<groupId>org.springframework.security</groupId>
+			<artifactId>spring-security-core</artifactId>
+			<version>3.2.0.RELEASE</version>
 			<optional>true</optional>
 		</dependency>
 		<dependency>
@@ -60,27 +83,9 @@
 				<artifactId>moditect-maven-plugin</artifactId>
 			</plugin>
 			<plugin>
-				<groupId>org.apache.maven.plugins</groupId>
-				<artifactId>maven-dependency-plugin</artifactId>
-				<executions>
-					<execution>
-						<id>unpack-binaries-java21</id>
-						<phase>process-classes</phase>
-						<goals>
-							<goal>unpack-dependencies</goal>
-						</goals>
-						<configuration>
-							<includeGroupIds>${project.groupId}</includeGroupIds>
-							<includeArtifactIds>${project.groupId}.spring-java21</includeArtifactIds>
-							<type>jar</type>
-							<outputDirectory>${project.build.outputDirectory}/META-INF/versions/21</outputDirectory>
-							<includes>**/AsyncAwaitConfiguration21.class</includes>
-							<failOnMissingClassifierArtifact>true</failOnMissingClassifierArtifact>
-						</configuration>
-					</execution>
-				</executions>
+				<groupId>net.tascalate.javaflow</groupId>
+				<artifactId>net.tascalate.javaflow.tools.maven</artifactId>
 			</plugin>
-
 		</plugins>
 	</build>
 </project>

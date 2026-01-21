@@ -26,6 +26,7 @@ package net.tascalate.async;
 
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionStage;
+import java.util.function.Consumer;
 import java.util.stream.Stream;
 import java.util.stream.StreamSupport;
 
@@ -68,6 +69,12 @@ public interface AsyncGenerator<T> extends InteractiveSequence<CompletionStage<T
             }            
         };
     }
+    
+    abstract public AsyncGeneratorTraversal<T> startTraversal(Consumer<? super T> itemProcessor);
+    
+    default AsyncGeneratorTraversal<T> startTraversal(Scheduler scheduler, Consumer<? super T> itemProcessor) {
+        return startTraversal(this,  scheduler, itemProcessor);
+    }
 
     public static <T> Sequence<CompletionStage<T>> from(T readyValue) {
         return from(Stream.of(readyValue));
@@ -78,11 +85,11 @@ public interface AsyncGenerator<T> extends InteractiveSequence<CompletionStage<T
         return from(Stream.of(readyValues));
     }
     
-    public static <T> Sequence<CompletionStage<T>> from(Iterable<T> readyValues) {
+    public static <T> Sequence<CompletionStage<T>> from(Iterable<? extends T> readyValues) {
         return from(StreamSupport.stream(readyValues.spliterator(), false));
     }
     
-    public static <T> Sequence<CompletionStage<T>> from(Stream<T> readyValues) {
+    public static <T> Sequence<CompletionStage<T>> from(Stream<? extends T> readyValues) {
         return Sequence.of(readyValues.map(CompletableFuture::completedFuture));
     }
     
@@ -107,4 +114,10 @@ public interface AsyncGenerator<T> extends InteractiveSequence<CompletionStage<T
         return CompletionSequence.create(pendingValues, chunkSize);
     }
 
+    public static <T> AsyncGeneratorTraversal<T> startTraversal(Sequence<? extends CompletionStage<? extends T>> promises, Scheduler scheduler, Consumer<? super T> itemProcessor) {
+        AsyncGeneratorTraversal<T> traversal = new AsyncGeneratorTraversal<>(promises, itemProcessor);
+        traversal.result = traversal.start(scheduler);
+        return  traversal;
+        
+    }
 }

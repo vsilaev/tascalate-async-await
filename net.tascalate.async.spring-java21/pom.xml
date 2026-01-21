@@ -9,28 +9,16 @@
 		<relativePath>../</relativePath>
 	</parent>
 
-	<artifactId>net.tascalate.async.spring</artifactId>
+	<artifactId>net.tascalate.async.spring-java21</artifactId>
 	<packaging>jar</packaging>
 
-	<name>Tascalate Async/Await - Spring (Standalone, Web &amp; Spring WebFlux Support common code)</name>
+	<name>Tascalate Async/Await - Spring + Java 21+ Update</name>
 
 	<properties>
 		<project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
 	</properties>
 
 	<dependencies>
-		<dependency>
-			<groupId>${project.groupId}</groupId>
-			<artifactId>${project.groupId}.runtime</artifactId>
-			<version>${project.version}</version>
-		</dependency>
-		<dependency>
-			<groupId>${project.groupId}</groupId>
-			<artifactId>${project.groupId}.spring-java21</artifactId>
-			<version>${project.version}</version>
-			<scope>compile</scope>
-			<optional>true</optional>
-		</dependency>
 		<dependency>
 			<groupId>org.springframework</groupId>
 			<artifactId>spring-context</artifactId>
@@ -40,7 +28,7 @@
 		<dependency>
 			<groupId>org.springframework.boot</groupId>
 			<artifactId>spring-boot-autoconfigure</artifactId>
-			<version>${spring.boot.version}</version>
+			<version>2.7.16</version>
 			<optional>true</optional>
 		</dependency>
 		<dependency>
@@ -56,31 +44,23 @@
 	<build>
 		<plugins>
 			<plugin>
-				<groupId>org.moditect</groupId>
-				<artifactId>moditect-maven-plugin</artifactId>
-			</plugin>
-			<plugin>
 				<groupId>org.apache.maven.plugins</groupId>
-				<artifactId>maven-dependency-plugin</artifactId>
+				<artifactId>maven-compiler-plugin</artifactId>
 				<executions>
 					<execution>
-						<id>unpack-binaries-java21</id>
-						<phase>process-classes</phase>
+						<id>default-compile</id>
 						<goals>
-							<goal>unpack-dependencies</goal>
+							<goal>compile</goal>
 						</goals>
 						<configuration>
-							<includeGroupIds>${project.groupId}</includeGroupIds>
-							<includeArtifactIds>${project.groupId}.spring-java21</includeArtifactIds>
-							<type>jar</type>
-							<outputDirectory>${project.build.outputDirectory}/META-INF/versions/21</outputDirectory>
-							<includes>**/AsyncAwaitConfiguration21.class</includes>
-							<failOnMissingClassifierArtifact>true</failOnMissingClassifierArtifact>
+							<jdkToolchain>
+								<version>21</version>
+								<vendor>Oracle</vendor>
+							</jdkToolchain>
 						</configuration>
-					</execution>
+					</execution> 
 				</executions>
 			</plugin>
-
 		</plugins>
 	</build>
 </project>

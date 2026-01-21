@@ -22,50 +22,9 @@
  * OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
-package net.tascalate.async.spring;
-
-import java.time.Duration;
-
-import org.springframework.boot.context.properties.ConfigurationProperties;
-import org.springframework.stereotype.Component;
-
-@Component
-@ConfigurationProperties(prefix = "async-await-executor")
-public class AsyncAwaitExecutorConfiguration {
-    private String corePoolSize;
-    private String maximumPoolSize;
-    private Duration keepAliveTime;
-    private int workQueueSize;
+module net.tascalate.async.spring.webservlet {
+    requires org.slf4j;
+    requires transitive net.tascalate.async.spring;
     
-    public String getCorePoolSize() {
-        return corePoolSize;
-    }
-    
-    public void setCorePoolSize(String corePoolSize) {
-        this.corePoolSize = corePoolSize;
-    }
-    
-    public String getMaximumPoolSize() {
-        return maximumPoolSize;
-    }
-    
-    public void setMaximumPoolSize(String maximumPoolSize) {
-        this.maximumPoolSize = maximumPoolSize;
-    }
-    
-    public Duration getKeepAliveTime() {
-        return keepAliveTime;
-    }
-    
-    public void setKeepAliveTime(Duration keepAliveTime) {
-        this.keepAliveTime = keepAliveTime;
-    }
-    
-    public int getWorkQueueSize() {
-        return workQueueSize;
-    }
-    
-    public void setWorkQueueSize(int workQueueSize) {
-        this.workQueueSize = workQueueSize;
-    }
+    exports net.tascalate.async.spring.webservlet;
 }

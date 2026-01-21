@@ -22,28 +22,10 @@
  * OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
-package net.tascalate.async.spring;
-
-import org.springframework.boot.ApplicationArguments;
-import org.springframework.boot.ApplicationRunner;
-import org.springframework.boot.autoconfigure.condition.ConditionalOnNotWebApplication;
-import org.springframework.stereotype.Component;
-
-import net.tascalate.async.Scheduler;
-
-@Component
-@ConditionalOnNotWebApplication
-class ApplicationStartup implements ApplicationRunner {
+module net.tascalate.async.spring.webflux {
+    requires org.slf4j;
+    requires transitive net.tascalate.async.spring;
+    requires transitive reactor.core;
     
-    private final Scheduler defaultAsyncAwaitScheduler;
-
-    ApplicationStartup(@DefaultAsyncAwaitScheduler Scheduler scheduler) {
-        defaultAsyncAwaitScheduler = scheduler;
-        // It's very tempting to install the scheduler right here
-    }
-
-    @Override
-    public void run(ApplicationArguments args) throws Exception {
-        Scheduler.installDefaultScheduler(defaultAsyncAwaitScheduler);
-    }
+    exports net.tascalate.async.spring.webflux;
 }

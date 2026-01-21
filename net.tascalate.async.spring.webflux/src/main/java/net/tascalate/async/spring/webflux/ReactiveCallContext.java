@@ -22,28 +22,27 @@
  * OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
-package net.tascalate.async.spring;
+package net.tascalate.async.spring.webflux;
 
-import org.springframework.boot.ApplicationArguments;
-import org.springframework.boot.ApplicationRunner;
-import org.springframework.boot.autoconfigure.condition.ConditionalOnNotWebApplication;
-import org.springframework.stereotype.Component;
+import org.springframework.web.server.ServerWebExchange;
 
-import net.tascalate.async.Scheduler;
+import net.tascalate.async.CallContext;
+import net.tascalate.async.suspendable;
+import reactor.core.publisher.Mono;
+import reactor.util.context.Context;
 
-@Component
-@ConditionalOnNotWebApplication
-class ApplicationStartup implements ApplicationRunner {
+public class ReactiveCallContext {
+    private ReactiveCallContext() {}
     
-    private final Scheduler defaultAsyncAwaitScheduler;
-
-    ApplicationStartup(@DefaultAsyncAwaitScheduler Scheduler scheduler) {
-        defaultAsyncAwaitScheduler = scheduler;
-        // It's very tempting to install the scheduler right here
+    public static ServerWebExchange currentServerWebExchange() {
+        return WebFluxData.safeGet().serverWebExchange();
     }
-
-    @Override
-    public void run(ApplicationArguments args) throws Exception {
-        Scheduler.installDefaultScheduler(defaultAsyncAwaitScheduler);
+    
+    public static Context currentReactiveContext() {
+        return WebFluxData.safeGet().context();
+    }
+    
+    public @suspendable static <T> T await(Mono<T> mono) {
+        return CallContext.await(mono.toFuture());
     }
 }

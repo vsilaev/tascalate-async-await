@@ -26,8 +26,10 @@ package net.tascalate.async.core;
 
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionStage;
+import java.util.function.Consumer;
 
 import net.tascalate.async.AsyncGenerator;
+import net.tascalate.async.AsyncGeneratorTraversal;
 import net.tascalate.async.InteractiveSequence;
 import net.tascalate.async.Sequence;
 import net.tascalate.async.YieldReply;
@@ -98,6 +100,11 @@ class LazyGenerator<T> implements AsyncGenerator<T> {
         owner.future.cancel(true);
         currentDelegate.close();
         end(null);
+    }
+    
+    @Override
+    public AsyncGeneratorTraversal<T> startTraversal(Consumer<? super T> itemProcessor) {
+        return startTraversal(owner.scheduler(), itemProcessor);
     }
 
     final @suspendable YieldReply<T> produce(Sequence<? extends CompletionStage<T>> pendingValues) {

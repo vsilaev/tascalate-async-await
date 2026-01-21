@@ -79,15 +79,15 @@ public class OrderedSequence<T> implements Sequence<T> {
         return String.format("%s[delegate=%s]", getClass().getSimpleName(), delegate);
     }
     
-    public static <T> Sequence<T> create(Stream<? extends T> pendingPromises) {
-        return create(pendingPromises.iterator());
+    public static <T> Sequence<T> create(Stream<? extends T> items) {
+        return create(items.iterator());
     }
 
-    public static <T> Sequence<T> create(Iterable<? extends T> pendingPromises) {
-        return create(pendingPromises.iterator());
+    public static <T> Sequence<T> create(Iterable<? extends T> items) {
+        return create(items.iterator());
     }
     
-    private static <T> Sequence<T> create(Iterator<? extends T> pendingPromises) {
-        return new OrderedSequence<>(pendingPromises);
+    private static <T> Sequence<T> create(Iterator<? extends T> items) {
+        return new OrderedSequence<>(items);
     }
 } 

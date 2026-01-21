@@ -180,7 +180,9 @@ abstract public class AbstractAsyncMethod implements Runnable {
         if (future.isCancelled()) {
             this.terminateMethod = null;
             // First terminate method to avoid exceptions in method
-            terminateMethod.completeExceptionally(CloseSignal.INSTANCE);
+            if (null != terminateMethod) {
+                terminateMethod.completeExceptionally(CloseSignal.INSTANCE);
+            }
             // No longer need reference
             this.originalAwait = null;
             // Then cancel promise we are waiting on

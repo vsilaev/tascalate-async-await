@@ -24,33 +24,36 @@
  */
 package net.tascalate.async.spring;
 
-import java.util.Optional;
 import java.util.concurrent.ExecutorService;
-import java.util.function.Function;
+import java.util.concurrent.Executors;
+import java.util.concurrent.ThreadFactory;
 
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnJava;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnJava.Range;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
+import org.springframework.boot.system.JavaVersion;
 import org.springframework.context.annotation.Bean;
-import org.springframework.context.annotation.ComponentScan;
 import org.springframework.context.annotation.Configuration;
 
-import net.tascalate.async.Scheduler;
-
 @Configuration
-@ComponentScan(basePackageClasses = AsyncAwaitConfiguration.class)
-class AsyncAwaitConfiguration {
+class AsyncAwaitConfiguration21 {
+    
+    @Value("${async-await.executor.thread-name-prefix:async-await-scheduler-vthread_}")
+    private String asyncAwaitExecutorThreadNamePrefix;
     
     @DefaultAsyncAwaitExecutor
     @Bean(name="<<default-async-await-executor>>", destroyMethod = "shutdown")
     @ConditionalOnMissingBean(annotation = DefaultAsyncAwaitExecutor.class)
-    ExecutorService defaultAsyncAwaitExecutorService(AsyncAwaitExecutorProperties executorProperties) {
-        return executorProperties.createExecutorService();
+    @ConditionalOnJava(value = JavaVersion.TWENTY_ONE, range = Range.EQUAL_OR_NEWER)
+    @ConditionalOnProperty(name = "async-await.executor.use-virtual-threads", havingValue = "true", matchIfMissing = true)
+    ExecutorService defaultAsyncAwaitExecutorService() {
+        ThreadFactory factory = Thread.ofVirtual()
+                                      .name(asyncAwaitExecutorThreadNamePrefix, 0)
+                                      .factory();
+        
+        return Executors.newThreadPerTaskExecutor(factory);        
     }
-    
-    @DefaultAsyncAwaitScheduler
-    @Bean(name="<<default-async-await-scheduler>>")
-    @ConditionalOnMissingBean(annotation = DefaultAsyncAwaitScheduler.class)
-    Scheduler defaultAsyncAwaitScheduler(@DefaultAsyncAwaitExecutor ExecutorService executor, 
-                                         @DefaultAsyncAwaitContextualizer Optional<Function<? super Runnable, ? extends Runnable>> contextualizer) {
-        return Scheduler.interruptible(executor, contextualizer.orElse(null));
-    }
+
 }

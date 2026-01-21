@@ -24,26 +24,16 @@
  */
 package net.tascalate.async.spring;
 
-import org.springframework.boot.ApplicationArguments;
-import org.springframework.boot.ApplicationRunner;
-import org.springframework.boot.autoconfigure.condition.ConditionalOnNotWebApplication;
-import org.springframework.stereotype.Component;
+import java.lang.annotation.ElementType;
+import java.lang.annotation.Retention;
+import java.lang.annotation.RetentionPolicy;
+import java.lang.annotation.Target;
 
-import net.tascalate.async.Scheduler;
+import org.springframework.beans.factory.annotation.Qualifier;
 
-@Component
-@ConditionalOnNotWebApplication
-class ApplicationStartup implements ApplicationRunner {
-    
-    private final Scheduler defaultAsyncAwaitScheduler;
+@Target({ElementType.FIELD, ElementType.METHOD, ElementType.PARAMETER, ElementType.TYPE})
+@Retention(RetentionPolicy.RUNTIME)
+@Qualifier
+public @interface DefaultAsyncAwaitExecutor {
 
-    ApplicationStartup(@DefaultAsyncAwaitScheduler Scheduler scheduler) {
-        defaultAsyncAwaitScheduler = scheduler;
-        // It's very tempting to install the scheduler right here
-    }
-
-    @Override
-    public void run(ApplicationArguments args) throws Exception {
-        Scheduler.installDefaultScheduler(defaultAsyncAwaitScheduler);
-    }
 }

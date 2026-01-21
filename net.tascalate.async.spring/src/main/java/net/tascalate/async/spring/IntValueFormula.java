@@ -24,26 +24,37 @@
  */
 package net.tascalate.async.spring;
 
-import org.springframework.boot.ApplicationArguments;
-import org.springframework.boot.ApplicationRunner;
-import org.springframework.boot.autoconfigure.condition.ConditionalOnNotWebApplication;
-import org.springframework.stereotype.Component;
+import java.util.function.IntUnaryOperator;
 
-import net.tascalate.async.Scheduler;
-
-@Component
-@ConditionalOnNotWebApplication
-class ApplicationStartup implements ApplicationRunner {
+public interface IntValueFormula extends IntUnaryOperator {
     
-    private final Scheduler defaultAsyncAwaitScheduler;
-
-    ApplicationStartup(@DefaultAsyncAwaitScheduler Scheduler scheduler) {
-        defaultAsyncAwaitScheduler = scheduler;
-        // It's very tempting to install the scheduler right here
+    public static IntValueFormula constant(int value) {
+        return operand -> value;
     }
-
-    @Override
-    public void run(ApplicationArguments args) throws Exception {
-        Scheduler.installDefaultScheduler(defaultAsyncAwaitScheduler);
+    
+    public static IntValueFormula scale(int nominator, int denominator) {
+        return operand -> (operand * nominator) / denominator;
+    }
+    
+    public static IntValueFormula scale(double factor) {
+        return operand -> (int)(operand * factor);     
+    }
+    
+    default public IntValueFormula withMinValue(int minValue) {
+        return new IntValueFormula() {
+            @Override
+            public int applyAsInt(int operand) {
+                return Math.max(IntValueFormula.this.applyAsInt(operand), minValue);
+            }
+        };
+    }
+    
+    default public IntValueFormula withMaxValue(int maxValue) {
+        return new IntValueFormula() {
+            @Override
+            public int applyAsInt(int operand) {
+                return Math.min(IntValueFormula.this.applyAsInt(operand), maxValue);
+            }
+        };
     }
 }

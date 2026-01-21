@@ -22,28 +22,31 @@
  * OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
-package net.tascalate.async.spring;
+package net.tascalate.async.spring.webservlet;
 
-import org.springframework.boot.ApplicationArguments;
-import org.springframework.boot.ApplicationRunner;
-import org.springframework.boot.autoconfigure.condition.ConditionalOnNotWebApplication;
-import org.springframework.stereotype.Component;
+abstract class SpringSecurityContextualizer {
 
-import net.tascalate.async.Scheduler;
-
-@Component
-@ConditionalOnNotWebApplication
-class ApplicationStartup implements ApplicationRunner {
+    abstract Runnable contextualize(Runnable code);
     
-    private final Scheduler defaultAsyncAwaitScheduler;
-
-    ApplicationStartup(@DefaultAsyncAwaitScheduler Scheduler scheduler) {
-        defaultAsyncAwaitScheduler = scheduler;
-        // It's very tempting to install the scheduler right here
+    static final SpringSecurityContextualizer NO_CONTEXT = new SpringSecurityContextualizer() {
+        
+        @Override
+        Runnable contextualize(Runnable code) {
+            return code;
+        }
+    };
+    
+    static final SpringSecurityContextualizer INSTANCE;
+    
+    static {
+        SpringSecurityContextualizer instance;
+        try {
+            Class.forName("org.springframework.security.core.context.SecurityContextHolder", false, SpringSecurityContextualizer.class.getClassLoader());
+            instance = RealSpringSecurityContextualizer.INSTANCE;
+        } catch (ClassNotFoundException ex) {
+            instance = NO_CONTEXT;
+        }
+        INSTANCE = instance;
     }
-
-    @Override
-    public void run(ApplicationArguments args) throws Exception {
-        Scheduler.installDefaultScheduler(defaultAsyncAwaitScheduler);
-    }
+    
 }

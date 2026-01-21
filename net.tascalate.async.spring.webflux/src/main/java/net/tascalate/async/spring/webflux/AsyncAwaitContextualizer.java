@@ -22,28 +22,43 @@
  * OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
-package net.tascalate.async.spring;
+package net.tascalate.async.spring.webflux;
 
-import org.springframework.boot.ApplicationArguments;
-import org.springframework.boot.ApplicationRunner;
-import org.springframework.boot.autoconfigure.condition.ConditionalOnNotWebApplication;
+import java.util.function.Function;
+
+import org.springframework.boot.autoconfigure.condition.ConditionalOnWebApplication;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnWebApplication.Type;
 import org.springframework.stereotype.Component;
 
-import net.tascalate.async.Scheduler;
+import net.tascalate.async.spring.DefaultAsyncAwaitContextualizer;
 
-@Component
-@ConditionalOnNotWebApplication
-class ApplicationStartup implements ApplicationRunner {
-    
-    private final Scheduler defaultAsyncAwaitScheduler;
-
-    ApplicationStartup(@DefaultAsyncAwaitScheduler Scheduler scheduler) {
-        defaultAsyncAwaitScheduler = scheduler;
-        // It's very tempting to install the scheduler right here
-    }
+@DefaultAsyncAwaitContextualizer
+@Component("<<default-async-await-contextualizer>>")
+@ConditionalOnWebApplication(type = Type.REACTIVE)
+class AsyncAwaitContextualizer implements Function<Runnable, Runnable> {
 
     @Override
-    public void run(ApplicationArguments args) throws Exception {
-        Scheduler.installDefaultScheduler(defaultAsyncAwaitScheduler);
+    public Runnable apply(Runnable code) {
+        return contextualize(code);
     }
+    
+    static Runnable contextualize(Runnable code) {
+        WebFluxData current = WebFluxData.get();
+        if (null == current) {
+            return code;
+        } 
+        
+        return new Runnable() {
+            @Override
+            public void run() {
+                WebFluxData previous = WebFluxData.update(current);
+                try {
+                    code.run();
+                } finally {
+                    WebFluxData.restore(previous);
+                }
+            }
+        }; 
+    }
+
 }

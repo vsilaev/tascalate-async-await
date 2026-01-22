@@ -120,4 +120,9 @@ public interface AsyncGenerator<T> extends InteractiveSequence<CompletionStage<T
         return  traversal;
         
     }
+    
+    @SuppressWarnings("unchecked")
+    public static <T> AsyncGenerator<T> empty() {
+        return (AsyncGenerator<T>)EmptyAsyncGenerator.INSTANCE;
+    }
 }

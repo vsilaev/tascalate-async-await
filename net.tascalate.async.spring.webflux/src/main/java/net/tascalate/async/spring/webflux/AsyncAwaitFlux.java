@@ -42,17 +42,19 @@ public final class AsyncAwaitFlux {
     
     public static <T> Flux<T> create(Supplier<? extends AsyncGenerator<? extends T>> generatorFactory) {
         return Flux.create(sink -> {
-            setupTraversalSink(generatorFactory.get().startTraversal(sink::next), sink);
+            AsyncGenerator<? extends T> generator = generatorFactory.get(); 
+            setupTraversalSink(generator.startTraversal(sink::next), sink, generator.scheduler());
         }, FluxSink.OverflowStrategy.ERROR);
     }
     
     public static <T> Flux<T> create(Supplier<? extends Sequence<? extends CompletionStage<? extends T>>> sequenceFactory, Scheduler asyncAwaitScheduler) {
         return Flux.create(sink -> {
-            setupTraversalSink(AsyncGenerator.startTraversal(sequenceFactory.get(), asyncAwaitScheduler, sink::next), sink);
+            Sequence<? extends CompletionStage<? extends T>> sequence = sequenceFactory.get();
+            setupTraversalSink(AsyncGenerator.startTraversal(sequence, asyncAwaitScheduler, sink::next), sink, asyncAwaitScheduler);
         }, FluxSink.OverflowStrategy.ERROR);
     }
     
-    private static <T> void setupTraversalSink(AsyncGeneratorTraversal<? extends T> traversal, FluxSink<T> sink) {
+    private static <T> void setupTraversalSink(AsyncGeneratorTraversal<? extends T> traversal, FluxSink<T> sink, Scheduler asyncAwaitScheduler) {
         traversal.result().whenComplete((r, e) -> {
             if (null == e) {
                 sink.complete();
@@ -62,6 +64,17 @@ public final class AsyncAwaitFlux {
         });
         
         sink.onCancel(() -> traversal.result().cancel(true));
-        sink.onRequest(count -> traversal.requestNext(count));
+        sink.onRequest(count -> {
+            // This let correctly process completed futures for next(N) originating from onSubscribe / onNext
+            asyncAwaitScheduler.schedule(() -> {
+                boolean requestAll = Long.MAX_VALUE == count;
+                if (requestAll) {
+                    traversal.requestAll();
+                } else {
+                    traversal.requestNext(count);    
+                }
+            });
+        });
+
     }
 }

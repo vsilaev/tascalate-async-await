@@ -26,7 +26,6 @@
 package net.tascalate.async;
 
 import java.util.concurrent.CompletionStage;
-import java.util.function.Consumer;
 
 final class EmptyAsyncGenerator<T> implements AsyncGenerator<T> {
     
@@ -48,8 +47,8 @@ final class EmptyAsyncGenerator<T> implements AsyncGenerator<T> {
     }
 
     @Override
-    public AsyncGeneratorTraversal<T> startTraversal(Consumer<? super T> itemProcessor) {
-        return startTraversal(Scheduler.sameThreadContextless(), itemProcessor);
+    public Scheduler scheduler() {
+        return Scheduler.sameThreadContextless();
     }
     
     static final AsyncGenerator<Object> INSTANCE = new EmptyAsyncGenerator<>();

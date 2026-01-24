@@ -204,6 +204,10 @@ abstract public class AbstractAsyncMethod implements Runnable {
             return super.completeExceptionally(exception);
         }
         
+        public Scheduler scheduler() {
+            return scheduler;
+        }
+        
         @Override
         public boolean complete(T value) {
             throw new UnsupportedOperationException("ResultPromise may not be completed explicitly");

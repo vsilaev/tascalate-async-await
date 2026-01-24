@@ -25,8 +25,8 @@
 package net.tascalate.async.examples.generator;
 
 import static net.tascalate.async.CallContext.async;
+import static net.tascalate.async.CallContext.async_yield;
 import static net.tascalate.async.CallContext.await;
-import static net.tascalate.async.CallContext.yield;
 import static net.tascalate.async.CallContext.awaitValue;
 
 import java.time.Duration;
@@ -127,49 +127,49 @@ public class StreamTest {
                 .map( Promises::from )
                 .map( p -> p.orTimeout(Duration.ofMillis(500)) );
 
-        yield(
+        async_yield(
             SuspendableStream
                 .zip(numerics, alphas, (a, b) -> a.thenCombine(b, (av, bv) -> av + " - " + bv) )
                 .convert(Sequence.fromStream())
         );
-        return yield();
+        return async_yield();
     }
 
     // Private to ensure that generated accessor methods work 
     @async private AsyncGenerator<String> produceNumericStrings() {
         try {
-            yield(Sequence.empty());
-            yield(waitString("111"));
-            yield(waitString("222"));
-            yield("333");
-            yield(waitString("444"));
+            async_yield(Sequence.empty());
+            async_yield(waitString("111"));
+            async_yield(waitString("222"));
+            async_yield("333");
+            async_yield(waitString("444"));
         } finally {
             System.out.println("::produceNumericStrings FINALLY CALLED::");
         }
-        return yield();
+        return async_yield();
     }
 
     @async AsyncGenerator<String> produceAlphaStrings() {
         try {
             for (String s : Arrays.asList("AAA", "BBB", "CCC", "DDD")) {
-                yield( waitString(s, 400) );
+                async_yield( waitString(s, 400) );
             }
         } finally {
             System.out.println("::produceAlphaStrings FINALLY CALLED::");
         }
-        return yield();
+        return async_yield();
     }
 
     @async AsyncGenerator<String> producePrefixedStrings(CompletionStage<String> prefix) {
         try {
             for (int i = 1; i <= 9; i++) {
-                YieldReply<String> r = yield( prefix.thenCombine(waitString(String.valueOf(i)), (px,v) -> px + v) );
+                YieldReply<String> r = async_yield( prefix.thenCombine(waitString(String.valueOf(i)), (px,v) -> px + v) );
                 System.out.println(">> Yield " + r.value);
             }
         } finally {
             System.out.println("::producePrefixedStrings " + await(prefix) + " FINALLY CALLED::");
         }
-        return yield();
+        return async_yield();
     }
 
     static CompletionStage<String> waitString(String value) {

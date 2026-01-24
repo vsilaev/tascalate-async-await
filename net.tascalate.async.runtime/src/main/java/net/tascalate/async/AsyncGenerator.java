@@ -70,7 +70,11 @@ public interface AsyncGenerator<T> extends InteractiveSequence<CompletionStage<T
         };
     }
     
-    abstract public AsyncGeneratorTraversal<T> startTraversal(Consumer<? super T> itemProcessor);
+    abstract Scheduler scheduler();
+    
+    default AsyncGeneratorTraversal<T> startTraversal(Consumer<? super T> itemProcessor) {
+        return startTraversal(scheduler(), itemProcessor);
+    }
     
     default AsyncGeneratorTraversal<T> startTraversal(Scheduler scheduler, Consumer<? super T> itemProcessor) {
         return startTraversal(this,  scheduler, itemProcessor);

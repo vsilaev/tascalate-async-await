@@ -28,5 +28,5 @@ import java.util.concurrent.CompletionStage;
 import java.util.concurrent.Future;
 
 public interface AsyncResult<T> extends CompletionStage<T>, Future<T> {
-
+    Scheduler scheduler();
 }

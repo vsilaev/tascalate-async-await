@@ -25,8 +25,8 @@
 package net.tascalate.async.examples.generator;
 
 import static net.tascalate.async.CallContext.async;
+import static net.tascalate.async.CallContext.async_yield;
 import static net.tascalate.async.CallContext.await;
-import static net.tascalate.async.CallContext.yield;
 
 import java.util.concurrent.CompletionException;
 import java.util.concurrent.CompletionStage;
@@ -75,11 +75,11 @@ public class ExceptionsTest {
     @async static AsyncGenerator<Object> producer() {
         for (int i = 0; i < 10; i++) {
             if (i % 2 == 0) {
-                YieldReply<String> reply = yield(waitString("VALUE " + i, 100));
+                YieldReply<String> reply = async_yield(waitString("VALUE " + i, 100));
                 System.out.println("REPLY AFTER NORMAL: " + reply);
             } else {
                 try {
-                    YieldReply<String> reply = yield(waitError(100));
+                    YieldReply<String> reply = async_yield(waitError(100));
                     System.out.println("REPLY AFTER ERROR: " + reply);
                 } catch (IllegalArgumentException ex) {
                     System.out.println("EXCEPTION ON iter#" + i + ": " + ex);
@@ -87,7 +87,7 @@ public class ExceptionsTest {
                 }
             }
         }
-        return yield();
+        return async_yield();
     }
 
     

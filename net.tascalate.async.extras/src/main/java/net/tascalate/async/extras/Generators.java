@@ -24,7 +24,7 @@
  */
 package net.tascalate.async.extras;
 
-import static net.tascalate.async.CallContext.yield;
+import static net.tascalate.async.CallContext.async_yield;
 
 import java.time.Duration;
 
@@ -63,22 +63,22 @@ public class Generators {
     
     private static @async <T> AsyncGenerator<T> concat(Iterator<? extends Sequence<? extends CompletionStage<T>>> sequences) {
         while (sequences.hasNext()) {
-            yield( sequences.next() );
+            async_yield( sequences.next() );
         }
-        return yield();
+        return async_yield();
     }
     
     public static @async AsyncGenerator<Duration> delays(Duration duration) {
         Executor executor = new CurrentSchedulerExecutor(CurrentCallContext.scheduler());
         while (true) {
-            yield( CompletableTask.delay(duration, executor) );
+            async_yield( CompletableTask.delay(duration, executor) );
         }
     }
     
     public static @async AsyncGenerator<Duration> delays(long timeout, TimeUnit timeUnit) {
         Executor executor = new CurrentSchedulerExecutor(CurrentCallContext.scheduler());
         while (true) {
-            yield( CompletableTask.delay(timeout, timeUnit, executor) );
+            async_yield( CompletableTask.delay(timeout, timeUnit, executor) );
         }
     }
 

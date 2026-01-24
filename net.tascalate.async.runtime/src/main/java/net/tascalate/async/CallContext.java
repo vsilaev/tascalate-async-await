@@ -60,21 +60,42 @@ public class CallContext {
         throw new IllegalStateException("Method call must be replaced by bytecode enhancer");
     }
 
+    @Deprecated
     public static <T> YieldReply<T> yield(T readyValue) throws InvalidCallContextException {
         throw new IllegalStateException("Method call must be replaced by bytecode enhancer");
     }
+    
+    public static <T> YieldReply<T> async_yield(T readyValue) throws InvalidCallContextException {
+        throw new IllegalStateException("Method call must be replaced by bytecode enhancer");
+    }
 
+    @Deprecated
     public static <T> YieldReply<T> yield(CompletionStage<T> pendingValue) throws CancellationException, InvalidCallContextException {
         throw new IllegalStateException("Method call must be replaced by bytecode enhancer");
     }
+    
+    public static <T> YieldReply<T> async_yield(CompletionStage<T> pendingValue) throws CancellationException, InvalidCallContextException {
+        throw new IllegalStateException("Method call must be replaced by bytecode enhancer");
+    }
 
+    @Deprecated
     public static <T> YieldReply<T> yield(Sequence<? extends CompletionStage<T>> values) throws CancellationException, InvalidCallContextException {
         throw new IllegalStateException("Method call must be replaced by bytecode enhancer");
     }
+    
+    public static <T> YieldReply<T> async_yield(Sequence<? extends CompletionStage<T>> values) throws CancellationException, InvalidCallContextException {
+        throw new IllegalStateException("Method call must be replaced by bytecode enhancer");
+    }
 
+    @Deprecated
     public static <T> AsyncGenerator<T> yield() {
         throw new IllegalStateException("Method call must be replaced by bytecode enhancer");
     }
+    
+    public static <T> AsyncGenerator<T> async_yield() {
+        throw new IllegalStateException("Method call must be replaced by bytecode enhancer");
+    }
+    
 
     public static <E1 extends Throwable> void throwing(Class<E1> e1) throws E1 {}
     public static <E1 extends Throwable, 

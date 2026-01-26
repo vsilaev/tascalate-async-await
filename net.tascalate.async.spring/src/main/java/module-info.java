@@ -26,5 +26,12 @@ module net.tascalate.async.spring {
     requires org.slf4j;
     requires transitive net.tascalate.async.runtime;
     
+    requires spring.beans;
+    requires spring.context;
+    requires spring.core;
+    
+    requires spring.boot;
+    requires spring.boot.autoconfigure;
+    
     exports net.tascalate.async.spring;
 }

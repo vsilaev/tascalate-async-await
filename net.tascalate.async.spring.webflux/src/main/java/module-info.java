@@ -25,7 +25,19 @@
 module net.tascalate.async.spring.webflux {
     requires org.slf4j;
     requires transitive net.tascalate.async.spring;
+    
     requires transitive reactor.core;
     
+    requires spring.beans;
+    requires spring.context;
+    requires spring.core;
+    requires spring.web;
+    
+    requires spring.boot;
+    requires spring.boot.autoconfigure;
+    
     exports net.tascalate.async.spring.webflux;
+    
+    provides net.tascalate.async.spi.SchedulerResolver 
+        with net.tascalate.async.spring.webflux.WebFluxScheduleResolver;
 }

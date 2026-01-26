@@ -28,12 +28,9 @@ module net.tascalate.async.spring.webflux {
     
     requires transitive reactor.core;
     
-    requires spring.beans;
     requires spring.context;
-    requires spring.core;
     requires spring.web;
     
-    requires spring.boot;
     requires spring.boot.autoconfigure;
     
     exports net.tascalate.async.spring.webflux;

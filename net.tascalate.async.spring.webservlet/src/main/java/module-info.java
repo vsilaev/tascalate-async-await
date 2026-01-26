@@ -24,7 +24,22 @@
  */
 module net.tascalate.async.spring.webservlet {
     requires org.slf4j;
+
     requires transitive net.tascalate.async.spring;
+    requires net.tascalate.async.resolver.scoped;
+
+    requires static jakarta.servlet;
+    requires static javax.servlet.api;
+    
+    requires spring.context;
+    requires spring.core;
+    requires spring.web;
+    
+    requires static spring.security.core;
+    
+    requires spring.boot.autoconfigure;
+    requires spring.core;
+    
     
     exports net.tascalate.async.spring.webservlet;
 }

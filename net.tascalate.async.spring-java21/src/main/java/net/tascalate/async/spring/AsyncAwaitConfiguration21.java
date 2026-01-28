@@ -36,6 +36,7 @@ import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.boot.system.JavaVersion;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.context.annotation.Lazy;
 
 @Configuration
 class AsyncAwaitConfiguration21 {
@@ -44,6 +45,7 @@ class AsyncAwaitConfiguration21 {
     private String asyncAwaitExecutorThreadNamePrefix;
     
     @DefaultAsyncAwaitExecutor
+    @Lazy
     @Bean(name="<<default-async-await-executor>>", destroyMethod = "shutdown")
     @ConditionalOnMissingBean(annotation = DefaultAsyncAwaitExecutor.class)
     @ConditionalOnJava(value = JavaVersion.TWENTY_ONE, range = Range.EQUAL_OR_NEWER)

@@ -22,37 +22,46 @@
  * OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
-package net.tascalate.async.spring;
+package net.tascalate.async.spring.webflux;
 
-import java.util.Optional;
-import java.util.concurrent.ExecutorService;
+import java.util.EnumSet;
+import java.util.Set;
+import java.util.concurrent.CompletionStage;
 import java.util.function.Function;
 
-import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
-import org.springframework.context.annotation.Bean;
-import org.springframework.context.annotation.ComponentScan;
-import org.springframework.context.annotation.Configuration;
-import org.springframework.context.annotation.Lazy;
-
 import net.tascalate.async.Scheduler;
+import reactor.core.publisher.Mono;
 
-@Configuration
-@ComponentScan(basePackageClasses = AsyncAwaitConfiguration.class)
-class AsyncAwaitConfiguration {
+public class ReactorSchedulerAdapter implements Scheduler {
+    private final reactor.core.scheduler.Scheduler delegate;
+    private final Function<? super Runnable, ? extends Runnable> contextualizer;
     
-    @DefaultAsyncAwaitExecutor
-    @Lazy
-    @Bean(name="<<default-async-await-executor>>", destroyMethod = "shutdown")
-    @ConditionalOnMissingBean(annotation = DefaultAsyncAwaitExecutor.class)
-    ExecutorService defaultAsyncAwaitExecutorService(AsyncAwaitExecutorProperties executorProperties) {
-        return executorProperties.createExecutorService();
+    public ReactorSchedulerAdapter(reactor.core.scheduler.Scheduler delegate) {
+        this(delegate, Function.identity());
     }
     
-    @DefaultAsyncAwaitScheduler
-    @Bean(name="<<default-async-await-scheduler>>")
-    @ConditionalOnMissingBean(annotation = DefaultAsyncAwaitScheduler.class)
-    Scheduler defaultAsyncAwaitScheduler(@DefaultAsyncAwaitExecutor ExecutorService executor, 
-                                         @DefaultAsyncAwaitContextualizer Optional<Function<? super Runnable, ? extends Runnable>> contextualizer) {
-        return Scheduler.interruptible(executor, contextualizer.orElse(null));
+    public ReactorSchedulerAdapter(reactor.core.scheduler.Scheduler delegate, Function<? super Runnable, ? extends Runnable> contextualizer) {
+        this.delegate = delegate;
+        this.contextualizer = contextualizer;
+    }
+    
+    @Override
+    public Set<Characteristics> characteristics() {
+        return EnumSet.of(Scheduler.Characteristics.INTERRUPTIBLE);
+    }
+    
+    @Override
+    public Runnable contextualize(Runnable resumeContinuation) {
+        return contextualizer.apply(resumeContinuation);
+    }
+    
+    @Override
+    public CompletionStage<?> schedule(Runnable runnable) {
+        return Mono.just(runnable)
+                   .subscribeOn(delegate)
+                   .map(r -> {
+                       r.run();
+                       return null;
+                   }).toFuture();
     }
 }

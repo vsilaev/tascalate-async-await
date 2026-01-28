@@ -29,6 +29,7 @@ import java.util.function.Supplier;
 
 import net.tascalate.async.AsyncGenerator;
 import net.tascalate.async.AsyncGeneratorTraversal;
+import net.tascalate.async.AsyncResult;
 import net.tascalate.async.Scheduler;
 import net.tascalate.async.Sequence;
 import reactor.core.publisher.Flux;
@@ -55,26 +56,24 @@ public final class AsyncAwaitFlux {
     }
     
     private static <T> void setupTraversalSink(AsyncGeneratorTraversal<? extends T> traversal, FluxSink<T> sink, Scheduler asyncAwaitScheduler) {
-        traversal.result().whenComplete((r, e) -> {
+        AsyncResult<?> traversalFuture = traversal.result();
+        traversalFuture.whenComplete((r, e) -> {
             if (null == e) {
-                sink.complete();
+                asyncAwaitScheduler.schedule(sink::complete);
             } else {
                 sink.error(e);
             }
         });
         
-        sink.onCancel(() -> traversal.result().cancel(true));
-        sink.onRequest(count -> {
-            // This let correctly process completed futures for next(N) originating from onSubscribe / onNext
-            asyncAwaitScheduler.schedule(() -> {
-                boolean requestAll = Long.MAX_VALUE == count;
-                if (requestAll) {
-                    traversal.requestAll();
-                } else {
-                    traversal.requestNext(count);    
-                }
-            });
-        });
+        sink.onCancel(() -> traversalFuture.cancel(true));
+        sink.onRequest(count -> asyncAwaitScheduler.schedule(() -> {
+            boolean requestAll = Long.MAX_VALUE == count;
+            if (requestAll) {
+                traversal.requestAll();
+            } else {
+                traversal.requestNext(count);    
+            }
+        }));
 
     }
 }

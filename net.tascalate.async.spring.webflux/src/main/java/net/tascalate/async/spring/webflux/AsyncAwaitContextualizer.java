@@ -28,10 +28,12 @@ import java.util.function.Function;
 
 import org.springframework.boot.autoconfigure.condition.ConditionalOnWebApplication;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnWebApplication.Type;
+import org.springframework.context.annotation.Lazy;
 import org.springframework.stereotype.Component;
 
 import net.tascalate.async.spring.DefaultAsyncAwaitContextualizer;
 
+@Lazy
 @DefaultAsyncAwaitContextualizer
 @Component("<<default-async-await-contextualizer>>")
 @ConditionalOnWebApplication(type = Type.REACTIVE)

@@ -29,44 +29,44 @@ import java.util.function.Supplier;
 
 import org.reactivestreams.Subscription;
 
-import net.tascalate.async.AsyncGenerator;
+import net.tascalate.async.AsyncChannel;
 import net.tascalate.async.Scheduler;
-import net.tascalate.async.Sequence;
+import net.tascalate.async.TypedChannel;
 import reactor.core.publisher.BaseSubscriber;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.FluxSink;
 
-public final class AsyncAwaitFlux {
+public final class AsyncAwaitBridge {
     
-    private AsyncAwaitFlux() {
+    private AsyncAwaitBridge() {
         
     }
     
-    public static <T> AsyncGenerator<T> toGenerator(Flux<? extends T> coldFlux, Scheduler asyncAwaitScheduler) {
-        return toGenerator(coldFlux, 1L, asyncAwaitScheduler);
+    public static <T> AsyncChannel<T> createChannel(Flux<? extends T> coldFlux, Scheduler asyncAwaitScheduler) {
+        return createChannel(coldFlux, 1L, asyncAwaitScheduler);
     }
     
-    public static <T> AsyncGenerator<T> toGenerator(Flux<? extends T> coldFlux, long batchSize, Scheduler asyncAwaitScheduler) {
-        return AsyncGenerator.lazyEmit(asyncAwaitScheduler, batchSize, emitter -> {
+    public static <T> AsyncChannel<T> createChannel(Flux<? extends T> coldFlux, long batchSize, Scheduler asyncAwaitScheduler) {
+        return AsyncChannel.lazyEmit(asyncAwaitScheduler, batchSize, sink -> {
             coldFlux.subscribe(new BaseSubscriber<T>() {
                 @Override
                 protected void hookOnSubscribe(Subscription subscription) {
-                    emitter.subscribe(subscription::request, subscription::cancel);
+                    sink.subscribe(subscription::request, subscription::cancel);
                 }
 
                 @Override
                 protected void hookOnNext(T value) {
-                    emitter.emitNextItem(value);
+                    sink.emitNextItem(value);
                 }
                 
                 @Override
                 protected void hookOnError(Throwable throwable) {
-                    emitter.emitError(throwable);
+                    sink.emitError(throwable);
                 }
 
                 @Override
                 protected void hookOnComplete() {
-                    emitter.emitCompletion();
+                    sink.emitCompletion();
                 }
 
                 @Override
@@ -80,35 +80,35 @@ public final class AsyncAwaitFlux {
         });
     }
     
-    public static <T> Flux<T> create(Supplier<? extends AsyncGenerator<? extends T>> generatorFactory) {
+    public static <T> Flux<T> createFlux(Supplier<? extends AsyncChannel<? extends T>> channelFactory) {
         return Flux.create(sink -> {
-            AsyncGenerator<? extends T> generator = generatorFactory.get(); 
-            setupFetcherSink(generator.lazyFetch(sink::next), sink);
+            AsyncChannel<? extends T> channel = channelFactory.get(); 
+            connectSourceAndSink(channel.lazyFetch(sink::next), sink);
         }, FluxSink.OverflowStrategy.ERROR);
     }
     
-    public static <T> Flux<T> create(Supplier<? extends Sequence<? extends CompletionStage<? extends T>>> sequenceFactory, Scheduler asyncAwaitScheduler) {
+    public static <T> Flux<T> createFlux(Supplier<? extends TypedChannel<? extends CompletionStage<? extends T>>> channelFactory, Scheduler asyncAwaitScheduler) {
         return Flux.create(sink -> {
-            Sequence<? extends CompletionStage<? extends T>> sequence = sequenceFactory.get();
-            setupFetcherSink(AsyncGenerator.lazyFetch(sequence, asyncAwaitScheduler, sink::next), sink);
+            TypedChannel<? extends CompletionStage<? extends T>> channel = channelFactory.get();
+            connectSourceAndSink(AsyncChannel.lazyFetch(channel, asyncAwaitScheduler, sink::next), sink);
         }, FluxSink.OverflowStrategy.ERROR);
     }
     
-    private static <T> void setupFetcherSink(AsyncGenerator.Fetcher<? extends T> fetcher, FluxSink<T> sink) {
-        Scheduler scheduler = fetcher.completion().scheduler();
+    private static <T> void connectSourceAndSink(AsyncChannel.Source<? extends T> source, FluxSink<T> sink) {
+        Scheduler scheduler = source.completion().scheduler();
         
-        sink.onCancel(() -> fetcher.cancel());
+        sink.onCancel(() -> source.cancel());
         
         sink.onRequest(count -> scheduler.schedule(() -> {
             boolean requestAll = Long.MAX_VALUE == count;
             if (requestAll) {
-                fetcher.requestAll();
+                source.requestAll();
             } else {
-                fetcher.requestNext(count);    
+                source.requestNext(count);    
             }
         }));
 
-        fetcher.completion().whenComplete((r, e) -> scheduler.schedule(() -> {
+        source.completion().whenComplete((r, e) -> scheduler.schedule(() -> {
             if (null == e) {
                 sink.complete();
             } else {

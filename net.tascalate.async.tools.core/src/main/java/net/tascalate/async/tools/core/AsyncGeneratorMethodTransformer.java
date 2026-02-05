@@ -60,7 +60,7 @@ import net.tascalate.asmx.tree.VarInsnNode;
 
 class AsyncGeneratorMethodTransformer extends AbstractAsyncMethodTransformer {
     private final static Type ASYNC_GENERATOR_METHOD_TYPE = Type.getObjectType("net/tascalate/async/core/AsyncGeneratorMethod");
-    private final static Type LAZY_GENERATOR_TYPE         = Type.getObjectType("net/tascalate/async/core/LazyGenerator");
+    private final static Type LAZY_ASYNC_CHANNEL_TYPE     = Type.getObjectType("net/tascalate/async/core/LazyAsyncChannel");
     
     AsyncGeneratorMethodTransformer(ClassNode               classNode,
                                     MethodNode              originalAsyncMethodNode,
@@ -76,7 +76,7 @@ class AsyncGeneratorMethodTransformer extends AbstractAsyncMethodTransformer {
     
     @Override
     protected MethodVisitor createReplacementAsyncMethod(String asyncTaskClassName) {
-        return createReplacementAsyncMethod(asyncTaskClassName, ASYNC_GENERATOR_METHOD_TYPE, "generator", LAZY_GENERATOR_TYPE);
+        return createReplacementAsyncMethod(asyncTaskClassName, ASYNC_GENERATOR_METHOD_TYPE, "channel", LAZY_ASYNC_CHANNEL_TYPE);
     }
    
     @Override
@@ -238,7 +238,7 @@ class AsyncGeneratorMethodTransformer extends AbstractAsyncMethodTransformer {
 
                 } else if (min.getOpcode() == INVOKESTATIC && CALL_CONTXT_NAME.equals(min.owner)) {
                     switch (min.name) {
-                        case "submit":
+                        case "send":
                         case "yield":
                             Type[] args = Type.getArgumentTypes(min.desc);
                             newInstructions.add(new VarInsnNode(ALOAD, 0));
@@ -250,13 +250,13 @@ class AsyncGeneratorMethodTransformer extends AbstractAsyncMethodTransformer {
                                         newInstructions.add(new InsnNode(SWAP));
                                         break;
                                     default:
-                                        throw new IllegalStateException("Can't support YIELD method with more than one argument");
+                                        throw new IllegalStateException("Can't support SEND method with more than one argument");
                                 }
                             }
                             newInstructions.add(
                                 new MethodInsnNode(INVOKEVIRTUAL, 
                                                    ASYNC_GENERATOR_METHOD_TYPE.getInternalName(), 
-                                                   "yield", 
+                                                   "send", 
                                                    Type.getMethodDescriptor(Type.getReturnType(min.desc), args), 
                                                    false
                                 )

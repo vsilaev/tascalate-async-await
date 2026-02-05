@@ -30,20 +30,20 @@ import java.util.function.Consumer;
 import net.tascalate.async.core.AsyncMethodExecutor;
 import net.tascalate.async.core.AsyncTaskMethod;
 
-abstract class AsyncGeneratorFetcherBase<T> {
-    private final Sequence<? extends CompletionStage<? extends T>> sequence;
+abstract class AsyncChannelSourceBase<T> {
+    private final TypedChannel<? extends CompletionStage<? extends T>> channel;
     private final Consumer<? super T> itemProcessor;
 
     private final AwaitableQueue<Counter> requests = new AwaitableQueue<>();
     
     private AsyncResult<Long> completion;
     
-    AsyncGeneratorFetcherBase(Sequence<? extends CompletionStage<? extends T>> sequence, Consumer<? super T> itemProcessor) {
-        this.sequence = sequence;
+    AsyncChannelSourceBase(TypedChannel<? extends CompletionStage<? extends T>> queue, Consumer<? super T> itemProcessor) {
+        this.channel = queue;
         this.itemProcessor = itemProcessor;
     }
     
-    AsyncGeneratorFetcherBase<T> start(Scheduler scheduler) {
+    AsyncChannelSourceBase<T> start(Scheduler scheduler) {
         completion = doStart(scheduler);
         return this;
     }
@@ -53,14 +53,14 @@ abstract class AsyncGeneratorFetcherBase<T> {
             @Override
             protected @suspendable void doRun() {
                 long total = 0;
-                try (Sequence<?> closeable = sequence) {
+                try (TypedChannel<?> closeable = channel) {
                     while (true) {
                         requests.await();
                         
                         Counter counter;
                         while ((counter = requests.poll()) != null) {
                             while (counter.next()) {
-                                CompletionStage<? extends T> futureItem = sequence.next();
+                                CompletionStage<? extends T> futureItem = channel.receive();
                                 if (null != futureItem) {
                                     if (total < Long.MAX_VALUE) {
                                         total++;

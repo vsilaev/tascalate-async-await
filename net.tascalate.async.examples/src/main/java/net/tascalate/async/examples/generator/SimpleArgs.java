@@ -38,8 +38,8 @@ import java.util.concurrent.atomic.AtomicLong;
 
 import net.tascalate.async.Scheduler;
 import net.tascalate.async.SchedulerProvider;
-import net.tascalate.async.Sequence;
-import net.tascalate.async.AsyncGenerator;
+import net.tascalate.async.TypedChannel;
+import net.tascalate.async.AsyncChannel;
 import net.tascalate.async.async;
 import net.tascalate.async.extras.TaskScheduler;
 import net.tascalate.async.spi.CurrentCallContext;
@@ -108,10 +108,10 @@ public class SimpleArgs extends SamePackageSubclass {
         await(innerCallImplicit());
 
         StringJoiner joiner = new StringJoiner(delimeter);
-        try (Sequence<Promise<String>> generator = AsyncGenerator.from("ABC", "KLM", "XYZ").stream().map(Promises::from).convert(Sequence.fromStream())) {
+        try (TypedChannel<Promise<String>> channel = AsyncChannel.from("ABC", "KLM", "XYZ").stream().map(Promises::from).convert(TypedChannel.fromStream())) {
             System.out.println("%%MergeStrings - before iterations");
-            CompletionStage<String> singleResult; 
-            while (null != (singleResult = generator.next())) {
+            CompletionStage<String> singleResult = channel.item(); 
+            while (null != (singleResult = channel.receive())) {
                 //System.out.println(">>Future is ready: " + Future.class.cast(singleResult).isDone());
                 String v = await(singleResult);
                 System.out.println("Thread in B: " + Thread.currentThread().getName());

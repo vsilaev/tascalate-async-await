@@ -24,34 +24,35 @@
  */
 package net.tascalate.async;
 
+import java.util.Iterator;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionStage;
 import java.util.function.Consumer;
 import java.util.stream.Stream;
 import java.util.stream.StreamSupport;
 
+import net.tascalate.async.channels.FutureCompletionChannel;
+import net.tascalate.async.core.AsyncGeneratorMethod;
 import net.tascalate.async.core.AsyncMethodExecutor;
-import net.tascalate.async.sequence.CompletionSequence;
-
 import net.tascalate.javaflow.SuspendableIterator;
 import net.tascalate.javaflow.SuspendableStream;
 import net.tascalate.javaflow.function.SuspendableFunction;
 
-public interface AsyncGenerator<T> extends InteractiveSequence<CompletionStage<T>> { 
+public interface AsyncChannel<T> extends InteractiveSequence<CompletionStage<T>> { 
     
-    public static final class Emitter<T> extends AsyncGeneratorEmitterBase<T> {
-        Emitter(long batchSize) {
+    public static final class Sink<T> extends AsyncChannelSinkBase<T> {
+        Sink(long batchSize) {
             super(batchSize);
         }
     }
     
-    public static final class Fetcher<T> extends AsyncGeneratorFetcherBase<T> {
-        Fetcher(Sequence<? extends CompletionStage<? extends T>> sequence, Consumer<? super T> itemProcessor) {
+    public static final class Source<T> extends AsyncChannelSourceBase<T> {
+        Source(TypedChannel<? extends CompletionStage<? extends T>> sequence, Consumer<? super T> itemProcessor) {
             super(sequence, itemProcessor);
         }
         
         @Override
-        Fetcher<T> start(Scheduler scheduler) {
+        Source<T> start(Scheduler scheduler) {
             super.start(scheduler);
             return this;
         }
@@ -84,83 +85,87 @@ public interface AsyncGenerator<T> extends InteractiveSequence<CompletionStage<T
 
             @Override
             public String toString() {
-                return String.format("%s-ValuesIterator[owner=%s]", getClass().getSimpleName(), AsyncGenerator.this);
+                return String.format("%s-ValuesIterator[owner=%s]", getClass().getSimpleName(), AsyncChannel.this);
             }            
         };
     }
     
     abstract Scheduler scheduler();
     
-    default AsyncGenerator.Fetcher<T> lazyFetch(Consumer<? super T> itemProcessor) {
+    default AsyncChannel<T> concat(TypedChannel<? extends CompletionStage<T>> other) {
+        return concat(this, other);
+    }
+    
+    default AsyncChannel.Source<T> lazyFetch(Consumer<? super T> itemProcessor) {
         return lazyFetch(scheduler(), itemProcessor);
     }
     
-    default AsyncGenerator.Fetcher<T> lazyFetch(Scheduler scheduler, Consumer<? super T> itemProcessor) {
+    default AsyncChannel.Source<T> lazyFetch(Scheduler scheduler, Consumer<? super T> itemProcessor) {
         return lazyFetch(this,  scheduler, itemProcessor);
     }
 
-    public static <T> Sequence<CompletionStage<T>> from(T readyValue) {
+    public static <T> TypedChannel<CompletionStage<T>> from(T readyValue) {
         return from(Stream.of(readyValue));
     }
     
     @SafeVarargs
-    public static <T> Sequence<CompletionStage<T>> from(T... readyValues) {
+    public static <T> TypedChannel<CompletionStage<T>> from(T... readyValues) {
         return from(Stream.of(readyValues));
     }
     
-    public static <T> Sequence<CompletionStage<T>> from(Iterable<? extends T> readyValues) {
+    public static <T> TypedChannel<CompletionStage<T>> from(Iterable<? extends T> readyValues) {
         return from(StreamSupport.stream(readyValues.spliterator(), false));
     }
     
-    public static <T> Sequence<CompletionStage<T>> from(Stream<? extends T> readyValues) {
-        return Sequence.of(readyValues.map(CompletableFuture::completedFuture));
+    public static <T> TypedChannel<CompletionStage<T>> from(Stream<? extends T> readyValues) {
+        return TypedChannel.of(readyValues.map(CompletableFuture::completedFuture));
     }
     
     @SafeVarargs
-    public static <T, F extends CompletionStage<T>> Sequence<F> readyFirst(F... pendingValues) {
+    public static <T, F extends CompletionStage<T>> TypedChannel<F> readyFirst(F... pendingValues) {
         return readyFirst(Stream.of(pendingValues));
     }
 
-    public static <T, F extends CompletionStage<T>> Sequence<F> readyFirst(Iterable<? extends F> pendingValues) {
+    public static <T, F extends CompletionStage<T>> TypedChannel<F> readyFirst(Iterable<? extends F> pendingValues) {
         return readyFirst(pendingValues, -1);
     } 
     
-    public static <T, F extends CompletionStage<T>> Sequence<F> readyFirst(Iterable<? extends F> pendingValues, int chunkSize) {
-        return CompletionSequence.create(pendingValues, chunkSize);
+    public static <T, F extends CompletionStage<T>> TypedChannel<F> readyFirst(Iterable<? extends F> pendingValues, int chunkSize) {
+        return FutureCompletionChannel.create(pendingValues, chunkSize);
     }
     
-    public static <T, F extends CompletionStage<T>> Sequence<F> readyFirst(Stream<? extends F> pendingValues) {
+    public static <T, F extends CompletionStage<T>> TypedChannel<F> readyFirst(Stream<? extends F> pendingValues) {
         return readyFirst(pendingValues, -1);
     }
     
-    public static <T, F extends CompletionStage<T>> Sequence<F> readyFirst(Stream<? extends F> pendingValues, int chunkSize) {
-        return CompletionSequence.create(pendingValues, chunkSize);
+    public static <T, F extends CompletionStage<T>> TypedChannel<F> readyFirst(Stream<? extends F> pendingValues, int chunkSize) {
+        return FutureCompletionChannel.create(pendingValues, chunkSize);
     }
 
-    public static <T> Fetcher<T> lazyFetch(Sequence<? extends CompletionStage<? extends T>> promises, Scheduler scheduler, Consumer<? super T> itemProcessor) {
-        return new Fetcher<>(promises, itemProcessor).start(scheduler);
+    public static <T> Source<T> lazyFetch(TypedChannel<? extends CompletionStage<? extends T>> promises, Scheduler scheduler, Consumer<? super T> itemProcessor) {
+        return new Source<>(promises, itemProcessor).start(scheduler);
     }
     
-    public static <T> AsyncGenerator<T> lazyEmit(Scheduler scheduler, Consumer<? super Emitter<T>> subcriber) {
+    public static <T> AsyncChannel<T> lazyEmit(Scheduler scheduler, Consumer<? super Sink<T>> subcriber) {
         return lazyEmit(scheduler, 1L, subcriber);
     }
     
-    public static <T> AsyncGenerator<T> lazyEmit(Scheduler scheduler, long batchSize, Consumer<? super Emitter<T>> subcriber) {
-        Emitter<T> emitter = new Emitter<>(batchSize);
-        subcriber.accept(emitter);
-        return emitter.emitAll(scheduler);
+    public static <T> AsyncChannel<T> lazyEmit(Scheduler scheduler, long batchSize, Consumer<? super Sink<T>> subcriber) {
+        Sink<T> sink = new Sink<>(batchSize);
+        subcriber.accept(sink);
+        return sink.emitAll(scheduler);
     }
     
-    public static <T> AsyncGenerator<T> emptyOn(Scheduler scheduler) {
-        return new AsyncGenerator<T>() {
+    public static <T> AsyncChannel<T> emptyOn(Scheduler scheduler) {
+        return new AsyncChannel<T>() {
 
             @Override
-            public CompletionStage<T> next(Object param) {
+            public CompletionStage<T> receive(Object request) {
                 return null;
             }
 
             @Override
-            public CompletionStage<T> next() {
+            public CompletionStage<T> receive() {
                 return null;
             }
 
@@ -175,6 +180,33 @@ public interface AsyncGenerator<T> extends InteractiveSequence<CompletionStage<T
             
         };
     }
+    
+    @SafeVarargs
+    public static <T> AsyncChannel<T> concat(TypedChannel<? extends CompletionStage<T>>... sequences) {
+        return concat(Stream.of(sequences));
+    }
+    
+    public static <T> AsyncChannel<T> concat(Iterable<? extends TypedChannel<? extends CompletionStage<T>>> sequences) {
+        return concat(sequences.iterator());
+    }
+    
+    public static <T> AsyncChannel<T> concat(Stream<? extends TypedChannel<? extends CompletionStage<T>>> sequences) {
+        return concat(sequences.iterator());
+    }
+    
+    public static <T> AsyncChannel<T> concat(Iterator<? extends TypedChannel<? extends CompletionStage<T>>> sequences) {
+        AsyncGeneratorMethod<T> method = new AsyncGeneratorMethod<T>(Scheduler.sameThreadContextless()) {
+            @Override
+            protected void doRun() throws Throwable {
+                while (sequences.hasNext()) {
+                    send( sequences.next() );
+                }
+            }
+        };
+        AsyncMethodExecutor.execute(method);
+        return method.channel;
+    }
+    
     
     public static <T> SuspendableFunction<CompletionStage<T>, T> awaitValue() {
         return new SuspendableFunction<CompletionStage<T>, T>() {

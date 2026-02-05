@@ -31,19 +31,22 @@ import java.util.stream.Stream;
 
 import org.apache.commons.javaflow.api.continuable;
 
-import net.tascalate.async.sequence.OrderedSequence;
-
+import net.tascalate.async.channels.OrderedChannel;
 import net.tascalate.javaflow.Option;
 import net.tascalate.javaflow.SuspendableIterator;
 import net.tascalate.javaflow.SuspendableProducer;
 import net.tascalate.javaflow.SuspendableStream;
 
-public interface Sequence<T> extends AutoCloseable {
-    @suspendable T next();
+public interface TypedChannel<T> extends AutoCloseable {
+    @suspendable T receive();
     
     void close();
     
-    default <D> D as(Function<? super Sequence<T>, ? extends D> decoratorFactory) {
+    default T item() {
+        return null;
+    }
+    
+    default <D> D as(Function<? super TypedChannel<T>, ? extends D> decoratorFactory) {
         return decoratorFactory.apply(this);
     }
 
@@ -51,13 +54,13 @@ public interface Sequence<T> extends AutoCloseable {
         return new SuspendableStream<>(new SuspendableProducer<T>() {
             @Override
             public Option<T> produce() {
-                T result = Sequence.this.next();
+                T result = TypedChannel.this.receive();
                 return null != result ? Option.some(result) : Option.none();
             }
 
             @Override
             public void close() {
-                Sequence.this.close();
+                TypedChannel.this.close();
             }
         });
     }
@@ -89,55 +92,55 @@ public interface Sequence<T> extends AutoCloseable {
             public void close() {
                 current = null;
                 advance = false;
-                Sequence.this.close();
+                TypedChannel.this.close();
             }
             
             protected @continuable void advanceIfNecessary() {
                 if (advance) {
-                    current = Sequence.this.next();
+                    current = TypedChannel.this.receive();
                 }
                 advance = false;
             }
 
             @Override
             public String toString() {
-                return String.format("%s-PromisesIterator[owner=%s, current=%s]", getClass().getSimpleName(), Sequence.this, current);
+                return String.format("%s-PromisesIterator[owner=%s, current=%s]", getClass().getSimpleName(), TypedChannel.this, current);
             }            
         };
     }
     
     @SuppressWarnings("unchecked")
-    public static <T> Sequence<T> empty() {
-        return (Sequence<T>)OrderedSequence.EMPTY_SEQUENCE;
+    public static <T> TypedChannel<T> empty() {
+        return (TypedChannel<T>)OrderedChannel.EMPTY;
     }
     
-    public static <T> Sequence<T> of(T value) {
+    public static <T> TypedChannel<T> of(T value) {
         return of(Stream.of(value));
     }
     
     @SafeVarargs
-    public static <T> Sequence<T> of(T... values) {
+    public static <T> TypedChannel<T> of(T... values) {
         return of(Stream.of(values));
     }
 
-    public static <T> Sequence<T> of(Iterable<? extends T> values) {
-        return OrderedSequence.create(values);
+    public static <T> TypedChannel<T> of(Iterable<? extends T> values) {
+        return OrderedChannel.create(values);
     }
     
-    public static <T> Sequence<T> of(Stream<? extends T> values) {
-        return OrderedSequence.create(values);
+    public static <T> TypedChannel<T> of(Stream<? extends T> values) {
+        return OrderedChannel.create(values);
     }
 
-    public static <T> Function<SuspendableProducer<? extends T>, Sequence<T>> fromStream() {
-        final class SequenceByProducer implements Sequence<T> {
+    public static <T> Function<SuspendableProducer<? extends T>, TypedChannel<T>> fromStream() {
+        final class ByProducer implements TypedChannel<T> {
             private final SuspendableProducer<? extends T> producer;
             
-            SequenceByProducer(SuspendableProducer<? extends T> producer) {
+            ByProducer(SuspendableProducer<? extends T> producer) {
                 this.producer = producer;
             }
             
             @Override
-            public T next() {
+            public T receive() {
                 return producer.produce().orElseNull().get();
             }
 
@@ -151,6 +154,6 @@ public interface Sequence<T> extends AutoCloseable {
                 return String.format("%s[producer=%s]", getClass().getSimpleName(), producer);
             }
         };
-        return SequenceByProducer::new;
+        return ByProducer::new;
     }        
 }

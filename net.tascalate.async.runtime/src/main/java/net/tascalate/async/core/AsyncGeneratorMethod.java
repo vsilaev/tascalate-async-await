@@ -28,32 +28,32 @@ import java.util.concurrent.CancellationException;
 import java.util.concurrent.CompletionException;
 import java.util.concurrent.CompletionStage;
 
-import net.tascalate.async.AsyncGenerator;
+import net.tascalate.async.AsyncChannel;
 import net.tascalate.async.Scheduler;
-import net.tascalate.async.Sequence;
-import net.tascalate.async.YieldReply;
+import net.tascalate.async.TypedChannel;
+import net.tascalate.async.Reply;
 import net.tascalate.async.suspendable;
 
 abstract public class AsyncGeneratorMethod<T> extends AbstractAsyncMethod {
-    public final LazyGenerator<T> generator;
+    public final LazyAsyncChannel<T> channel;
     
     protected AsyncGeneratorMethod(Scheduler scheduler) {
         super(scheduler);
-        this.generator = new LazyGenerator<>(this);
+        this.channel = new LazyAsyncChannel<>(this);
     }
     
     @Override
     protected final @suspendable void internalRun() {
         boolean success = false;
         try {
-    	    generator.begin();
+    	    channel.open();
     	    doRun();
     	    success = true;
         } catch (Throwable ex) {
-            generator.end(ex);
+            channel.close(ex);
         } finally {
             if (success) {
-                generator.end(null);
+                channel.close(null);
             }
         }
     }
@@ -80,25 +80,25 @@ abstract public class AsyncGeneratorMethod<T> extends AbstractAsyncMethod {
         }
     }
 
-    protected final AsyncGenerator<T> yield() {
-        return generator;
+    protected final AsyncChannel<T> send() {
+        return channel;
     }
     
-    protected @suspendable final YieldReply<T> yield(T readyValue) {
-        return generator.produce(AsyncGenerator.from(readyValue));
+    protected @suspendable final Reply<T> send(T readyValue) {
+        return channel.send(AsyncChannel.from(readyValue));
     }
 
-    protected @suspendable final YieldReply<T> yield(CompletionStage<T> pendingValue) {
-        return generator.produce(Sequence.of(pendingValue));
+    protected @suspendable final Reply<T> send(CompletionStage<T> pendingValue) {
+        return channel.send(TypedChannel.of(pendingValue));
     }
 
-    protected @suspendable final YieldReply<T> yield(Sequence<? extends CompletionStage<T>> values) {
-        return generator.produce(values);
+    protected @suspendable final Reply<T> send(TypedChannel<? extends CompletionStage<T>> values) {
+        return channel.send(values);
     }
     
     protected final String toString(String className, String methodSignature) {
         return 
             toString("<generated-async-generator>", className, methodSignature) +
-            String.format("[lazy-generator=%s]", generator);
+            String.format("[lazy-generator=%s]", channel);
     }
 }

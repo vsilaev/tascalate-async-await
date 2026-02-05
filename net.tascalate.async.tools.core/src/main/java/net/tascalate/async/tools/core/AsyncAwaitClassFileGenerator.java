@@ -62,7 +62,7 @@ public class AsyncAwaitClassFileGenerator {
     private final static Type COMPLETABLE_FUTURE_TYPE = Type.getObjectType("java/util/concurrent/CompletableFuture");
     private final static Type ASYNC_RESULT_TYPE       = Type.getObjectType("net/tascalate/async/AsyncResult");
     private final static Type TASCALATE_PROMISE_TYPE  = Type.getObjectType("net/tascalate/concurrent/Promise");
-    private final static Type ASYNC_GENERATOR_TYPE    = Type.getObjectType("net/tascalate/async/AsyncGenerator");
+    private final static Type ASYNC_CHANNEL_TYPE      = Type.getObjectType("net/tascalate/async/AsyncChannel");
     
     private static final Set<Type> ASYNC_TASK_RETURN_TYPES = 
         Stream.of(COMPLETION_STAGE_TYPE, 
@@ -181,7 +181,7 @@ public class AsyncAwaitClassFileGenerator {
                 AbstractAsyncMethodTransformer transformer = null;
                 if (ASYNC_TASK_RETURN_TYPES.contains(returnType)) {
                     transformer = new AsyncTaskMethodTransformer(classNode, methodNode, accessMethods, helper);
-                } else if (ASYNC_GENERATOR_TYPE.equals(returnType)) {
+                } else if (ASYNC_CHANNEL_TYPE.equals(returnType)) {
                     transformer = new AsyncGeneratorMethodTransformer(classNode, methodNode, accessMethods, helper);
                 } else {
                     // throw ex?

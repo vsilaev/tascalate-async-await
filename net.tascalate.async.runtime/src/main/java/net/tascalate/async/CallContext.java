@@ -58,40 +58,20 @@ public class CallContext {
     public static <T, R extends CompletionStage<T>> R async(T value) {
         throw new IllegalStateException("Method call must be replaced by bytecode enhancer");
     }
-
-    @Deprecated
-    public static <T> YieldReply<T> yield(T readyValue) throws InvalidCallContextException {
-        throw new IllegalStateException("Method call must be replaced by bytecode enhancer");
-    }
     
-    public static <T> YieldReply<T> submit(T readyValue) throws InvalidCallContextException {
+    public static <T> Reply<T> send(T readyValue) throws InvalidCallContextException {
         throw new IllegalStateException("Method call must be replaced by bytecode enhancer");
     }
 
-    @Deprecated
-    public static <T> YieldReply<T> yield(CompletionStage<T> pendingValue) throws CancellationException, InvalidCallContextException {
-        throw new IllegalStateException("Method call must be replaced by bytecode enhancer");
-    }
-    
-    public static <T> YieldReply<T> submit(CompletionStage<T> pendingValue) throws CancellationException, InvalidCallContextException {
+    public static <T> Reply<T> send(CompletionStage<T> pendingValue) throws CancellationException, InvalidCallContextException {
         throw new IllegalStateException("Method call must be replaced by bytecode enhancer");
     }
 
-    @Deprecated
-    public static <T> YieldReply<T> yield(Sequence<? extends CompletionStage<T>> values) throws CancellationException, InvalidCallContextException {
-        throw new IllegalStateException("Method call must be replaced by bytecode enhancer");
-    }
-    
-    public static <T> YieldReply<T> submit(Sequence<? extends CompletionStage<T>> values) throws CancellationException, InvalidCallContextException {
+    public static <T> Reply<T> send(TypedChannel<? extends CompletionStage<T>> values) throws CancellationException, InvalidCallContextException {
         throw new IllegalStateException("Method call must be replaced by bytecode enhancer");
     }
 
-    @Deprecated
-    public static <T> AsyncGenerator<T> yield() {
-        throw new IllegalStateException("Method call must be replaced by bytecode enhancer");
-    }
-    
-    public static <T> AsyncGenerator<T> submit() {
+    public static <T> AsyncChannel<T> send() {
         throw new IllegalStateException("Method call must be replaced by bytecode enhancer");
     }
     

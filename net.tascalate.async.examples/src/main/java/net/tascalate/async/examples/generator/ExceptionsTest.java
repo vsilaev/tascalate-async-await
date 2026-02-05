@@ -25,7 +25,7 @@
 package net.tascalate.async.examples.generator;
 
 import static net.tascalate.async.CallContext.async;
-import static net.tascalate.async.CallContext.submit;
+import static net.tascalate.async.CallContext.send;
 import static net.tascalate.async.CallContext.await;
 
 import java.util.concurrent.CompletionException;
@@ -33,8 +33,8 @@ import java.util.concurrent.CompletionStage;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
-import net.tascalate.async.AsyncGenerator;
-import net.tascalate.async.YieldReply;
+import net.tascalate.async.AsyncChannel;
+import net.tascalate.async.Reply;
 import net.tascalate.async.async;
 import net.tascalate.concurrent.CompletableTask;
 import net.tascalate.concurrent.Promise;
@@ -54,9 +54,9 @@ public class ExceptionsTest {
     }
     
     @async static Promise<String> consumer() {
-        try (AsyncGenerator<Object> g = producer()) {
+        try (AsyncChannel<Object> channel = producer()) {
             CompletionStage<Object> f = null;
-            while (null != (f = g.next())) {
+            while (null != (f = channel.receive())) {
                 System.out.println("Consumed future: " + f);
                 try {
                     System.out.println("RESULT: " + await(f));
@@ -72,14 +72,14 @@ public class ExceptionsTest {
         return async("Done");
     }
     
-    @async static AsyncGenerator<Object> producer() {
+    @async static AsyncChannel<Object> producer() {
         for (int i = 0; i < 10; i++) {
             if (i % 2 == 0) {
-                YieldReply<String> reply = submit(waitString("VALUE " + i, 100));
+                Reply<String> reply = send(waitString("VALUE " + i, 100));
                 System.out.println("REPLY AFTER NORMAL: " + reply);
             } else {
                 try {
-                    YieldReply<String> reply = submit(waitError(100));
+                    Reply<String> reply = send(waitError(100));
                     System.out.println("REPLY AFTER ERROR: " + reply);
                 } catch (IllegalArgumentException ex) {
                     System.out.println("EXCEPTION ON iter#" + i + ": " + ex);
@@ -87,7 +87,7 @@ public class ExceptionsTest {
                 }
             }
         }
-        return submit();
+        return send();
     }
 
     

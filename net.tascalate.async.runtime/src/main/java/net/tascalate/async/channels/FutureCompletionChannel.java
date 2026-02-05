@@ -22,7 +22,7 @@
  * OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
-package net.tascalate.async.sequence;
+package net.tascalate.async.channels;
 
 import java.util.ArrayList;
 import java.util.Collection;
@@ -35,10 +35,10 @@ import java.util.concurrent.LinkedBlockingQueue;
 
 import java.util.stream.Stream;
 
-import net.tascalate.async.Sequence;
+import net.tascalate.async.TypedChannel;
 import net.tascalate.async.core.AsyncMethodExecutor;
 
-public class CompletionSequence<T, F extends CompletionStage<T>> implements Sequence<F> {
+public class FutureCompletionChannel<T, F extends CompletionStage<T>> implements TypedChannel<F> {
     
     private final Iterator<? extends F> pendingPromises;
     private final int chunkSize;
@@ -46,18 +46,18 @@ public class CompletionSequence<T, F extends CompletionStage<T>> implements Sequ
     private int inProgress = 0;
     
     private volatile CompletableFuture<Void> consumerLock = new CompletableFuture<>();
-    private Sequence<F> current = Sequence.empty();
+    private TypedChannel<F> current = TypedChannel.empty();
     
-    protected CompletionSequence(Iterator<? extends F> pendingValues, int chunkSize) {  
+    protected FutureCompletionChannel(Iterator<? extends F> pendingValues, int chunkSize) {  
         this.pendingPromises = pendingValues;
         this.chunkSize = chunkSize;
     }
     
     @Override
-    public F next() {
+    public F receive() {
         while (true) {
             // If we may return more without switching state...
-            F resolvedValue = current.next(); 
+            F resolvedValue = current.receive(); 
             if (null != resolvedValue) {
                 return resolvedValue;
             }
@@ -73,7 +73,7 @@ public class CompletionSequence<T, F extends CompletionStage<T>> implements Sequ
                 if (!readyValues.isEmpty()) {
                     // If we are consuming slower than producing 
                     // then use available results right away
-                    current = Sequence.of(readyValues);
+                    current = TypedChannel.of(readyValues);
                     // recursion via loop
                     continue; 
                 } else {
@@ -85,7 +85,7 @@ public class CompletionSequence<T, F extends CompletionStage<T>> implements Sequ
                         // recursion via loop
                         continue;
                     } else {
-                        current = Sequence.empty();
+                        current = TypedChannel.empty();
                         if (enlistPending()) {
                             // More was enlisted
                             continue; //recursion via loop
@@ -103,7 +103,7 @@ public class CompletionSequence<T, F extends CompletionStage<T>> implements Sequ
     public void close() {
         inProgress = Integer.MIN_VALUE;
         current.close();
-        current = Sequence.empty();
+        current = TypedChannel.empty();
     }
     
     private boolean enlistPending() {
@@ -146,15 +146,15 @@ public class CompletionSequence<T, F extends CompletionStage<T>> implements Sequ
         );
     }
 
-    public static <T, F extends CompletionStage<T>> Sequence<F> create(Stream<? extends F> pendingPromises, int chunkSize) {
+    public static <T, F extends CompletionStage<T>> TypedChannel<F> create(Stream<? extends F> pendingPromises, int chunkSize) {
         return create(pendingPromises.iterator(), chunkSize);
     }
 
-    public static <T, F extends CompletionStage<T>> Sequence<F> create(Iterable<? extends F> pendingPromises, int chunkSize) {
+    public static <T, F extends CompletionStage<T>> TypedChannel<F> create(Iterable<? extends F> pendingPromises, int chunkSize) {
         return create(pendingPromises.iterator(), chunkSize);
     }
     
-    private static <T, F extends CompletionStage<T>> Sequence< F> create(Iterator<? extends F> pendingPromises, int chunkSize) {
-        return new CompletionSequence<>(pendingPromises, chunkSize);
+    private static <T, F extends CompletionStage<T>> TypedChannel< F> create(Iterator<? extends F> pendingPromises, int chunkSize) {
+        return new FutureCompletionChannel<>(pendingPromises, chunkSize);
     }
 }

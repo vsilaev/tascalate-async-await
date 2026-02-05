@@ -22,50 +22,27 @@
  * OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
-package net.tascalate.async.examples.generator;
+package net.tascalate.async.extras;
 
-import static net.tascalate.async.CallContext.async;
-import static net.tascalate.async.CallContext.send;
-import static net.tascalate.async.AsyncChannel.awaitValue;
+import java.util.concurrent.CompletionStage;
+import java.util.function.Function;
 
-import java.util.function.Consumer;
-
-import org.apache.commons.javaflow.core.StackRecorder;
-
-import net.tascalate.async.AsyncChannel;
 import net.tascalate.async.TypedChannel;
-import net.tascalate.async.async;
 import net.tascalate.concurrent.Promise;
-import net.tascalate.javaflow.SuspendableStream;
 
-public class RecursionTest {
-
-    public static void main(String[] args) throws Exception {
-        long start = System.currentTimeMillis();
-        System.out.println( consumer().get() );
-        double finish = System.currentTimeMillis();
-        System.out.println((finish - start) / 1000 + " seconds");
-        System.out.println((finish - start) / 10_000 + " ns each");
+public interface PromiseChannel<T> extends TypedChannel<Promise<T>> {
+    
+    public static <T> PromiseChannel<T> of(TypedChannel<? extends CompletionStage<T>> delegate) {
+        if (delegate instanceof PromiseChannel) {
+            @SuppressWarnings("unchecked")
+            PromiseChannel<T> typed = (PromiseChannel<T>)delegate;
+            return typed;
+        } else {
+            return new DefaultPromiseChannel<T>(delegate);
+        }
     }
     
-    @async static Promise<String> consumer() {
-        System.out.println( StackRecorder.get().getRunnable().toString() );
-        try (SuspendableStream<Object> s = producer().stream().map$(awaitValue())) {
-            s.forEach(NOP);
-        }
-        return async("Done");
+    public static <T> Function<TypedChannel<? extends CompletionStage<T>>, PromiseChannel<T>> promisesSequence() {
+        return PromiseChannel::of;
     }
-    
-    @async static AsyncChannel<Object> producer() {
-        System.out.println( StackRecorder.get().getRunnable().toString() );        
-        for (int i = 0; i < 10_000_000; i++) {
-            /*
-            yield("");
-            */
-            send(TypedChannel.empty());
-        }
-        return send();
-    }
-
-    private static final Consumer<Object> NOP = v -> {};
 }

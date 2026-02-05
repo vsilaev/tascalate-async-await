@@ -22,11 +22,19 @@
  * OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
-package net.tascalate.async.extras;
+package net.tascalate.async;
 
-import net.tascalate.async.Sequence;
-import net.tascalate.concurrent.Promise;
-
-public interface PromisesSequence<T> extends Sequence<Promise<T>> {
-
+public class Reply<T> {
+    final public T value;
+    final public Object param;
+    
+    public Reply(T value, Object param) {
+        this.value = value;
+        this.param = param;
+    }
+    
+    @Override
+    public String toString() {
+        return String.format("%s[value=%s, param=%s]", getClass().getSimpleName(), value, param);
+    }
 }

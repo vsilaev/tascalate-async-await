@@ -26,21 +26,21 @@ package net.tascalate.async.extras;
 
 import java.util.concurrent.CompletionStage;
 
-import net.tascalate.async.AsyncGenerator;
+import net.tascalate.async.AsyncChannel;
 import net.tascalate.concurrent.Promise;
 import net.tascalate.concurrent.Promises;
 
-public class DefaultPromisesGenerator<T> extends DefaultPromisesSequence<T> implements PromisesGenerator<T> {
+public class DefaultPromisesGenerator<T> extends DefaultPromiseChannel<T> implements PromisesGenerator<T> {
     
-    public DefaultPromisesGenerator(AsyncGenerator<T> delegate) {
+    public DefaultPromisesGenerator(AsyncChannel<T> delegate) {
         super(delegate);
     }
     
     @Override
-    public Promise<T> next(Object producerParam) {
+    public Promise<T> receive(Object producerParam) {
         @SuppressWarnings("unchecked")
-        AsyncGenerator<T> _delegate = (AsyncGenerator<T>)delegate;
-        CompletionStage<T> original = _delegate.next(producerParam);
+        AsyncChannel<T> _delegate = (AsyncChannel<T>)delegate;
+        CompletionStage<T> original = _delegate.receive(producerParam);
         return null == original ? null : Promises.from(original);
     }
 }

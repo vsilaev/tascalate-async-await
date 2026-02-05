@@ -299,7 +299,8 @@ class AsyncTaskMethodTransformer extends AbstractAsyncMethodTransformer {
                             }
                             continue;                            
                         case "yield":
-                            throw new IllegalStateException("Yield must be used only inside generator methods");
+                        case "send":
+                            throw new IllegalStateException("SEND must be used only inside generator methods");
                     }
                 }
             } else if (insn instanceof InvokeDynamicInsnNode) {

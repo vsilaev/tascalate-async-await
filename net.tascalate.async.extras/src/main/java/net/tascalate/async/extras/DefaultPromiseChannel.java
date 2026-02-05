@@ -22,19 +22,35 @@
  * OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
-package net.tascalate.async;
+package net.tascalate.async.extras;
 
-public class YieldReply<T> {
-    final public T value;
-    final public Object param;
+import java.util.concurrent.CompletionStage;
+
+import net.tascalate.async.TypedChannel;
+import net.tascalate.concurrent.Promise;
+import net.tascalate.concurrent.Promises;
+
+public class DefaultPromiseChannel<T> implements PromiseChannel<T> {
     
-    public YieldReply(T value, Object param) {
-        this.value = value;
-        this.param = param;
+    protected final TypedChannel<? extends CompletionStage<T>> delegate;
+    
+    public DefaultPromiseChannel(TypedChannel<? extends CompletionStage<T>> delegate) {
+        this.delegate = delegate;
+    }
+    
+    @Override
+    public Promise<T> receive() {
+        CompletionStage<T> original = delegate.receive();
+        return null == original ? null : Promises.from(original);
+    }
+
+    @Override
+    public void close() {
+        delegate.close();
     }
     
     @Override
     public String toString() {
-        return String.format("%s[value=%s, param=%s]", getClass().getSimpleName(), value, param);
-    }
+        return String.format("%s[delegate=%s]", PromisesGenerator.class.getSimpleName(), delegate);
+    }    
 }

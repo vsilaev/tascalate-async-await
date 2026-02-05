@@ -22,35 +22,72 @@
  * OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
-package net.tascalate.async.extras;
+package net.tascalate.async.channels;
 
+import java.util.Iterator;
 import java.util.concurrent.CompletionStage;
+import java.util.stream.Stream;
 
-import net.tascalate.async.Sequence;
-import net.tascalate.concurrent.Promise;
-import net.tascalate.concurrent.Promises;
+import net.tascalate.async.TypedChannel;
 
-public class DefaultPromisesSequence<T> implements PromisesSequence<T> {
+public class OrderedChannel<T> implements TypedChannel<T> {
     
-    protected final Sequence<? extends CompletionStage<T>> delegate;
+    public static final TypedChannel<Object> EMPTY = new TypedChannel<Object>() {
+
+        @Override
+        public CompletionStage<Object> receive() {
+            return null;
+        }
+
+        @Override
+        public void close() {
+
+        }
+        
+        @Override
+        public String toString() {
+            return "<empty-sequence>";
+        }
+        
+    };
+
+    private final Iterator<? extends T> delegate;
     
-    public DefaultPromisesSequence(Sequence<? extends CompletionStage<T>> delegate) {
-        this.delegate = delegate;
+    protected OrderedChannel(Iterator<? extends T> delegate) {
+        this.delegate  = delegate;
     }
     
     @Override
-    public Promise<T> next() {
-        CompletionStage<T> original = delegate.next();
-        return null == original ? null : Promises.from(original);
+    public T receive() {
+        if (delegate.hasNext()) {
+            T result = delegate.next();
+            if (null == result) {
+                throw new IllegalStateException("Null element returned from the wrapped iterable");
+            }
+            return result;
+        } else {
+            return null;
+        }
     }
 
     @Override
     public void close() {
-        delegate.close();
-    }
+    }    
     
     @Override
     public String toString() {
-        return String.format("%s[delegate=%s]", PromisesGenerator.class.getSimpleName(), delegate);
-    }    
-}
+        return String.format("%s[delegate=%s]", getClass().getSimpleName(), delegate);
+    }
+    
+    public static <T> TypedChannel<T> create(Stream<? extends T> items) {
+        return create(items.iterator());
+    }
+
+    public static <T> TypedChannel<T> create(Iterable<? extends T> items) {
+        return create(items.iterator());
+    }
+    
+    private static <T> TypedChannel<T> create(Iterator<? extends T> items) {
+        return new OrderedChannel<>(items);
+    }
+} 

@@ -24,6 +24,6 @@
  */
 package net.tascalate.async;
 
-public interface InteractiveSequence<T> extends Sequence<T> {
-    @suspendable T next(Object param);
+public interface InteractiveSequence<T> extends TypedChannel<T> {
+    @suspendable T receive(Object request);
 }

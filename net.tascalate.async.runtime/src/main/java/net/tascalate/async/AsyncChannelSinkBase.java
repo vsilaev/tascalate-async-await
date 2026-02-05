@@ -31,7 +31,7 @@ import java.util.function.LongConsumer;
 import net.tascalate.async.core.AsyncGeneratorMethod;
 import net.tascalate.async.core.AsyncMethodExecutor;
 
-abstract class AsyncGeneratorEmitterBase<T> {
+abstract class AsyncChannelSinkBase<T> {
     private final AtomicBoolean subscribed = new AtomicBoolean(false);
     private final CompletableFuture<?> subscription = new CompletableFuture<>();
     private final AwaitableQueue<Command<T>> commands = new AwaitableQueue<>();
@@ -41,7 +41,7 @@ abstract class AsyncGeneratorEmitterBase<T> {
     private LongConsumer requestItemsOp;
     private Runnable cancelOp;
     
-    AsyncGeneratorEmitterBase(long batchSize) {
+    AsyncChannelSinkBase(long batchSize) {
         this.batchSize = batchSize;
     }
     
@@ -75,7 +75,7 @@ abstract class AsyncGeneratorEmitterBase<T> {
         cancelOp.run();
     }
     
-    AsyncGenerator<T> emitAll(Scheduler scheduler) {
+    AsyncChannel<T> emitAll(Scheduler scheduler) {
         AsyncGeneratorMethod<T> method = new AsyncGeneratorMethod<T>(scheduler) {
             @Override
             protected @suspendable void doRun() throws Throwable {
@@ -106,7 +106,7 @@ abstract class AsyncGeneratorEmitterBase<T> {
                                 sneakyThrow(command.error());
                                 break outer;
                             } else {
-                                this.yield(command.item());
+                                this.send(command.item());
                                 unprocessed--;
                             }
                         }
@@ -120,7 +120,7 @@ abstract class AsyncGeneratorEmitterBase<T> {
             
         };
         AsyncMethodExecutor.execute(method);
-        return method.generator;
+        return method.channel;
     }
     
     @SuppressWarnings("unchecked")

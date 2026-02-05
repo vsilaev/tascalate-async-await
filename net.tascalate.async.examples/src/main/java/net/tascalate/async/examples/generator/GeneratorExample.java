@@ -25,7 +25,7 @@
 package net.tascalate.async.examples.generator;
 
 import static net.tascalate.async.CallContext.async;
-import static net.tascalate.async.CallContext.submit;
+import static net.tascalate.async.CallContext.send;
 import static net.tascalate.async.CallContext.await;
 import static net.tascalate.async.CallContext.interrupted;
 
@@ -39,10 +39,10 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 
-import net.tascalate.async.AsyncGenerator;
+import net.tascalate.async.AsyncChannel;
 import net.tascalate.async.AsyncResult;
-import net.tascalate.async.Sequence;
-import net.tascalate.async.YieldReply;
+import net.tascalate.async.TypedChannel;
+import net.tascalate.async.Reply;
 import net.tascalate.async.async;
 import net.tascalate.async.suspendable;
 import net.tascalate.concurrent.CompletableTask;
@@ -74,12 +74,12 @@ public class GeneratorExample {
     @async
     CompletableFuture<String> mergeStrings(String delimeter) {
         StringJoiner joiner = new StringJoiner(", ");
-        try (AsyncGenerator<String> generator = produceStrings()) {
+        try (AsyncChannel<String> generator = produceStrings()) {
             System.out.println("%%MergeStrings - before iterations");
             String param = "GO!";
             int i = 0;
             CompletionStage<String> singleResult; 
-            while (null != (singleResult = generator.next(param))) {
+            while (null != (singleResult = generator.receive(param))) {
                 System.out.println(">>Future is ready: " + Future.class.cast(singleResult).isDone());
                 String v = await(singleResult);
                 System.out.println("Received: " + v);
@@ -134,97 +134,97 @@ public class GeneratorExample {
     }
     
     @async
-    AsyncGenerator<String> produceStrings() {
+    AsyncChannel<String> produceStrings() {
        
         System.out.println("%%ProduceStrings - starting + ");
-        YieldReply<String> o;
+        Reply<String> o;
         
-        o = submit(Sequence.empty());
+        o = send(TypedChannel.empty());
         System.out.println("INITIAL PARAM: " + o.param);
         
-        o = submit(waitString("ABC"));
+        o = send(waitString("ABC"));
         System.out.println("Processed: " + o + ", " + new Date());
         
-        o = submit( AsyncGenerator.readyFirst(waitString("PV-1", 2000L), waitString("PV-2", 1500L), waitString("PV-3", 1000L)) );
+        o = send( AsyncChannel.readyFirst(waitString("PV-1", 2000L), waitString("PV-2", 1500L), waitString("PV-3", 1000L)) );
         System.out.println("AFTER LIST PENDING: " + o);
 
         String s = await(waitString("InternalAsync"));
         System.out.println("INTERNALLY: " + s);
 
-        o = submit(Sequence.empty());
+        o = send(TypedChannel.empty());
         System.out.println("AFTER EMPTY: " + o);
         
-        o = submit(AsyncGenerator.from("RV-1", "RV-2", "RV-3"));
+        o = send(AsyncChannel.from("RV-1", "RV-2", "RV-3"));
         System.out.println("AFTER LIST READY: " + o);
 
         System.out.println("Is generator interrupted: " + interrupted());
         
-        o = submit(waitString("DEF"));
+        o = send(waitString("DEF"));
         System.out.println("Processed: " + o + ", " + new Date());
 
-        o = submit("NO-WAIT");
+        o = send("NO-WAIT");
         System.out.println("Processed: " + o + ", " + new Date());
 
-        submit(chainedGenerator());
+        send(chainedGenerator());
 
-        try (AsyncGenerator<String> nested = moreStrings()) {
+        try (AsyncChannel<String> nested = moreStrings()) {
             CompletionStage<String> singleResult; 
-            while (null != (singleResult = nested.next())) {
+            while (null != (singleResult = nested.receive())) {
                 String v = await(singleResult);
                 System.out.println("Nested: " + v);
                 if (Integer.parseInt(v) % 2 == 0) {
-                    o = submit(waitString("NESTED-" + v));
+                    o = send(waitString("NESTED-" + v));
                     System.out.println("Nested Processed: " + o + ", " + new Date());
                 }
             }
         }
 
         String x;
-        submit(x = await(waitString("AWYV")));
+        send(x = await(waitString("AWYV")));
 
         System.out.println("Awaited&Yielded:" + x);
 
-        o = submit(waitString("XYZ"));
+        o = send(waitString("XYZ"));
         System.out.println("Processed Final: " + o + ", " + new Date());
 
-        o = submit(waitString("SHOULD BE SKIPPEDM IN OUTOUT"));
+        o = send(waitString("SHOULD BE SKIPPEDM IN OUTOUT"));
 
         System.out.println("::produceStrings FINALLY CALLED::");
-        return submit();
+        return send();
     }
 
     // Private to ensure that generated accessor methods work 
     @async
-    private AsyncGenerator<String> moreStrings() {
-        submit(waitString("111"));
-        submit(waitString("222"));
-        submit("333");
-        submit(waitString("444"));
+    private AsyncChannel<String> moreStrings() {
+        send(waitString("111"));
+        send(waitString("222"));
+        send("333");
+        send(waitString("444"));
         System.out.println("::moreStrings FINALLY CALLED::");
-        return submit();
+        return send();
     }
     
     @async
-    private AsyncGenerator<String> moreStringsEx() throws FileNotFoundException {
-        submit(waitString("111"));
-        submit(waitString("222"));
-        submit("333");
+    private AsyncChannel<String> moreStringsEx() throws FileNotFoundException {
+        send(waitString("111"));
+        send(waitString("222"));
+        send("333");
         // Comment out to check synchronously thrown exception
         // Below is asynchronously sent one
-        submit(waitError(1));
-        submit(waitString("444"));
+        send(waitError(1));
+        send(waitString("444"));
         throw new FileNotFoundException();
     }
 
     @async
-    AsyncGenerator<String> chainedGenerator() {
-        submit(waitString("CHAINED-1"));
-        submit(waitString("CHAINED-2"));
-        submit("CHAINED-3");
-        submit(waitString("CHAINED-4"));
+    AsyncChannel<String> chainedGenerator() {
+        send(waitString("CHAINED-1"));
+        send(waitString("CHAINED-2"));
+        send("CHAINED-3");
+        send(waitString("CHAINED-4"));
 
         System.out.println("::chainedGenerator FINALLY CALLED::");
-        return submit();
+        return send();
     }
     
     static CompletionStage<String> waitString(String value) {

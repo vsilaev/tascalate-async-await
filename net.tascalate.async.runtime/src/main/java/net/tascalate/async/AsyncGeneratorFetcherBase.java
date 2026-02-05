@@ -24,60 +24,54 @@
  */
 package net.tascalate.async;
 
-import java.util.concurrent.BlockingQueue;
-import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionStage;
-import java.util.concurrent.LinkedBlockingQueue;
 import java.util.function.Consumer;
 
-import net.tascalate.async.core.AbstractAsyncMethod;
 import net.tascalate.async.core.AsyncMethodExecutor;
 import net.tascalate.async.core.AsyncTaskMethod;
 
-public final class AsyncGeneratorTraversal<T> {
+abstract class AsyncGeneratorFetcherBase<T> {
     private final Sequence<? extends CompletionStage<? extends T>> sequence;
     private final Consumer<? super T> itemProcessor;
 
-    private final BlockingQueue<CompletableFuture<Counter>> requests = new LinkedBlockingQueue<>();
+    private final AwaitableQueue<Counter> requests = new AwaitableQueue<>();
     
-    AsyncResult<Long> result;
+    private AsyncResult<Long> completion;
     
-    AsyncGeneratorTraversal(Sequence<? extends CompletionStage<? extends T>> sequence, Consumer<? super T> itemProcessor) {
+    AsyncGeneratorFetcherBase(Sequence<? extends CompletionStage<? extends T>> sequence, Consumer<? super T> itemProcessor) {
         this.sequence = sequence;
         this.itemProcessor = itemProcessor;
-        // Populate with first pending request
-        requests.offer(new CompletableFuture<>());
     }
     
-    AsyncResult<Long> start(Scheduler scheduler) {
-        AbstractAsyncMethod traversal = new AsyncTaskMethod<Long>(scheduler) {
+    AsyncGeneratorFetcherBase<T> start(Scheduler scheduler) {
+        completion = doStart(scheduler);
+        return this;
+    }
+    
+    private AsyncResult<Long> doStart(Scheduler scheduler) {
+        AsyncTaskMethod<Long> method = new AsyncTaskMethod<Long>(scheduler) {
             @Override
             protected @suspendable void doRun() {
                 long total = 0;
                 try (Sequence<?> closeable = sequence) {
                     while (true) {
-                        CompletionStage<Counter> request = requests.peek();
+                        requests.await();
                         
-                        if (null == request) {
-                            throw new IllegalStateException("FluxSink emitter encountered null request");
-                        }
-
-                        Counter counter = AsyncMethodExecutor.await(request);
-                        if (null == counter) {
-                            throw new IllegalStateException(this.getClass().getName() + " was not instrumented for async/await");
-                        }
-                        
-                        while (counter.next()) {
-                            if (total < Long.MAX_VALUE) {
-                                total++;
-                            }
-                            CompletionStage<? extends T> futureItem = sequence.next();
-                            if (null != futureItem) {
-                                T item = AsyncMethodExecutor.await(futureItem);
-                                itemProcessor.accept(item);
-                            } else {
-                                success(total);
-                                return;
+                        Counter counter;
+                        while ((counter = requests.poll()) != null) {
+                            while (counter.next()) {
+                                CompletionStage<? extends T> futureItem = sequence.next();
+                                if (null != futureItem) {
+                                    if (total < Long.MAX_VALUE) {
+                                        total++;
+                                    }
+                                    
+                                    T item = AsyncMethodExecutor.await(futureItem);
+                                    itemProcessor.accept(item);
+                                } else {
+                                    success(total);
+                                    return;
+                                }
                             }
                         }
                     }
@@ -85,36 +79,34 @@ public final class AsyncGeneratorTraversal<T> {
             }
             
         };
-        AsyncMethodExecutor.execute(traversal);
+        AsyncMethodExecutor.execute(method);
         @SuppressWarnings("unchecked")
-        AsyncResult<Long> result = (AsyncResult<Long>)traversal.future;
+        AsyncResult<Long> result = (AsyncResult<Long>)method.future;
         return result;
     }
     
-    public AsyncResult<Long> result() {
-        return result;
+    public AsyncResult<Long> completion() {
+        return completion;
+    }
+    
+    public boolean cancel() {
+        return completion.cancel(true);
     }
     
     public boolean requestAll() {
-        if (result.isDone()) {
+        if (completion.isDone()) {
             return false;
         }
-        request(INFINITE_COUNTER);
+        requests.offer(INFINITE_COUNTER);
         return true;
     }
     
     public boolean requestNext(long count) {
-        if (result.isDone()) {
+        if (completion.isDone()) {
             return false;
         }
-        request(new FiniteCounter(count));
+        requests.offer(new FiniteCounter(count));
         return true;
-    }
-    
-    private void request(Counter counter) {
-        // Add next wait point before confirming current one
-        requests.offer(new CompletableFuture<>());
-        requests.poll().complete(counter);
     }
     
     abstract static class Counter {
@@ -128,7 +120,7 @@ public final class AsyncGeneratorTraversal<T> {
         }
     };
     
-    static class FiniteCounter extends Counter {
+    static final class FiniteCounter extends Counter {
         private final long count;
         private long idx = 0;
         

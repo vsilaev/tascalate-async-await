@@ -26,9 +26,7 @@ package net.tascalate.async.spring.webflux;
 
 import org.springframework.web.server.ServerWebExchange;
 
-import net.tascalate.async.CallContext;
-import net.tascalate.async.suspendable;
-import reactor.core.publisher.Mono;
+import net.tascalate.async.Scheduler;
 import reactor.util.context.Context;
 
 public class ReactiveCallContext {
@@ -42,7 +40,7 @@ public class ReactiveCallContext {
         return WebFluxData.safeGet().context();
     }
     
-    public @suspendable static <T> T await(Mono<T> mono) {
-        return CallContext.await(mono.toFuture());
+    public static Scheduler currentScheduler() {
+        return WebFluxData.safeGet().asyncAwaitScheduler();
     }
 }

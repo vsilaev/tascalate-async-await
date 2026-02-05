@@ -24,6 +24,9 @@
  */
 package net.tascalate.async.spring.webflux;
 
+import java.util.concurrent.atomic.AtomicReference;
+import java.util.function.Function;
+
 import org.springframework.beans.factory.DisposableBean;
 import org.springframework.beans.factory.InitializingBean;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnWebApplication;
@@ -56,16 +59,17 @@ class AsyncAwaitWebFilter implements WebFilter,
     
     @Override
     public Mono<Void> filter(ServerWebExchange exchange, WebFilterChain chain) {
+        AtomicReference<WebFluxData> previous = new AtomicReference<>();
         return chain.filter(exchange)
                     /*
                     .doFirst() as an alternative 
                     */
-                    .doOnSubscribe(subject -> {
-                        CoreSubscriber<?> actual = (CoreSubscriber<?>)Scannable.from(subject).scan(Scannable.Attr.ACTUAL);
-                        WebFluxData.update(actual.currentContext(), exchange, scheduler);
+                    .doOnSubscribe(subscription -> {
+                        CoreSubscriber<?> actual = (CoreSubscriber<?>)Scannable.from(subscription).scan(Scannable.Attr.ACTUAL);
+                        previous.set(WebFluxData.update(actual.currentContext(), exchange, scheduler));
                     })
                     .doFinally(signal -> {
-                        WebFluxData.restore(null);
+                        WebFluxData.restore(previous.get());
                     });
     }
 
@@ -77,13 +81,14 @@ class AsyncAwaitWebFilter implements WebFilter,
 
     @Override
     public void afterPropertiesSet() throws Exception {
-        Schedulers.onScheduleHook(SCHEDULER_HOOK_NAME, AsyncAwaitContextualizer::contextualize);
+        Schedulers.onScheduleHook(SCHEDULE_HOOK_NAME, SCHEDULE_HOOK);
     }
 
     @Override
     public void destroy() throws Exception {
-        Schedulers.resetOnScheduleHook(SCHEDULER_HOOK_NAME);
+        Schedulers.resetOnScheduleHook(SCHEDULE_HOOK_NAME);
     }
     
-    private static final String SCHEDULER_HOOK_NAME = AsyncAwaitWebFilter.class.getPackage().getName() + ".<<async-await-webflux-contextualizer>>";
+    private static final String SCHEDULE_HOOK_NAME = AsyncAwaitWebFilter.class.getPackage().getName() + ".<<async-await-webflux-contextualizer>>";
+    private static final Function<Runnable, Runnable> SCHEDULE_HOOK = AsyncAwaitContextualizer::contextualize;
 }

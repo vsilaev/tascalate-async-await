@@ -35,11 +35,30 @@ import net.tascalate.async.sequence.CompletionSequence;
 
 import net.tascalate.javaflow.SuspendableIterator;
 import net.tascalate.javaflow.SuspendableStream;
+import net.tascalate.javaflow.function.SuspendableFunction;
 
 public interface AsyncGenerator<T> extends InteractiveSequence<CompletionStage<T>> { 
     
+    public static final class Emitter<T> extends AsyncGeneratorEmitterBase<T> {
+        Emitter(long batchSize) {
+            super(batchSize);
+        }
+    }
+    
+    public static final class Fetcher<T> extends AsyncGeneratorFetcherBase<T> {
+        Fetcher(Sequence<? extends CompletionStage<? extends T>> sequence, Consumer<? super T> itemProcessor) {
+            super(sequence, itemProcessor);
+        }
+        
+        @Override
+        Fetcher<T> start(Scheduler scheduler) {
+            super.start(scheduler);
+            return this;
+        }
+    }
+    
     default SuspendableStream<T> valuesStream() {
-        return stream().map$(CallContext.awaitValue());
+        return stream().map$(awaitValue());
     }     
     
     default SuspendableIterator<T> valuesIterator() {
@@ -72,12 +91,12 @@ public interface AsyncGenerator<T> extends InteractiveSequence<CompletionStage<T
     
     abstract Scheduler scheduler();
     
-    default AsyncGeneratorTraversal<T> startTraversal(Consumer<? super T> itemProcessor) {
-        return startTraversal(scheduler(), itemProcessor);
+    default AsyncGenerator.Fetcher<T> lazyFetch(Consumer<? super T> itemProcessor) {
+        return lazyFetch(scheduler(), itemProcessor);
     }
     
-    default AsyncGeneratorTraversal<T> startTraversal(Scheduler scheduler, Consumer<? super T> itemProcessor) {
-        return startTraversal(this,  scheduler, itemProcessor);
+    default AsyncGenerator.Fetcher<T> lazyFetch(Scheduler scheduler, Consumer<? super T> itemProcessor) {
+        return lazyFetch(this,  scheduler, itemProcessor);
     }
 
     public static <T> Sequence<CompletionStage<T>> from(T readyValue) {
@@ -118,15 +137,51 @@ public interface AsyncGenerator<T> extends InteractiveSequence<CompletionStage<T
         return CompletionSequence.create(pendingValues, chunkSize);
     }
 
-    public static <T> AsyncGeneratorTraversal<T> startTraversal(Sequence<? extends CompletionStage<? extends T>> promises, Scheduler scheduler, Consumer<? super T> itemProcessor) {
-        AsyncGeneratorTraversal<T> traversal = new AsyncGeneratorTraversal<>(promises, itemProcessor);
-        traversal.result = traversal.start(scheduler);
-        return  traversal;
-        
+    public static <T> Fetcher<T> lazyFetch(Sequence<? extends CompletionStage<? extends T>> promises, Scheduler scheduler, Consumer<? super T> itemProcessor) {
+        return new Fetcher<>(promises, itemProcessor).start(scheduler);
     }
     
-    @SuppressWarnings("unchecked")
-    public static <T> AsyncGenerator<T> empty() {
-        return (AsyncGenerator<T>)EmptyAsyncGenerator.INSTANCE;
+    public static <T> AsyncGenerator<T> lazyEmit(Scheduler scheduler, Consumer<? super Emitter<T>> subcriber) {
+        return lazyEmit(scheduler, 1L, subcriber);
+    }
+    
+    public static <T> AsyncGenerator<T> lazyEmit(Scheduler scheduler, long batchSize, Consumer<? super Emitter<T>> subcriber) {
+        Emitter<T> emitter = new Emitter<>(batchSize);
+        subcriber.accept(emitter);
+        return emitter.emitAll(scheduler);
+    }
+    
+    public static <T> AsyncGenerator<T> emptyOn(Scheduler scheduler) {
+        return new AsyncGenerator<T>() {
+
+            @Override
+            public CompletionStage<T> next(Object param) {
+                return null;
+            }
+
+            @Override
+            public CompletionStage<T> next() {
+                return null;
+            }
+
+            @Override
+            public void close() {
+            }
+
+            @Override
+            public Scheduler scheduler() {
+                return scheduler;
+            }
+            
+        };
+    }
+    
+    public static <T> SuspendableFunction<CompletionStage<T>, T> awaitValue() {
+        return new SuspendableFunction<CompletionStage<T>, T>() {
+            @Override
+            public T apply(CompletionStage<T> future) {
+                return AsyncMethodExecutor.await(future);
+            }
+        };
     }
 }

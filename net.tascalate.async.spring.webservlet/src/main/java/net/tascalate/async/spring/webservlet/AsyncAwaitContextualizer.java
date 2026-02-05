@@ -35,6 +35,8 @@ import org.springframework.stereotype.Component;
 import org.springframework.web.context.request.RequestAttributes;
 import org.springframework.web.context.request.RequestContextHolder;
 
+import net.tascalate.async.Scheduler;
+import net.tascalate.async.resolver.scoped.SchedulerScope;
 import net.tascalate.async.spring.DefaultAsyncAwaitContextualizer;
 
 @Lazy
@@ -44,11 +46,10 @@ import net.tascalate.async.spring.DefaultAsyncAwaitContextualizer;
 public class AsyncAwaitContextualizer implements Function<Runnable, Runnable> {
 
     @Override
-    public Runnable apply(Runnable code) {
-        return contextualize(code);
-    }
-    
-    static Runnable contextualize(Runnable code) {
+    public Runnable apply(Runnable rawCode) {
+        Scheduler scheduler = SchedulerScope.DEFAULTS.currentScheduler();
+        Runnable code = () -> SchedulerScope.DEFAULTS.runWith(scheduler, rawCode);
+        
         ContextVar<?>.Snapshot currentRequestAttributes = REQUEST_ATTRIBUTES.snapshot();
         ContextVar<?>.Snapshot currentLocaleContext = LOCALE_CONTEXT.snapshot();
         

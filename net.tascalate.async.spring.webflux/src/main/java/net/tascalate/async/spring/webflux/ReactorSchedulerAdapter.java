@@ -25,6 +25,7 @@
 package net.tascalate.async.spring.webflux;
 
 import java.util.EnumSet;
+import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.CompletionStage;
 import java.util.function.Function;
@@ -61,7 +62,8 @@ public class ReactorSchedulerAdapter implements Scheduler {
                    .subscribeOn(delegate)
                    .map(r -> {
                        r.run();
-                       return null;
-                   }).toFuture();
+                       return Optional.empty();
+                   })
+                   .toFuture();
     }
 }

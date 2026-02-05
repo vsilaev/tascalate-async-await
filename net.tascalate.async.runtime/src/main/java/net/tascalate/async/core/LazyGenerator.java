@@ -37,7 +37,7 @@ import net.tascalate.async.suspendable;
 class LazyGenerator<T> implements AsyncGenerator<T> {
     private final AsyncGeneratorMethod<?> owner;
 	
-    private CompletableFuture<YieldReply<T>> producerLock;
+    private CompletableFuture<YieldReply<T>> producerLock = new CompletableFuture<>();
     private CompletableFuture<?> consumerLock;
     private CompletionStage<T> latestFuture;
 
@@ -83,7 +83,9 @@ class LazyGenerator<T> implements AsyncGenerator<T> {
             // No, need to generate new promise;
     
             // Let produce some value (resumes producer)
-            latestResult.releaseLock(producerLock, param);
+            
+            CompletableFuture<YieldReply<T>> theProducerLock = this.producerLock;
+            latestResult.releaseLock(theProducerLock, param);
             // Wait till value is ready (suspends consumer)
             acquireConsumerLock();
             consumerLock = new CompletableFuture<>();

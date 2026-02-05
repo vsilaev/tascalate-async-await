@@ -27,11 +27,12 @@ package net.tascalate.async.spring.webflux;
 import java.util.concurrent.CompletionStage;
 import java.util.function.Supplier;
 
+import org.reactivestreams.Subscription;
+
 import net.tascalate.async.AsyncGenerator;
-import net.tascalate.async.AsyncGeneratorTraversal;
-import net.tascalate.async.AsyncResult;
 import net.tascalate.async.Scheduler;
 import net.tascalate.async.Sequence;
+import reactor.core.publisher.BaseSubscriber;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.FluxSink;
 
@@ -41,39 +42,79 @@ public final class AsyncAwaitFlux {
         
     }
     
+    public static <T> AsyncGenerator<T> toGenerator(Flux<? extends T> coldFlux, Scheduler asyncAwaitScheduler) {
+        return toGenerator(coldFlux, 1L, asyncAwaitScheduler);
+    }
+    
+    public static <T> AsyncGenerator<T> toGenerator(Flux<? extends T> coldFlux, long batchSize, Scheduler asyncAwaitScheduler) {
+        return AsyncGenerator.lazyEmit(asyncAwaitScheduler, batchSize, emitter -> {
+            coldFlux.subscribe(new BaseSubscriber<T>() {
+                @Override
+                protected void hookOnSubscribe(Subscription subscription) {
+                    emitter.subscribe(subscription::request, subscription::cancel);
+                }
+
+                @Override
+                protected void hookOnNext(T value) {
+                    emitter.emitNextItem(value);
+                }
+                
+                @Override
+                protected void hookOnError(Throwable throwable) {
+                    emitter.emitError(throwable);
+                }
+
+                @Override
+                protected void hookOnComplete() {
+                    emitter.emitCompletion();
+                }
+
+                @Override
+                protected void hookOnCancel() {
+                    // Canceling subscription is just a completion of the generator
+                    hookOnComplete();
+                }
+                
+            });
+            
+        });
+    }
+    
     public static <T> Flux<T> create(Supplier<? extends AsyncGenerator<? extends T>> generatorFactory) {
         return Flux.create(sink -> {
             AsyncGenerator<? extends T> generator = generatorFactory.get(); 
-            setupTraversalSink(generator.startTraversal(sink::next), sink, generator.scheduler());
+            setupFetcherSink(generator.lazyFetch(sink::next), sink);
         }, FluxSink.OverflowStrategy.ERROR);
     }
     
     public static <T> Flux<T> create(Supplier<? extends Sequence<? extends CompletionStage<? extends T>>> sequenceFactory, Scheduler asyncAwaitScheduler) {
         return Flux.create(sink -> {
             Sequence<? extends CompletionStage<? extends T>> sequence = sequenceFactory.get();
-            setupTraversalSink(AsyncGenerator.startTraversal(sequence, asyncAwaitScheduler, sink::next), sink, asyncAwaitScheduler);
+            setupFetcherSink(AsyncGenerator.lazyFetch(sequence, asyncAwaitScheduler, sink::next), sink);
         }, FluxSink.OverflowStrategy.ERROR);
     }
     
-    private static <T> void setupTraversalSink(AsyncGeneratorTraversal<? extends T> traversal, FluxSink<T> sink, Scheduler asyncAwaitScheduler) {
-        AsyncResult<?> traversalFuture = traversal.result();
-        traversalFuture.whenComplete((r, e) -> {
-            if (null == e) {
-                asyncAwaitScheduler.schedule(sink::complete);
-            } else {
-                sink.error(e);
-            }
-        });
+    private static <T> void setupFetcherSink(AsyncGenerator.Fetcher<? extends T> fetcher, FluxSink<T> sink) {
+        Scheduler scheduler = fetcher.completion().scheduler();
         
-        sink.onCancel(() -> traversalFuture.cancel(true));
-        sink.onRequest(count -> asyncAwaitScheduler.schedule(() -> {
+        sink.onCancel(() -> fetcher.cancel());
+        
+        sink.onRequest(count -> scheduler.schedule(() -> {
             boolean requestAll = Long.MAX_VALUE == count;
             if (requestAll) {
-                traversal.requestAll();
+                fetcher.requestAll();
             } else {
-                traversal.requestNext(count);    
+                fetcher.requestNext(count);    
             }
         }));
 
+        fetcher.completion().whenComplete((r, e) -> scheduler.schedule(() -> {
+            if (null == e) {
+                sink.complete();
+            } else {
+                sink.error(e);
+            }
+        }));
+        
     }
 }

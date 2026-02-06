@@ -106,6 +106,10 @@ public interface Sequence<T> extends AutoCloseable {
         };
     }
     
+    default T itemType() {
+        return null;
+    }
+    
     @SuppressWarnings("unchecked")
     public static <T> Sequence<T> empty() {
         return (Sequence<T>)OrderedSequence.EMPTY_SEQUENCE;

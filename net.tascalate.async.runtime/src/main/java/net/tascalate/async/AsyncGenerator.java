@@ -31,27 +31,27 @@ import java.util.stream.Stream;
 import java.util.stream.StreamSupport;
 
 import net.tascalate.async.core.AsyncMethodExecutor;
-import net.tascalate.async.sequence.CompletionSequence;
+import net.tascalate.async.sequence.FutureCompletionSequence;
 
 import net.tascalate.javaflow.SuspendableIterator;
 import net.tascalate.javaflow.SuspendableStream;
 import net.tascalate.javaflow.function.SuspendableFunction;
 
-public interface AsyncGenerator<T> extends InteractiveSequence<CompletionStage<T>> { 
+public interface AsyncGenerator<T> extends CustomizableSequence<CompletionStage<T>> { 
     
-    public static final class Emitter<T> extends AsyncGeneratorEmitterBase<T> {
-        Emitter(long batchSize) {
+    public static final class Sink<T> extends AsyncGeneratorSinkBase<T> {
+        Sink(long batchSize) {
             super(batchSize);
         }
     }
     
-    public static final class Fetcher<T> extends AsyncGeneratorFetcherBase<T> {
-        Fetcher(Sequence<? extends CompletionStage<? extends T>> sequence, Consumer<? super T> itemProcessor) {
+    public static final class Source<T> extends AsyncGeneratorSourceBase<T> {
+        Source(Sequence<? extends CompletionStage<? extends T>> sequence, Consumer<? super T> itemProcessor) {
             super(sequence, itemProcessor);
         }
         
         @Override
-        Fetcher<T> start(Scheduler scheduler) {
+        Source<T> start(Scheduler scheduler) {
             super.start(scheduler);
             return this;
         }
@@ -91,11 +91,11 @@ public interface AsyncGenerator<T> extends InteractiveSequence<CompletionStage<T
     
     abstract Scheduler scheduler();
     
-    default AsyncGenerator.Fetcher<T> lazyFetch(Consumer<? super T> itemProcessor) {
+    default AsyncGenerator.Source<T> lazyFetch(Consumer<? super T> itemProcessor) {
         return lazyFetch(scheduler(), itemProcessor);
     }
     
-    default AsyncGenerator.Fetcher<T> lazyFetch(Scheduler scheduler, Consumer<? super T> itemProcessor) {
+    default AsyncGenerator.Source<T> lazyFetch(Scheduler scheduler, Consumer<? super T> itemProcessor) {
         return lazyFetch(this,  scheduler, itemProcessor);
     }
 
@@ -126,7 +126,7 @@ public interface AsyncGenerator<T> extends InteractiveSequence<CompletionStage<T
     } 
     
     public static <T, F extends CompletionStage<T>> Sequence<F> readyFirst(Iterable<? extends F> pendingValues, int chunkSize) {
-        return CompletionSequence.create(pendingValues, chunkSize);
+        return FutureCompletionSequence.create(pendingValues, chunkSize);
     }
     
     public static <T, F extends CompletionStage<T>> Sequence<F> readyFirst(Stream<? extends F> pendingValues) {
@@ -134,19 +134,19 @@ public interface AsyncGenerator<T> extends InteractiveSequence<CompletionStage<T
     }
     
     public static <T, F extends CompletionStage<T>> Sequence<F> readyFirst(Stream<? extends F> pendingValues, int chunkSize) {
-        return CompletionSequence.create(pendingValues, chunkSize);
+        return FutureCompletionSequence.create(pendingValues, chunkSize);
     }
 
-    public static <T> Fetcher<T> lazyFetch(Sequence<? extends CompletionStage<? extends T>> promises, Scheduler scheduler, Consumer<? super T> itemProcessor) {
-        return new Fetcher<>(promises, itemProcessor).start(scheduler);
+    public static <T> Source<T> lazyFetch(Sequence<? extends CompletionStage<? extends T>> promises, Scheduler scheduler, Consumer<? super T> itemProcessor) {
+        return new Source<>(promises, itemProcessor).start(scheduler);
     }
     
-    public static <T> AsyncGenerator<T> lazyEmit(Scheduler scheduler, Consumer<? super Emitter<T>> subcriber) {
+    public static <T> AsyncGenerator<T> lazyEmit(Scheduler scheduler, Consumer<? super Sink<T>> subcriber) {
         return lazyEmit(scheduler, 1L, subcriber);
     }
     
-    public static <T> AsyncGenerator<T> lazyEmit(Scheduler scheduler, long batchSize, Consumer<? super Emitter<T>> subcriber) {
-        Emitter<T> emitter = new Emitter<>(batchSize);
+    public static <T> AsyncGenerator<T> lazyEmit(Scheduler scheduler, long batchSize, Consumer<? super Sink<T>> subcriber) {
+        Sink<T> emitter = new Sink<>(batchSize);
         subcriber.accept(emitter);
         return emitter.emitAll(scheduler);
     }

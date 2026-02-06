@@ -25,8 +25,8 @@
 package net.tascalate.async.examples.generator;
 
 import static net.tascalate.async.CallContext.async;
-import static net.tascalate.async.CallContext.submit;
 import static net.tascalate.async.CallContext.await;
+import static net.tascalate.async.CallContext.emit;
 
 import java.util.concurrent.CompletionException;
 import java.util.concurrent.CompletionStage;
@@ -34,7 +34,7 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
 import net.tascalate.async.AsyncGenerator;
-import net.tascalate.async.YieldReply;
+import net.tascalate.async.CallContext.Reply;
 import net.tascalate.async.async;
 import net.tascalate.concurrent.CompletableTask;
 import net.tascalate.concurrent.Promise;
@@ -54,9 +54,9 @@ public class ExceptionsTest {
     }
     
     @async static Promise<String> consumer() {
-        try (AsyncGenerator<Object> g = producer()) {
-            CompletionStage<Object> f = null;
-            while (null != (f = g.next())) {
+        try (AsyncGenerator<Object> generator = producer()) {
+            CompletionStage<Object> f = generator.itemType();
+            while (null != (f = generator.next())) {
                 System.out.println("Consumed future: " + f);
                 try {
                     System.out.println("RESULT: " + await(f));
@@ -75,11 +75,11 @@ public class ExceptionsTest {
     @async static AsyncGenerator<Object> producer() {
         for (int i = 0; i < 10; i++) {
             if (i % 2 == 0) {
-                YieldReply<String> reply = submit(waitString("VALUE " + i, 100));
+                Reply<String> reply = emit(waitString("VALUE " + i, 100));
                 System.out.println("REPLY AFTER NORMAL: " + reply);
             } else {
                 try {
-                    YieldReply<String> reply = submit(waitError(100));
+                    Reply<String> reply = emit(waitError(100));
                     System.out.println("REPLY AFTER ERROR: " + reply);
                 } catch (IllegalArgumentException ex) {
                     System.out.println("EXCEPTION ON iter#" + i + ": " + ex);
@@ -87,7 +87,7 @@ public class ExceptionsTest {
                 }
             }
         }
-        return submit();
+        return emit();
     }
 
     

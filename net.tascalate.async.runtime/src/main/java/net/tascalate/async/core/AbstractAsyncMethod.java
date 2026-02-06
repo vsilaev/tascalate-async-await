@@ -94,7 +94,7 @@ abstract public class AbstractAsyncMethod implements Runnable {
         cancelAwaitIfNecessary(terminateMethod, originalAwait);
     }
     
-    final Scheduler scheduler() {
+    protected final Scheduler scheduler() {
         return scheduler;
     }
     

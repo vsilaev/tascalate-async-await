@@ -24,17 +24,6 @@
  */
 package net.tascalate.async;
 
-public class YieldReply<T> {
-    final public T value;
-    final public Object param;
-    
-    public YieldReply(T value, Object param) {
-        this.value = value;
-        this.param = param;
-    }
-    
-    @Override
-    public String toString() {
-        return String.format("%s[value=%s, param=%s]", getClass().getSimpleName(), value, param);
-    }
+public interface CustomizableSequence<T> extends Sequence<T> {
+    @suspendable T next(Object param);
 }

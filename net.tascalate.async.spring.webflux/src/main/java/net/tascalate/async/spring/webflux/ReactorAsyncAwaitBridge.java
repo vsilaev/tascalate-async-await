@@ -36,37 +36,37 @@ import reactor.core.publisher.BaseSubscriber;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.FluxSink;
 
-public final class AsyncAwaitFlux {
+public final class ReactorAsyncAwaitBridge {
     
-    private AsyncAwaitFlux() {
+    private ReactorAsyncAwaitBridge() {
         
     }
     
-    public static <T> AsyncGenerator<T> toGenerator(Flux<? extends T> coldFlux, Scheduler asyncAwaitScheduler) {
-        return toGenerator(coldFlux, 1L, asyncAwaitScheduler);
+    public static <T> AsyncGenerator<T> createGenerator(Flux<? extends T> coldFlux, Scheduler asyncAwaitScheduler) {
+        return createGenerator(coldFlux, 1L, asyncAwaitScheduler);
     }
     
-    public static <T> AsyncGenerator<T> toGenerator(Flux<? extends T> coldFlux, long batchSize, Scheduler asyncAwaitScheduler) {
-        return AsyncGenerator.lazyEmit(asyncAwaitScheduler, batchSize, emitter -> {
+    public static <T> AsyncGenerator<T> createGenerator(Flux<? extends T> coldFlux, long batchSize, Scheduler asyncAwaitScheduler) {
+        return AsyncGenerator.lazyEmit(asyncAwaitScheduler, batchSize, sink -> {
             coldFlux.subscribe(new BaseSubscriber<T>() {
                 @Override
                 protected void hookOnSubscribe(Subscription subscription) {
-                    emitter.subscribe(subscription::request, subscription::cancel);
+                    sink.subscribe(subscription::request, subscription::cancel);
                 }
 
                 @Override
                 protected void hookOnNext(T value) {
-                    emitter.emitNextItem(value);
+                    sink.emitNextItem(value);
                 }
                 
                 @Override
                 protected void hookOnError(Throwable throwable) {
-                    emitter.emitError(throwable);
+                    sink.emitError(throwable);
                 }
 
                 @Override
                 protected void hookOnComplete() {
-                    emitter.emitCompletion();
+                    sink.emitCompletion();
                 }
 
                 @Override
@@ -80,35 +80,35 @@ public final class AsyncAwaitFlux {
         });
     }
     
-    public static <T> Flux<T> create(Supplier<? extends AsyncGenerator<? extends T>> generatorFactory) {
+    public static <T> Flux<T> createFlux(Supplier<? extends AsyncGenerator<? extends T>> sourceFactory) {
         return Flux.create(sink -> {
-            AsyncGenerator<? extends T> generator = generatorFactory.get(); 
-            setupFetcherSink(generator.lazyFetch(sink::next), sink);
+            AsyncGenerator<? extends T> source = sourceFactory.get(); 
+            connectSourceAndSink(source.lazyFetch(sink::next), sink);
         }, FluxSink.OverflowStrategy.ERROR);
     }
     
-    public static <T> Flux<T> create(Supplier<? extends Sequence<? extends CompletionStage<? extends T>>> sequenceFactory, Scheduler asyncAwaitScheduler) {
+    public static <T> Flux<T> createFlux(Supplier<? extends Sequence<? extends CompletionStage<? extends T>>> sourceFactory, Scheduler asyncAwaitScheduler) {
         return Flux.create(sink -> {
-            Sequence<? extends CompletionStage<? extends T>> sequence = sequenceFactory.get();
-            setupFetcherSink(AsyncGenerator.lazyFetch(sequence, asyncAwaitScheduler, sink::next), sink);
+            Sequence<? extends CompletionStage<? extends T>> source = sourceFactory.get();
+            connectSourceAndSink(AsyncGenerator.lazyFetch(source, asyncAwaitScheduler, sink::next), sink);
         }, FluxSink.OverflowStrategy.ERROR);
     }
     
-    private static <T> void setupFetcherSink(AsyncGenerator.Fetcher<? extends T> fetcher, FluxSink<T> sink) {
-        Scheduler scheduler = fetcher.completion().scheduler();
+    private static <T> void connectSourceAndSink(AsyncGenerator.Source<? extends T> source, FluxSink<T> sink) {
+        Scheduler scheduler = source.completion().scheduler();
         
-        sink.onCancel(() -> fetcher.cancel());
+        sink.onCancel(() -> source.cancel());
         
         sink.onRequest(count -> scheduler.schedule(() -> {
             boolean requestAll = Long.MAX_VALUE == count;
             if (requestAll) {
-                fetcher.requestAll();
+                source.requestAll();
             } else {
-                fetcher.requestNext(count);    
+                source.requestNext(count);    
             }
         }));
 
-        fetcher.completion().whenComplete((r, e) -> scheduler.schedule(() -> {
+        source.completion().whenComplete((r, e) -> scheduler.schedule(() -> {
             if (null == e) {
                 sink.complete();
             } else {

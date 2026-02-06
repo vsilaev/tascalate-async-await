@@ -24,10 +24,10 @@
  */
 package net.tascalate.async.examples.generator;
 
-import static net.tascalate.async.CallContext.async;
-import static net.tascalate.async.CallContext.submit;
-import static net.tascalate.async.CallContext.await;
 import static net.tascalate.async.AsyncGenerator.awaitValue;
+import static net.tascalate.async.CallContext.async;
+import static net.tascalate.async.CallContext.await;
+import static net.tascalate.async.CallContext.emit;
 
 import java.time.Duration;
 import java.util.Arrays;
@@ -37,13 +37,12 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
 import net.tascalate.async.AsyncGenerator;
+import net.tascalate.async.CallContext.Reply;
 import net.tascalate.async.Sequence;
-import net.tascalate.async.YieldReply;
 import net.tascalate.async.async;
 import net.tascalate.async.suspendable;
 import net.tascalate.concurrent.CompletableTask;
 import net.tascalate.concurrent.Promises;
-
 import net.tascalate.javaflow.SuspendableStream;
 
 public class StreamTest {
@@ -127,49 +126,49 @@ public class StreamTest {
                 .map( Promises::from )
                 .map( p -> p.orTimeout(Duration.ofMillis(500)) );
 
-        submit(
+        emit(
             SuspendableStream
                 .zip(numerics, alphas, (a, b) -> a.thenCombine(b, (av, bv) -> av + " - " + bv) )
                 .convert(Sequence.fromStream())
         );
-        return submit();
+        return emit();
     }
 
     // Private to ensure that generated accessor methods work 
     @async private AsyncGenerator<String> produceNumericStrings() {
         try {
-            submit (Sequence.empty());
-            submit (waitString("111"));
-            submit (waitString("222"));
-            submit ("333");
-            submit (waitString("444"));
+            emit (Sequence.empty());
+            emit (waitString("111"));
+            emit (waitString("222"));
+            emit ("333");
+            emit (waitString("444"));
         } finally {
             System.out.println("::produceNumericStrings FINALLY CALLED::");
         }
-        return submit();
+        return emit();
     }
 
     @async AsyncGenerator<String> produceAlphaStrings() {
         try {
             for (String s : Arrays.asList("AAA", "BBB", "CCC", "DDD")) {
-                submit( waitString(s, 400) );
+                emit( waitString(s, 400) );
             }
         } finally {
             System.out.println("::produceAlphaStrings FINALLY CALLED::");
         }
-        return submit();
+        return emit();
     }
 
     @async AsyncGenerator<String> producePrefixedStrings(CompletionStage<String> prefix) {
         try {
             for (int i = 1; i <= 9; i++) {
-                YieldReply<String> r = submit( prefix.thenCombine(waitString(String.valueOf(i)), (px,v) -> px + v) );
+                Reply<String> r = emit( prefix.thenCombine(waitString(String.valueOf(i)), (px,v) -> px + v) );
                 System.out.println(">> Yield " + r.value);
             }
         } finally {
             System.out.println("::producePrefixedStrings " + await(prefix) + " FINALLY CALLED::");
         }
-        return submit();
+        return emit();
     }
 
     static CompletionStage<String> waitString(String value) {

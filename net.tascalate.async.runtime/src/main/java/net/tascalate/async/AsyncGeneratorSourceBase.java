@@ -24,13 +24,14 @@
  */
 package net.tascalate.async;
 
+import java.lang.invoke.MethodHandles;
 import java.util.concurrent.CompletionStage;
 import java.util.function.Consumer;
 
 import net.tascalate.async.core.AsyncMethodExecutor;
 import net.tascalate.async.core.AsyncTaskMethod;
 
-abstract class AsyncGeneratorFetcherBase<T> {
+abstract class AsyncGeneratorSourceBase<T> {
     private final Sequence<? extends CompletionStage<? extends T>> sequence;
     private final Consumer<? super T> itemProcessor;
 
@@ -38,18 +39,19 @@ abstract class AsyncGeneratorFetcherBase<T> {
     
     private AsyncResult<Long> completion;
     
-    AsyncGeneratorFetcherBase(Sequence<? extends CompletionStage<? extends T>> sequence, Consumer<? super T> itemProcessor) {
+    AsyncGeneratorSourceBase(Sequence<? extends CompletionStage<? extends T>> sequence, Consumer<? super T> itemProcessor) {
         this.sequence = sequence;
         this.itemProcessor = itemProcessor;
     }
     
-    AsyncGeneratorFetcherBase<T> start(Scheduler scheduler) {
+    AsyncGeneratorSourceBase<T> start(Scheduler scheduler) {
         completion = doStart(scheduler);
         return this;
     }
     
     private AsyncResult<Long> doStart(Scheduler scheduler) {
-        AsyncTaskMethod<Long> method = new AsyncTaskMethod<Long>(scheduler) {
+        Scheduler resolvedScheduler = AsyncMethodExecutor.currentScheduler(scheduler, this, MethodHandles.lookup());
+        AsyncTaskMethod<Long> method = new AsyncTaskMethod<Long>(resolvedScheduler) {
             @Override
             protected @suspendable void doRun() {
                 long total = 0;

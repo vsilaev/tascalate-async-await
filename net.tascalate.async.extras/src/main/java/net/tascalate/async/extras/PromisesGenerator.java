@@ -24,8 +24,8 @@
  */
 package net.tascalate.async.extras;
 
-import net.tascalate.async.InteractiveSequence;
+import net.tascalate.async.CustomizableSequence;
 import net.tascalate.concurrent.Promise;
 
-public interface PromisesGenerator<T> extends PromisesSequence<T>, InteractiveSequence<Promise<T>> {
+public interface PromisesGenerator<T> extends PromisesSequence<T>, CustomizableSequence<Promise<T>> {
 }

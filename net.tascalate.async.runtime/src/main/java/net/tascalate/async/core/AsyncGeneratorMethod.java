@@ -31,7 +31,7 @@ import java.util.concurrent.CompletionStage;
 import net.tascalate.async.AsyncGenerator;
 import net.tascalate.async.Scheduler;
 import net.tascalate.async.Sequence;
-import net.tascalate.async.YieldReply;
+import net.tascalate.async.CallContext.Reply;
 import net.tascalate.async.suspendable;
 
 abstract public class AsyncGeneratorMethod<T> extends AbstractAsyncMethod {
@@ -80,20 +80,20 @@ abstract public class AsyncGeneratorMethod<T> extends AbstractAsyncMethod {
         }
     }
 
-    protected final AsyncGenerator<T> yield() {
+    protected final AsyncGenerator<T> emit() {
         return generator;
     }
     
-    protected @suspendable final YieldReply<T> yield(T readyValue) {
-        return generator.produce(AsyncGenerator.from(readyValue));
+    protected @suspendable final Reply<T> emit(T readyValue) {
+        return generator.emit(AsyncGenerator.from(readyValue));
     }
 
-    protected @suspendable final YieldReply<T> yield(CompletionStage<T> pendingValue) {
-        return generator.produce(Sequence.of(pendingValue));
+    protected @suspendable final Reply<T> emit(CompletionStage<T> pendingValue) {
+        return generator.emit(Sequence.of(pendingValue));
     }
 
-    protected @suspendable final YieldReply<T> yield(Sequence<? extends CompletionStage<T>> values) {
-        return generator.produce(values);
+    protected @suspendable final Reply<T> emit(Sequence<? extends CompletionStage<T>> values) {
+        return generator.emit(values);
     }
     
     protected final String toString(String className, String methodSignature) {

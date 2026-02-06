@@ -25,7 +25,7 @@
 package net.tascalate.async.examples.generator;
 
 import static net.tascalate.async.CallContext.async;
-import static net.tascalate.async.CallContext.submit;
+import static net.tascalate.async.CallContext.emit;
 import static net.tascalate.async.AsyncGenerator.awaitValue;
 
 import java.util.function.Consumer;
@@ -62,9 +62,9 @@ public class RecursionTest {
             /*
             yield("");
             */
-            submit(Sequence.empty());
+            emit(Sequence.empty());
         }
-        return submit();
+        return emit();
     }
 
     private static final Consumer<Object> NOP = v -> {};

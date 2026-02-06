@@ -22,8 +22,25 @@
  * OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
-package net.tascalate.async;
+package net.tascalate.async.spring.webflux;
 
-public interface InteractiveSequence<T> extends Sequence<T> {
-    @suspendable T next(Object param);
+import org.springframework.web.server.ServerWebExchange;
+
+import net.tascalate.async.Scheduler;
+import reactor.util.context.Context;
+
+public class ReactorCallContext {
+    private ReactorCallContext() {}
+    
+    public static ServerWebExchange currentServerWebExchange() {
+        return WebFluxData.safeGet().serverWebExchange();
+    }
+    
+    public static Context currentReactiveContext() {
+        return WebFluxData.safeGet().context();
+    }
+    
+    public static Scheduler currentScheduler() {
+        return WebFluxData.safeGet().asyncAwaitScheduler();
+    }
 }

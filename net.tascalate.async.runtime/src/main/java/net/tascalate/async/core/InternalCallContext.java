@@ -42,6 +42,10 @@ public class InternalCallContext {
         return asyncMethod != null && asyncMethod.interrupted();
     }
     
+    public static boolean isCloseSignal(Throwable ex) {
+        return ex == CloseSignal.INSTANCE;
+    }
+    
     static AbstractAsyncMethod asyncMethod() {
         return asyncMethod(true);
     }

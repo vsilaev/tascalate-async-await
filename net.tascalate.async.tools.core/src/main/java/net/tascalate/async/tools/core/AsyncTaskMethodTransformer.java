@@ -280,7 +280,18 @@ class AsyncTaskMethodTransformer extends AbstractAsyncMethodTransformer {
                                                        false
                                     )
                             );                            
-                            continue;                            
+                            continue;        
+                        case "scheduler":
+                            newInstructions.add(new VarInsnNode(ALOAD, 0));
+                            newInstructions.add(
+                                    new MethodInsnNode(INVOKEVIRTUAL, 
+                                                       ASYNC_TASK_METHOD_TYPE.getInternalName(), 
+                                                       "scheduler", 
+                                                       Type.getMethodDescriptor(SCHEDULER_TYPE), 
+                                                       false
+                                    )
+                            );                            
+                            continue;                                
                         case "await":
                             newInstructions.add(
                                 new MethodInsnNode(INVOKESTATIC, 
@@ -297,9 +308,10 @@ class AsyncTaskMethodTransformer extends AbstractAsyncMethodTransformer {
                             for (int i = exceptionTypesCount; i > 0; i--) {
                                 newInstructions.add(new InsnNode(POP));
                             }
-                            continue;                            
+                            continue;
+                        case "emit":                            
                         case "yield":
-                            throw new IllegalStateException("Yield must be used only inside generator methods");
+                            throw new IllegalStateException("EMIT must be used only inside generator methods");
                     }
                 }
             } else if (insn instanceof InvokeDynamicInsnNode) {

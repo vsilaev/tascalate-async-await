@@ -238,7 +238,7 @@ class AsyncGeneratorMethodTransformer extends AbstractAsyncMethodTransformer {
 
                 } else if (min.getOpcode() == INVOKESTATIC && CALL_CONTXT_NAME.equals(min.owner)) {
                     switch (min.name) {
-                        case "submit":
+                        case "emit":
                         case "yield":
                             Type[] args = Type.getArgumentTypes(min.desc);
                             newInstructions.add(new VarInsnNode(ALOAD, 0));
@@ -250,13 +250,13 @@ class AsyncGeneratorMethodTransformer extends AbstractAsyncMethodTransformer {
                                         newInstructions.add(new InsnNode(SWAP));
                                         break;
                                     default:
-                                        throw new IllegalStateException("Can't support YIELD method with more than one argument");
+                                        throw new IllegalStateException("Can't support EMIT method with more than one argument");
                                 }
                             }
                             newInstructions.add(
                                 new MethodInsnNode(INVOKEVIRTUAL, 
                                                    ASYNC_GENERATOR_METHOD_TYPE.getInternalName(), 
-                                                   "yield", 
+                                                   "emit", 
                                                    Type.getMethodDescriptor(Type.getReturnType(min.desc), args), 
                                                    false
                                 )
@@ -273,6 +273,17 @@ class AsyncGeneratorMethodTransformer extends AbstractAsyncMethodTransformer {
                                     )
                             );                            
                             continue;
+                        case "scheduler":
+                            newInstructions.add(new VarInsnNode(ALOAD, 0));
+                            newInstructions.add(
+                                    new MethodInsnNode(INVOKEVIRTUAL, 
+                                                       ASYNC_GENERATOR_METHOD_TYPE.getInternalName(), 
+                                                       "scheduler", 
+                                                       Type.getMethodDescriptor(SCHEDULER_TYPE), 
+                                                       false
+                                    )
+                            );                            
+                            continue;                                
                         case "await":
                             newInstructions.add(
                                 new MethodInsnNode(INVOKESTATIC, 

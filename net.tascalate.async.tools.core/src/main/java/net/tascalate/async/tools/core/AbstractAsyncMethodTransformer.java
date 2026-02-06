@@ -85,9 +85,11 @@ abstract public class AbstractAsyncMethodTransformer {
     protected final static Type TASCALATE_PROMISE_TYPE      = Type.getObjectType("net/tascalate/concurrent/Promise");
     protected final static Type TASCALATE_PROMISES_TYPE     = Type.getObjectType("net/tascalate/concurrent/Promises");
     protected final static Type ABSTRACT_ASYNC_METHOD_TYPE  = Type.getObjectType("net/tascalate/async/core/AbstractAsyncMethod");
-    
-    private final static Type SCHEDULER_TYPE             = Type.getObjectType("net/tascalate/async/Scheduler");
+
+    protected final static Type SCHEDULER_TYPE              = Type.getObjectType("net/tascalate/async/Scheduler");
+
     private final static Type SCHEDULER_PROVIDER_TYPE    = Type.getObjectType("net/tascalate/async/SchedulerProvider");
+    
 
     protected final ClassNode classNode;
     protected final MethodNode originalAsyncMethod;

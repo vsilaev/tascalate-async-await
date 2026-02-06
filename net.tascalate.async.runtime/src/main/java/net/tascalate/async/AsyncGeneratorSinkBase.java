@@ -24,14 +24,18 @@
  */
 package net.tascalate.async;
 
+import java.lang.invoke.MethodHandles;
+import java.util.LinkedList;
+import java.util.List;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CompletionStage;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.LongConsumer;
 
 import net.tascalate.async.core.AsyncGeneratorMethod;
 import net.tascalate.async.core.AsyncMethodExecutor;
 
-abstract class AsyncGeneratorEmitterBase<T> {
+abstract class AsyncGeneratorSinkBase<T> {
     private final AtomicBoolean subscribed = new AtomicBoolean(false);
     private final CompletableFuture<?> subscription = new CompletableFuture<>();
     private final AwaitableQueue<Command<T>> commands = new AwaitableQueue<>();
@@ -41,7 +45,7 @@ abstract class AsyncGeneratorEmitterBase<T> {
     private LongConsumer requestItemsOp;
     private Runnable cancelOp;
     
-    AsyncGeneratorEmitterBase(long batchSize) {
+    AsyncGeneratorSinkBase(long batchSize) {
         this.batchSize = batchSize;
     }
     
@@ -76,7 +80,8 @@ abstract class AsyncGeneratorEmitterBase<T> {
     }
     
     AsyncGenerator<T> emitAll(Scheduler scheduler) {
-        AsyncGeneratorMethod<T> method = new AsyncGeneratorMethod<T>(scheduler) {
+        Scheduler resolvedScheduler = AsyncMethodExecutor.currentScheduler(scheduler, this, MethodHandles.lookup());
+        AsyncGeneratorMethod<T> method = new AsyncGeneratorMethod<T>(resolvedScheduler) {
             @Override
             protected @suspendable void doRun() throws Throwable {
                 // If iteration starts before actual subscription happens - then do async wait
@@ -97,17 +102,32 @@ abstract class AsyncGeneratorEmitterBase<T> {
                         commands.await();
                         
                         Command<T> command;
-                        while ((command = commands.poll()) != null) {
-                            if (command.isCompletion()) {
-                                skipCancel = true;
-                                break outer;
-                            } else if (command.isError()) {
-                                skipCancel = true;
-                                sneakyThrow(command.error());
-                                break outer;
-                            } else {
-                                this.yield(command.item());
-                                unprocessed--;
+                        Batch<T> batch = new Batch<>();
+                        Throwable error = null;
+                        try {
+                            while ((command = commands.poll()) != null) {
+                                if (command.isCompletion()) {
+                                    skipCancel = true;
+                                    break outer;
+                                } else if (command.isError()) {
+                                    skipCancel = true;
+                                    error = command.error();
+                                    break outer;
+                                } else {
+                                    batch.enlist(command.item());
+                                    unprocessed--;
+                                }
+                            }
+                        } finally {
+                            if (!batch.isEmpty()) {
+                                if (batch.isSingle()) {
+                                    emit(batch.item());
+                                } else {
+                                    emit(batch.items());
+                                }
+                            }
+                            if (null != error) {
+                                sneakyThrow(error);
                             }
                         }
                     }
@@ -148,6 +168,41 @@ abstract class AsyncGeneratorEmitterBase<T> {
         
         T item() {
             throw new UnsupportedOperationException();
+        }
+    }
+    
+    static final class Batch<T> {
+        private boolean hasItem = false;
+        private T singleItem;
+        private List<T> allItems;
+        
+        void enlist(T item) {
+            if (hasItem) {
+                if (null == allItems) {
+                    allItems = new LinkedList<>();
+                    allItems.add(singleItem);
+                }
+                allItems.add(item);
+            } else {
+                hasItem = true;
+                singleItem = item;
+            }
+        }
+        
+        boolean isEmpty() {
+            return !hasItem;
+        }
+        
+        boolean isSingle() {
+            return hasItem && null == allItems;
+        }
+        
+        T item() {
+            return singleItem;
+        }
+        
+        Sequence<CompletionStage<T>> items() {
+            return AsyncGenerator.from(allItems);
         }
     }
     

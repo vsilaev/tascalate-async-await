@@ -38,7 +38,7 @@ import java.util.stream.Stream;
 import net.tascalate.async.Sequence;
 import net.tascalate.async.core.AsyncMethodExecutor;
 
-public class CompletionSequence<T, F extends CompletionStage<T>> implements Sequence<F> {
+public class FutureCompletionSequence<T, F extends CompletionStage<T>> implements Sequence<F> {
     
     private final Iterator<? extends F> pendingPromises;
     private final int chunkSize;
@@ -48,7 +48,7 @@ public class CompletionSequence<T, F extends CompletionStage<T>> implements Sequ
     private volatile CompletableFuture<Void> consumerLock = new CompletableFuture<>();
     private Sequence<F> current = Sequence.empty();
     
-    protected CompletionSequence(Iterator<? extends F> pendingValues, int chunkSize) {  
+    protected FutureCompletionSequence(Iterator<? extends F> pendingValues, int chunkSize) {  
         this.pendingPromises = pendingValues;
         this.chunkSize = chunkSize;
     }
@@ -155,6 +155,6 @@ public class CompletionSequence<T, F extends CompletionStage<T>> implements Sequ
     }
     
     private static <T, F extends CompletionStage<T>> Sequence< F> create(Iterator<? extends F> pendingPromises, int chunkSize) {
-        return new CompletionSequence<>(pendingPromises, chunkSize);
+        return new FutureCompletionSequence<>(pendingPromises, chunkSize);
     }
 }

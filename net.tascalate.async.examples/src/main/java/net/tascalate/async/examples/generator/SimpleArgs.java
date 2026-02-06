@@ -26,6 +26,8 @@ package net.tascalate.async.examples.generator;
 
 import static net.tascalate.async.CallContext.async;
 import static net.tascalate.async.CallContext.await;
+import static net.tascalate.async.CallContext.scheduler;
+
 
 import java.util.Date;
 import java.util.StringJoiner;
@@ -42,7 +44,6 @@ import net.tascalate.async.Sequence;
 import net.tascalate.async.AsyncGenerator;
 import net.tascalate.async.async;
 import net.tascalate.async.extras.TaskScheduler;
-import net.tascalate.async.spi.CurrentCallContext;
 import net.tascalate.concurrent.Promise;
 import net.tascalate.concurrent.Promises;
 
@@ -80,7 +81,7 @@ public class SimpleArgs extends SamePackageSubclass {
     @async CompletionStage<Date> outerCall(String abs/*, @SchedulerProvider Scheduler scheduler*/) {
         Integer x = Integer.valueOf(10);
         x.hashCode();
-        System.out.println("Outer call, current scheduler - " + CurrentCallContext.scheduler());
+        System.out.println("Outer call, current scheduler - " + scheduler());
         System.out.println("Outer call, thread : " + Thread.currentThread().getName());
         System.out.println(abs + " -- " + x + ", " + scheduler);
         System.out.println("Inherited method (other package) " + inheritedMethod(10));
@@ -94,7 +95,7 @@ public class SimpleArgs extends SamePackageSubclass {
     }
 
     @async CompletionStage<String> innerCall() {
-        System.out.println("Inner call, current scheduler - " + CurrentCallContext.scheduler());
+        System.out.println("Inner call, current scheduler - " + scheduler());
         String v = await(CompletableFuture.supplyAsync(() -> "XYZ", executor));
         System.out.println("Inner call, thread : " + Thread.currentThread().getName());
         System.out.println(v);
@@ -103,7 +104,7 @@ public class SimpleArgs extends SamePackageSubclass {
 
     @async
     Promise<String> outerCallExplicit(String delimeter, @SchedulerProvider Scheduler scheduler, int zz) {
-        System.out.println("Outer call explicit, current scheduler - " + CurrentCallContext.scheduler());
+        System.out.println("Outer call explicit, current scheduler - " + scheduler());
         System.out.println("Outer call explicit, thread : " + Thread.currentThread().getName());
         await(innerCallImplicit());
 
@@ -125,7 +126,7 @@ public class SimpleArgs extends SamePackageSubclass {
 
     @async
     Promise<String> innerCallImplicit() {
-        System.out.println("Inner call explicit, current scheduler - " + CurrentCallContext.scheduler());
+        System.out.println("Inner call explicit, current scheduler - " + scheduler());
         String v = await(CompletableFuture.supplyAsync(() -> "XYZ", executor));
         System.out.println("Inner call explicit, thread : " + Thread.currentThread().getName());
         System.out.println(v);

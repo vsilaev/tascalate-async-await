@@ -95,7 +95,7 @@ public final class ReactorAsyncAwaitBridge {
     }
     
     private static <T> void connectSourceAndSink(AsyncGenerator.Source<? extends T> source, FluxSink<T> sink) {
-        Scheduler scheduler = source.completion().scheduler();
+        Scheduler scheduler = source.scheduler();
         
         sink.onCancel(() -> source.cancel());
         

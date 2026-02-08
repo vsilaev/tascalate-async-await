@@ -87,12 +87,16 @@ abstract class AsyncGeneratorSourceBase<T> {
         return result;
     }
     
-    public AsyncResult<Long> completion() {
+    public CompletionStage<Long> completion() {
         return completion;
     }
     
     public boolean cancel() {
         return completion.cancel(true);
+    }
+    
+    public Scheduler scheduler() {
+        return completion.scheduler();
     }
     
     public boolean requestAll() {

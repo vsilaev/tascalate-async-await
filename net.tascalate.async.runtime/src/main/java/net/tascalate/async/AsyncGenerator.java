@@ -39,20 +39,21 @@ import net.tascalate.javaflow.function.SuspendableFunction;
 
 public interface AsyncGenerator<T> extends CustomizableSequence<CompletionStage<T>> { 
     
+
     public static final class Sink<T> extends AsyncGeneratorSinkBase<T> {
-        Sink(long batchSize) {
-            super(batchSize);
+        Sink(long batchSize, Scheduler scheduler) {
+            super(batchSize, scheduler);
         }
     }
     
     public static final class Source<T> extends AsyncGeneratorSourceBase<T> {
-        Source(Sequence<? extends CompletionStage<? extends T>> sequence, Consumer<? super T> itemProcessor) {
-            super(sequence, itemProcessor);
+        Source(Sequence<? extends CompletionStage<? extends T>> sequence, Scheduler scheduler, Consumer<? super T> itemProcessor) {
+            super(sequence, scheduler, itemProcessor);
         }
         
         @Override
-        Source<T> start(Scheduler scheduler) {
-            super.start(scheduler);
+        Source<T> start() {
+            super.start();
             return this;
         }
     }
@@ -90,6 +91,10 @@ public interface AsyncGenerator<T> extends CustomizableSequence<CompletionStage<
     }
     
     abstract Scheduler scheduler();
+    
+    default ConcurrentGenerator<T> concurrent() {
+        return concurrent(this, this.scheduler());
+    }
     
     default AsyncGenerator.Source<T> lazyFetch(Consumer<? super T> itemProcessor) {
         return lazyFetch(scheduler(), itemProcessor);
@@ -136,9 +141,13 @@ public interface AsyncGenerator<T> extends CustomizableSequence<CompletionStage<
     public static <T, F extends CompletionStage<T>> Sequence<F> readyFirst(Stream<? extends F> pendingValues, int chunkSize) {
         return FutureCompletionSequence.create(pendingValues, chunkSize);
     }
+    
+    public static <T> ConcurrentGenerator<T> concurrent(Sequence<? extends CompletionStage<? extends T>> promises, Scheduler scheduler) {
+        return new ConcurrentGenerator<>(promises, scheduler).start();
+    }
 
     public static <T> Source<T> lazyFetch(Sequence<? extends CompletionStage<? extends T>> promises, Scheduler scheduler, Consumer<? super T> itemProcessor) {
-        return new Source<>(promises, itemProcessor).start(scheduler);
+        return new Source<>(promises, scheduler, itemProcessor).start();
     }
     
     public static <T> AsyncGenerator<T> lazyEmit(Scheduler scheduler, Consumer<? super Sink<T>> subcriber) {
@@ -146,9 +155,9 @@ public interface AsyncGenerator<T> extends CustomizableSequence<CompletionStage<
     }
     
     public static <T> AsyncGenerator<T> lazyEmit(Scheduler scheduler, long batchSize, Consumer<? super Sink<T>> subcriber) {
-        Sink<T> emitter = new Sink<>(batchSize);
+        Sink<T> emitter = new Sink<>(batchSize, scheduler);
         subcriber.accept(emitter);
-        return emitter.emitAll(scheduler);
+        return emitter.start();
     }
     
     public static <T> AsyncGenerator<T> emptyOn(Scheduler scheduler) {

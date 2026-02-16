@@ -72,7 +72,7 @@ abstract public class AbstractAsyncMethodTransformer {
 
     private final static String ASYNC_ANNOTATION_DESCRIPTOR = "Lnet/tascalate/async/async;";
     
-    protected final static String CALL_CONTXT_NAME = "net/tascalate/async/CallContext";
+    protected final static String CALL_CONTEXT_NAME = "net/tascalate/async/CallContext";
     
     protected final static Type SUSPENDABLE_ANNOTATION_TYPE = Type.getObjectType("net/tascalate/async/suspendable");
     protected final static Type COMPLETION_STAGE_TYPE       = Type.getObjectType("java/util/concurrent/CompletionStage");

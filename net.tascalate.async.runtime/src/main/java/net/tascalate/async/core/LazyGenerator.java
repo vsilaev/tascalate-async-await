@@ -64,17 +64,14 @@ class LazyGenerator<T> implements AsyncGenerator<T> {
             FutureResult<T> latestResult = FutureResult.of(latestFuture);
             
             // Could we advance further current delegate?
-            if (NO_PARAM == param) {
-                latestFuture = currentDelegate.next();
-            } else if (currentDelegate instanceof CustomizableSequence) {
+            if (NO_PARAM != param && currentDelegate instanceof CustomizableSequence) {
                 CustomizableSequence<? extends CompletionStage<T>> typedDelegate 
                     = (CustomizableSequence<? extends CompletionStage<T>>)currentDelegate;
                 latestFuture = typedDelegate.next(param);
             } else {
-                // TODO: does it make sense to throw an error here?
                 latestFuture = currentDelegate.next();
             }
-                
+            
             if (null != latestFuture) {
                 // Yes, we can
                 return latestFuture;
@@ -86,6 +83,7 @@ class LazyGenerator<T> implements AsyncGenerator<T> {
             
             CompletableFuture<Reply<T>> theProducerLock = this.producerLock;
             latestResult.releaseLock(theProducerLock, param);
+            
             // Wait till value is ready (suspends consumer)
             acquireConsumerLock();
             consumerLock = new CompletableFuture<>();
@@ -223,5 +221,5 @@ class LazyGenerator<T> implements AsyncGenerator<T> {
         private static final FutureResult<Object> EMPTY = new Success<Object>(null);
     }
     
-    private static final Object NO_PARAM = new Object();
+    static private final Object NO_PARAM = new Object();
 }

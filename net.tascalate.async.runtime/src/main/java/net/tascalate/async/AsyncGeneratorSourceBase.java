@@ -33,23 +33,27 @@ import net.tascalate.async.core.AsyncTaskMethod;
 
 abstract class AsyncGeneratorSourceBase<T> {
     private final Sequence<? extends CompletionStage<? extends T>> sequence;
+    private final Scheduler scheduler;
     private final Consumer<? super T> itemProcessor;
 
     private final AwaitableQueue<Counter> requests = new AwaitableQueue<>();
     
     private AsyncResult<Long> completion;
     
-    AsyncGeneratorSourceBase(Sequence<? extends CompletionStage<? extends T>> sequence, Consumer<? super T> itemProcessor) {
+    AsyncGeneratorSourceBase(Sequence<? extends CompletionStage<? extends T>> sequence, 
+                             Scheduler scheduler, 
+                             Consumer<? super T> itemProcessor) {
         this.sequence = sequence;
+        this.scheduler = scheduler;
         this.itemProcessor = itemProcessor;
     }
     
-    AsyncGeneratorSourceBase<T> start(Scheduler scheduler) {
-        completion = doStart(scheduler);
+    AsyncGeneratorSourceBase<T> start() {
+        completion = doStart();
         return this;
     }
     
-    private AsyncResult<Long> doStart(Scheduler scheduler) {
+    private AsyncResult<Long> doStart() {
         Scheduler resolvedScheduler = AsyncMethodExecutor.currentScheduler(scheduler, this, MethodHandles.lookup());
         AsyncTaskMethod<Long> method = new AsyncTaskMethod<Long>(resolvedScheduler) {
             @Override

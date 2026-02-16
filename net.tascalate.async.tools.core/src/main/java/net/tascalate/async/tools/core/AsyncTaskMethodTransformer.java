@@ -139,6 +139,8 @@ class AsyncTaskMethodTransformer extends AbstractAsyncMethodTransformer {
         newInstructions.add(fakeLable);
 
         Type returnType = Type.getReturnType(originalAsyncMethod.desc);
+        boolean hasResult = !Type.VOID_TYPE.equals(returnType);
+        
         // Instructions
         int argumentsLength = Arrays.stream(originalArgTypes).mapToInt(a -> a.getSize()).sum();
         
@@ -253,10 +255,10 @@ class AsyncTaskMethodTransformer extends AbstractAsyncMethodTransformer {
                     );
                     continue;
 
-                } else if (min.getOpcode() == INVOKESTATIC && CALL_CONTXT_NAME.equals(min.owner)) {
+                } else if (min.getOpcode() == INVOKESTATIC && CALL_CONTEXT_NAME.equals(min.owner)) {
                     switch (min.name) {
                         case "async":
-                            if (Type.VOID_TYPE.equals(returnType)) {
+                            if (!hasResult) {
                                 throw new IllegalStateException("Async result must be used only inside methods that return value");
                             }
                             newInstructions.add(new VarInsnNode(ALOAD, 0));
@@ -357,7 +359,6 @@ class AsyncTaskMethodTransformer extends AbstractAsyncMethodTransformer {
         */
         newInstructions.add(methodEnd);
 
-        boolean hasResult = !Type.VOID_TYPE.equals(returnType); 
         if (hasResult) {
             // POP value from stack that was placed before ARETURN
             newInstructions.add(new InsnNode(POP));

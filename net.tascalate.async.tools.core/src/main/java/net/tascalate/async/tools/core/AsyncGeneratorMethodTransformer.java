@@ -236,7 +236,7 @@ class AsyncGeneratorMethodTransformer extends AbstractAsyncMethodTransformer {
                     );
                     continue;
 
-                } else if (min.getOpcode() == INVOKESTATIC && CALL_CONTXT_NAME.equals(min.owner)) {
+                } else if (min.getOpcode() == INVOKESTATIC && CALL_CONTEXT_NAME.equals(min.owner)) {
                     switch (min.name) {
                         case "emit":
                         case "yield":

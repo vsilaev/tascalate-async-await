@@ -234,6 +234,30 @@ public @async CompletionStage<String> bar(int i) {
     return async(result);
 }
 ```
+It’s fairly common to encounter a scenario where the final operation in your asynchronous task method is invoking an async function and returning its output. In such cases, you can directly return the `CompletionStage<T>` or a specific implementation of it from the async method.
+```
+@async CompletionStage<Long> calculateDiscount(Order order) {
+    CustomerProfile profile = await( loadCustomerProfile(order.getCustomerId()) );
+    if (profile.isPremium()) {
+        return calculatePremiumDiscount(order);
+    } else {
+        return calculateRegularDiscount(order);
+    }
+}
+
+protected @async CompletionStage<CustomerProfile> loadCustomerProfile(Long customerId) {
+    ...
+}
+
+protected @async CompletionStage<Long> calculateRegularDiscount(Order order) {
+    ...
+}
+
+protected @async CompletionStage<Long> calculatePremiumDiscount(Order order) {
+    ...
+}
+```
+
 It’s important to highlight that when writing code using async/await, you should steer clear of the so-called ["async/await hell"](https://medium.com/@7genblogger/escaping-so-called-async-await-hell-in-node-js-b5f5ba5fa9ca). Put simply, be mindful of which sections of your code can run concurrently and which ones must be executed sequentially. Take the following example, for instance:
 ```java
 public @async CompletionStage<Long> calculateTotalPrice(Order order) {

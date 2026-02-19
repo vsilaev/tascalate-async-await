@@ -37,6 +37,8 @@ import net.tascalate.async.suspendable;
 class LazyGenerator<T> implements AsyncGenerator<T> {
     private final AsyncGeneratorMethod<?> owner;
 	
+    // Start with locked producer and unlocked consumer
+    // Also assume that next() MAY BE called before begin
     private CompletableFuture<Reply<T>> producerLock = new CompletableFuture<>();
     private CompletableFuture<?> consumerLock;
     private CompletionStage<T> latestFuture;
@@ -118,8 +120,6 @@ class LazyGenerator<T> implements AsyncGenerator<T> {
     }
 
     final @suspendable void begin() {
-        // Start with locked producer and unlocked consumer
-        producerLock = new CompletableFuture<>();
         acquireProducerLock();
     }
 

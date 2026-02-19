@@ -142,6 +142,7 @@ public interface AsyncGenerator<T> extends CustomizableSequence<CompletionStage<
         return FutureCompletionSequence.create(pendingValues, chunkSize);
     }
     
+    @SuppressWarnings("resource")
     public static <T> ConcurrentGenerator<T> concurrent(Sequence<? extends CompletionStage<? extends T>> promises, Scheduler scheduler) {
         return new ConcurrentGenerator<>(promises, scheduler).start();
     }

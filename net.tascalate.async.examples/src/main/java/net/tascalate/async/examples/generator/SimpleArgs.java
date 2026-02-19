@@ -35,6 +35,7 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionStage;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.concurrent.ForkJoinPool;
 import java.util.concurrent.ThreadFactory;
 import java.util.concurrent.atomic.AtomicLong;
 
@@ -90,7 +91,8 @@ public class SimpleArgs extends SamePackageSubclass {
         System.out.println("Inherited field (other package) " + inheritedField);
         System.out.println("Inherited field (same package) " + samePackageField);
         System.out.println("Inherited field (public field) " + publicField);
-        await(innerCall());
+        String v = await(innerCall());
+        System.out.println("Awaited " + v);
         return async(new Date());
     }
 
@@ -99,7 +101,14 @@ public class SimpleArgs extends SamePackageSubclass {
         String v = await(CompletableFuture.supplyAsync(() -> "XYZ", executor));
         System.out.println("Inner call, thread : " + Thread.currentThread().getName());
         System.out.println(v);
-        return async("Done");
+        //return async("Done");
+        CompletableFuture<String> f = CompletableFuture.supplyAsync(() -> "Done", ForkJoinPool.commonPool()).thenApplyAsync(q -> q + "!");
+        for (int i = 0; i < 3; i++) {
+            if (null != System.out) {
+                return f;
+            }
+        }
+        return null;
     }
 
     @async

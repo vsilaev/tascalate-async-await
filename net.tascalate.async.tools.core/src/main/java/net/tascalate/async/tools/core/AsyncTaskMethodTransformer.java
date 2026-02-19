@@ -53,6 +53,7 @@ import net.tascalate.asmx.tree.IntInsnNode;
 import net.tascalate.asmx.tree.InvokeDynamicInsnNode;
 import net.tascalate.asmx.tree.JumpInsnNode;
 import net.tascalate.asmx.tree.LabelNode;
+import net.tascalate.asmx.tree.LineNumberNode;
 import net.tascalate.asmx.tree.MethodInsnNode;
 import net.tascalate.asmx.tree.MethodNode;
 import net.tascalate.asmx.tree.TryCatchBlockNode;
@@ -326,7 +327,35 @@ class AsyncTaskMethodTransformer extends AbstractAsyncMethodTransformer {
                     );
                     continue;
                 }
-            } else if (insn.getOpcode() == ARETURN || insn.getOpcode() == RETURN) {
+            } else if (insn.getOpcode() == ARETURN) {
+                if (previousIsCallAsync(insn)) {
+                    // ok, handled above
+                } else {
+                    // it should be "return competionStage"
+                    // replace it with "return async(await(completionStage))";
+                    newInstructions.add(
+                        new MethodInsnNode(INVOKESTATIC, 
+                                           ASYNC_METHOD_EXECUTOR_TYPE.getInternalName(), 
+                                           "await", 
+                                           Type.getMethodDescriptor(OBJECT_TYPE, COMPLETION_STAGE_TYPE),
+                                           false
+                        )
+                    );                    
+                    newInstructions.add(new VarInsnNode(ALOAD, 0));
+                    newInstructions.add(new InsnNode(SWAP));
+                    newInstructions.add(
+                        new MethodInsnNode(INVOKEVIRTUAL, 
+                                           ASYNC_TASK_METHOD_TYPE.getInternalName(), 
+                                           "complete",
+                                           Type.getMethodDescriptor(COMPLETION_STAGE_TYPE, OBJECT_TYPE),
+                                           false
+                        )
+                    );
+                }
+                // GOTO methodEnd instead of returning value
+                newInstructions.add(new JumpInsnNode(GOTO, methodEnd));
+                continue;
+            } else if (insn.getOpcode() == RETURN) {
                 // GOTO methodEnd instead of returning value
                 newInstructions.add(new JumpInsnNode(GOTO, methodEnd));
                 continue;
@@ -372,5 +401,20 @@ class AsyncTaskMethodTransformer extends AbstractAsyncMethodTransformer {
         result.maxStack = Math.max(originalAsyncMethod.maxStack, 2);
 
         return result;        
+    }
+    
+    private static boolean previousIsCallAsync(AbstractInsnNode n) {
+        for (AbstractInsnNode insn = n.getPrevious(); insn != null; insn = insn.getPrevious()) {
+            if (insn instanceof LabelNode || insn instanceof LineNumberNode) {
+                continue;
+            } else if (insn instanceof MethodInsnNode) {
+                MethodInsnNode min = (MethodInsnNode) insn;
+                if (min.getOpcode() == INVOKESTATIC && CALL_CONTEXT_NAME.equals(min.owner) && "async".equals(min.name)) {
+                    return true;
+                }
+            }
+            break;
+        }
+        return false;
     }
 }

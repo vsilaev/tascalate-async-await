@@ -351,7 +351,70 @@ Async generators are available in numerous programming languages, the most notab
 
 Here is an example how it is done with Tascalate Async / Await:
 ```java
-TDB
+import static net.tascalate.async.CallContext.async;
+import static net.tascalate.async.CallContext.await;
+import static net.tascalate.async.CallContext.emit;
+
+import java.util.List;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CompletionException;
+import java.util.concurrent.CompletionStage;
+import java.util.concurrent.ForkJoinPool;
+
+import net.tascalate.async.AsyncGenerator;
+import net.tascalate.async.async;
+
+@async AsyncGenerator<String> produceAsyncStrings() {
+    emit("Start"); // Yield ready value
+
+    // Yield pending values    
+    emit( asyncProduceValue("A") );
+    emit( asyncProduceValue("B") );
+    emit( asyncProduceValue("C") );
+
+    /* Sequence<CompletionStage<String>> */ 
+    var stringsDEF = AsyncGenerator.readyFirst(
+        asyncProduceValue("F", 300),
+        asyncProduceValue("E", 200),
+        asyncProduceValue("D", 100)
+    );
+    // Emit a sequence of pending values (resolved come first) 
+    emit( stringsDEF );
+
+    // Forward values emited by another generator    
+    emit(produceAsyncStringsXYZ());
+        
+    emit("Finish");
+
+    // Return from the function
+    return emit();
+}
+    
+@async AsyncGenerator<String> produceAsyncStringsXYZ() {
+    for (var v : List.of("X", "Y", "Z")) {
+        emit( asyncProduceValue(v, 50) );
+    }
+    return emit();
+}
+
+// Helper functions to emulate asynchronously produced values    
+CompletionStage<String> asyncProduceValue(String v) {
+    return asyncProduceValue(v, 0L);
+}
+    
+CompletionStage<String> asyncProduceValue(String v, long delayMillis) {
+    return CompletableFuture.supplyAsync(() -> {
+        if (delayMillis != 0) {
+            try {
+               Thread.sleep(delayMillis); 
+            } catch (InterruptedException ex) {
+                Thread.currentThread().interrupt();
+                throw new CompletionException(ex);
+            }
+        }
+        return v;
+    }, ForkJoinPool.commonPool());
+}
 ```
 
 # Scheduler & SchedulerResolver - where is my code executed?

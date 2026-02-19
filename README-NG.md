@@ -200,7 +200,7 @@ Utilizing the statically imported methods from `net.tascalate.async.CallContext`
 
 Keep in mind that any `CompletionStage<T>` implementation from various libraries can be awaited, as demonstrated in `decorateStrings`, including unresolved results originating from another asynchronous method, such as in `mergeStrings`.
 
-The list of the supported return types for the async methods is:
+The list of supported return types for the async methods is:
 1. `void`
 2. `java.util.concurrent.CompletionStage`
 3. `java.util.concurrent.CompletableFuture`
@@ -234,7 +234,7 @@ public @async CompletionStage<String> bar(int i) {
     return async(result);
 }
 ```
-It's worth to mention, that when developing code with async/await you should avoid so-called ["async/await hell"](https://medium.com/@7genblogger/escaping-so-called-async-await-hell-in-node-js-b5f5ba5fa9ca). In short, pay special attention what parts of your code may be executed in parallel and what parts require serial execution. Consider the following example:
+It’s important to highlight that when writing code using async/await, you should steer clear of the so-called ["async/await hell"](https://medium.com/@7genblogger/escaping-so-called-async-await-hell-in-node-js-b5f5ba5fa9ca). Put simply, be mindful of which sections of your code can run concurrently and which ones must be executed sequentially. Take the following example, for instance:
 ```java
 public @async CompletionStage<Long> calculateTotalPrice(Order order) {
     Long rawItemsPrice = await( calculateRawItemsPrice(order) );  
@@ -255,7 +255,7 @@ protected @async CompletionStage<Long> calculateTaxes(Order order) {
     ...
 }
 ```
-In the above example all async methods `calculateRawItemsPrice`, `calculateShippingCost`, `calculateTaxes` are executed serially, one by one, hence the performance is degraded comparing to the following parallelized solution:
+In the given example, the async methods `calculateRawItemsPrice`, `calculateShippingCost` and `calculateTaxes` are executed sequentially, one after the other. As a result, the performance suffers compared to the parallelized solution shown below:
 ```java
 public @async CompletionStage<Long> calculateTotalPrice(Order order) {
     CompletionStage<Long> rawItemsPrice = calculateRawItemsPrice(order);  
@@ -264,7 +264,7 @@ public @async CompletionStage<Long> calculateTotalPrice(Order order) {
     return async( await(rawItemsPrice) + await(shippingCost) + await(taxes) );
 }
 ```
-This way all inner async operations are started (almost) simualtenously and are running in parallel, unlike in the first example.
+This way, all internal async operations initiate nearly at the same time and execute concurrently, in contrast to the first example.
 
 # Suspendable methods
 Sometimes it is necessary to await for asynchronous result in some helper method that per se should not be asynchronous. To support this use case Tascalate Async/Await provides `@suspendable` annotation. The original example above hence can be rewritten as following:

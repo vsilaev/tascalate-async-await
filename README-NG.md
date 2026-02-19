@@ -162,7 +162,7 @@ dependencies {
 ```
 
 # Asynchronous tasks
-The first type of functions the library supports is asycnhronous task. Asynchronous task is a method (either instance or class method) that is annotated with `net.tascalate.async.async` annotation and returns `CompletionStage<T>` or `void`. In the later case it is a "fire-and-forget" task that is intended primarly to be used for event handlers inside UI framework (like JavaFX or Swing). Let us write a simple example:
+The first type of function the library supports is an asynchronous task. An asynchronous task refers to a method (either an instance method or a class method) that is marked with the `net.tascalate.async.async` annotation and returns either a `CompletionStage<T>` or `void`. When returning `void`, it functions as a "fire-and-forget" task, designed mainly for use in event-handling scenarios within UI frameworks such as JavaFX or Swing. Let us write a simple example:
 ```java
 import static net.tascalate.async.CallСontext.async;
 import static net.tascalate.async.CallСontext.await;
@@ -196,7 +196,9 @@ class MyClass {
     private static final ExecutorService executor = Executors.newFixedThreadPool(4);
 }
 ```
-Thanks to statically imported methods of `net.tascalate.async.CallСontext` the code looks very close to the one developed with languages having native support for async/await. Both `mergeStrings` and `decorateStrings` are asynchronous methods -- they are marked with `net.tascalate.async.async` annotation and returns `CompletionStage<T>`. Inside these methods you may call `await` to suspend the method till the `CompletionStage<T>` supplied as the argument is resolved (either sucessfully or exceptionally). Please notice, that you can await for any `CompletionStage<T>` implementation obtained from different libraries - like inside the `decorateStrings` method, including pending result of another asynchronous method - like in `mergeStrings`. 
+Utilizing the statically imported methods from `net.tascalate.async.CallContext`, the code is designed to mimic the style of languages that natively support async/await functionality. Both `mergeStrings` and `decorateStrings` are asynchronous methods -- they are annotated with the `net.tascalate.async.async` annotation and return a `CompletionStage<T>`. Within these methods, you can invoke `await` to suspend execution until the provided `CompletionStage<T>` is resolved, whether successfully or with an exception. The key point here is that during the execution of `await`, the thread does not remain blocked. Instead, it is either returned to the corresponding `ThreadPool` or terminated in the case of Green Threads introduced in Java 21 and beyond. The exact behavior varies based on the specific underlying scheduler being used, which will be explained later.
+
+Keep in mind that any `CompletionStage<T>` implementation from various libraries can be awaited, as demonstrated in `decorateStrings`, including unresolved results originating from another asynchronous method, such as in `mergeStrings`.
 
 The list of the supported return types for the async methods is:
 1. `void`
@@ -204,9 +206,9 @@ The list of the supported return types for the async methods is:
 3. `java.util.concurrent.CompletableFuture`
 4. `net.tascalate.concurrent.Promise` (see my other project [Tascalate Concurrent](https://github.com/vsilaev/tascalate-concurrent))
 
-For non-void results the actual result type class also implements `java.util.concurrent.Future` (even for the case [2] with `CompletionStage`). This means that you can safely upcast the result promise to the `java.util.concurrent.Future` and use blocking methods if necessary. Most importantly, you can use the `cancel(...)` method cancel the future returned.
+For non-void result types, the resulting class also implements `java.util.concurrent.Future`, even in the case of [2] with `CompletionStage`. This allows you to safely upcast the resulting promise to `java.util.concurrent.Future` and utilize blocking methods if needed. Notably, you can use the `cancel(...)` method to terminate the future that is returned.
 
-To return a result from the asynchronous method you have to use syntactic construct `return async(value)`. You must always treat both of these statements (calling `async` method and `return`-ing its result) as the single syntactic construct and don't call `async` method separately or store it return value to variable while these will lead to unpredicatble results. It's especially important if your method body is not linear. Depending on your established coding practice how to deal with multiple returns you should use either...
+To produce a result from an asynchronous method, you should use the syntax `return async(value)`. It is essential to treat the act of invoking the `async` method and `return`-ing its output as a single unified construct. Avoid calling the `async` method in isolation or assigning its result to a variable, as this can result in unpredictable behavior. This guideline is particularly important for methods with non-linear control flows. Based on your coding conventions for handling multiple return statements, you should either...
 ```java
 public @async CompletionStage<String> foo(int i) {
     switch (i) {

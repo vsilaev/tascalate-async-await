@@ -235,7 +235,7 @@ public @async CompletionStage<String> bar(int i) {
 }
 ```
 It’s fairly common to encounter a scenario where the final operation in your asynchronous task method is invoking an async function and returning its output. In such cases, you can directly return the `CompletionStage<T>` or a specific implementation of it from the async method.
-```
+```java
 @async CompletionStage<Long> calculateDiscount(Order order) {
     CustomerProfile profile = await( loadCustomerProfile(order.getCustomerId()) );
     if (profile.isPremium()) {
@@ -245,15 +245,15 @@ It’s fairly common to encounter a scenario where the final operation in your a
     }
 }
 
-protected @async CompletionStage<CustomerProfile> loadCustomerProfile(Long customerId) {
+CompletionStage<CustomerProfile> loadCustomerProfile(Long customerId) {
     ...
 }
 
-protected @async CompletionStage<Long> calculateRegularDiscount(Order order) {
+CompletionStage<Long> calculateRegularDiscount(Order order) {
     ...
 }
 
-protected @async CompletionStage<Long> calculatePremiumDiscount(Order order) {
+@async CompletionStage<Long> calculatePremiumDiscount(Order order) {
     ...
 }
 ```

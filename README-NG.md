@@ -335,7 +335,24 @@ Performance-wise suspendable methods behaves the same as asynchronous task metho
 Implemenation notes: technically suspendable methods are implemented as continuable methods that follow rules defined by [Tascalate JavaFlow](https://github.com/vsilaev/tascalate-javaflow) library, so you may use any continuable annotation that is supported by Tascalate JavaFlow, not only `@suspendable`.
 
 # Generators
+An async generator is a programming construct that produces a sequence of values asynchronously, allowing consumers to iterate over results as they become available without blocking.
+
+It enables:
+- *Asynchronous iteration* over data streams, where each value may require awaiting an asynchronous operation (I/O, network, timer, etc.).
+- *Pull-based consumption*, where the caller requests the next value and the generator produces it on demand.
+- *Incremental production*, allowing the generator to pause between values and resume when iteration continues.
+- *Efficient streaming*, avoiding the need to buffer or compute the entire sequence before iteration.
+
+Async generators are available in numerous programming languages, the most notable examples are ECMAScript async generators (`async function*`) and .NET’s `IAsyncEnumerable<T>`. Typically, async generators follow this pattern:
+- producer is an async function that defines an async generator.
+- values are produced using `yield` (or `emit` or whatever) within this function.
+- the consumer receives some kind of the async generator instance from the call to producer.
+- the consumer awaits each item as it is yielded, using some or another fomr of iteration and await for each item return.
+
+Here is an example how it is done with Tascalate Async / Await:
+```java
 TDB
+```
 
 # Scheduler & SchedulerResolver - where is my code executed?
 ## Introducing schedulers

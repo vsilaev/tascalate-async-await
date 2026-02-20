@@ -24,8 +24,6 @@
  */
 package net.tascalate.async.extras;
 
-import static net.tascalate.async.CallContext.emit;
-
 import java.time.Duration;
 
 import java.util.Iterator;
@@ -36,6 +34,7 @@ import java.util.function.Function;
 import java.util.stream.Stream;
 
 import net.tascalate.async.AsyncGenerator;
+import net.tascalate.async.AsyncYield;
 import net.tascalate.async.Scheduler;
 import net.tascalate.async.Sequence;
 import net.tascalate.async.async;
@@ -62,23 +61,26 @@ public class Generators {
     }
     
     private static @async <T> AsyncGenerator<T> concat(Iterator<? extends Sequence<? extends CompletionStage<T>>> sequences) {
+        AsyncYield<T> async = AsyncGenerator.start();
         while (sequences.hasNext()) {
-            emit( sequences.next() );
+            async.yield( sequences.next() );
         }
-        return emit();
+        return async.yield();
     }
     
     public static @async AsyncGenerator<Duration> delays(Duration duration) {
+        AsyncYield<Duration> async = AsyncGenerator.start();
         Executor executor = new CurrentSchedulerExecutor(CurrentCallContext.scheduler());
         while (true) {
-            emit( CompletableTask.delay(duration, executor) );
+            async.yield( CompletableTask.delay(duration, executor) );
         }
     }
     
     public static @async AsyncGenerator<Duration> delays(long timeout, TimeUnit timeUnit) {
+        AsyncYield<Duration> async = AsyncGenerator.start();
         Executor executor = new CurrentSchedulerExecutor(CurrentCallContext.scheduler());
         while (true) {
-            emit( CompletableTask.delay(timeout, timeUnit, executor) );
+            async.yield( CompletableTask.delay(timeout, timeUnit, executor) );
         }
     }
 

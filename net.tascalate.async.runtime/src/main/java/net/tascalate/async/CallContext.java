@@ -36,23 +36,6 @@ import net.tascalate.async.core.InternalCallContext;
  */
 public class CallContext {
     
-    public static class Reply<T> {
-
-        final public T value;
-        final public Object param;
-        
-        public Reply(T value, Object param) {
-            this.value = value;
-            this.param = param;
-        }
-        
-        @Override
-        public String toString() {
-            return String.format("%s[value=%s, param=%s]", getClass().getSimpleName(), value, param);
-        }
-        
-    }
-
     private CallContext() {}
     
     /**
@@ -80,23 +63,27 @@ public class CallContext {
     }
 
     public static <T, R extends CompletionStage<T>> R async(T value) {
-        throw new IllegalStateException("Method call must be replaced by bytecode enhancer");
+        return methodCallMustBeReplaced();
     }
 
-    public static <T> Reply<T> emit(T readyValue) throws InvalidCallContextException {
-        throw new IllegalStateException("Method call must be replaced by bytecode enhancer");
+    @Deprecated
+    public static <T> YieldReply<T> yield(T readyValue) throws InvalidCallContextException {
+        return methodCallMustBeReplaced();
     }
 
-    public static <T> Reply<T> emit(CompletionStage<T> pendingValue) throws CancellationException, InvalidCallContextException {
-        throw new IllegalStateException("Method call must be replaced by bytecode enhancer");
+    @Deprecated
+    public static <T> YieldReply<T> yield(CompletionStage<T> pendingValue) throws CancellationException, InvalidCallContextException {
+        return methodCallMustBeReplaced();
     }
 
-    public static <T> Reply<T> emit(Sequence<? extends CompletionStage<T>> values) throws CancellationException, InvalidCallContextException {
-        throw new IllegalStateException("Method call must be replaced by bytecode enhancer");
+    @Deprecated
+    public static <T> YieldReply<T> yield(Sequence<? extends CompletionStage<T>> values) throws CancellationException, InvalidCallContextException {
+        return methodCallMustBeReplaced();
     }
 
-    public static <T> AsyncGenerator<T> emit() {
-        throw new IllegalStateException("Method call must be replaced by bytecode enhancer");
+    @Deprecated
+    public static <T> AsyncGenerator<T> yield() {
+        return methodCallMustBeReplaced();
     }
     
 
@@ -118,5 +105,9 @@ public class CallContext {
     
     public static boolean isCloseSignal(Throwable ex) {
         return InternalCallContext.isCloseSignal(ex);
+    }
+    
+    static <R> R methodCallMustBeReplaced() {
+        throw new IllegalStateException("Method call must be replaced by bytecode enhancer");
     }
 }

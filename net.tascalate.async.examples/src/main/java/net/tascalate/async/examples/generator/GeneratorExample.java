@@ -26,7 +26,6 @@ package net.tascalate.async.examples.generator;
 
 import static net.tascalate.async.CallContext.async;
 import static net.tascalate.async.CallContext.await;
-import static net.tascalate.async.CallContext.emit;
 import static net.tascalate.async.CallContext.interrupted;
 
 import java.io.FileNotFoundException;
@@ -41,7 +40,7 @@ import java.util.concurrent.Future;
 
 import net.tascalate.async.AsyncGenerator;
 import net.tascalate.async.AsyncResult;
-import net.tascalate.async.CallContext.Reply;
+import net.tascalate.async.AsyncYield;
 import net.tascalate.async.Sequence;
 import net.tascalate.async.async;
 import net.tascalate.async.suspendable;
@@ -135,37 +134,38 @@ public class GeneratorExample {
     
     @async
     AsyncGenerator<String> produceStrings() {
+        AsyncYield<String> async = AsyncGenerator.start();
        
         System.out.println("%%ProduceStrings - starting + ");
-        Reply<String> o;
+        AsyncYield.Reply<String> o;
         
-        o = emit(Sequence.empty());
+        o = async.yield( Sequence.empty() );
         System.out.println("INITIAL PARAM: " + o.param);
         
-        o = emit(waitString("ABC"));
+        o = async.yield( waitString("ABC") );
         System.out.println("Processed: " + o + ", " + new Date());
         
-        o = emit( AsyncGenerator.readyFirst(waitString("PV-1", 2000L), waitString("PV-2", 1500L), waitString("PV-3", 1000L)) );
+        o = async.yield( AsyncGenerator.readyFirst(waitString("PV-1", 2000L), waitString("PV-2", 1500L), waitString("PV-3", 1000L)) );
         System.out.println("AFTER LIST PENDING: " + o);
 
-        String s = await(waitString("InternalAsync"));
+        String s = await( waitString("InternalAsync") );
         System.out.println("INTERNALLY: " + s);
 
-        o = emit(Sequence.empty());
+        o = async.yield( Sequence.empty() );
         System.out.println("AFTER EMPTY: " + o);
         
-        o = emit(AsyncGenerator.from("RV-1", "RV-2", "RV-3"));
+        o = async.yield( AsyncGenerator.from("RV-1", "RV-2", "RV-3") );
         System.out.println("AFTER LIST READY: " + o);
 
         System.out.println("Is generator interrupted: " + interrupted());
         
-        o = emit(waitString("DEF"));
+        o = async.yield(waitString("DEF"));
         System.out.println("Processed: " + o + ", " + new Date());
 
-        o = emit("NO-WAIT");
+        o = async.yield("NO-WAIT");
         System.out.println("Processed: " + o + ", " + new Date());
 
-        emit(chainedGenerator());
+        async.yield(chainedGenerator());
 
         try (AsyncGenerator<String> nested = moreStrings()) {
             CompletionStage<String> singleResult; 
@@ -173,58 +173,64 @@ public class GeneratorExample {
                 String v = await(singleResult);
                 System.out.println("Nested: " + v);
                 if (Integer.parseInt(v) % 2 == 0) {
-                    o = emit(waitString("NESTED-" + v));
+                    o = async.yield( waitString("NESTED-" + v) );
                     System.out.println("Nested Processed: " + o + ", " + new Date());
                 }
             }
         }
 
         String x;
-        emit(x = await(waitString("AWYV")));
+        async.yield( x = await(waitString("AWYV")) );
 
         System.out.println("Awaited&Yielded:" + x);
 
-        o = emit(waitString("XYZ"));
+        o = async.yield(waitString("XYZ"));
         System.out.println("Processed Final: " + o + ", " + new Date());
 
-        o = emit(waitString("SHOULD BE SKIPPEDM IN OUTOUT"));
+        o = async.yield(waitString("SHOULD BE SKIPPEDM IN OUTOUT"));
 
         System.out.println("::produceStrings FINALLY CALLED::");
-        return emit();
+        return async.yield();
     }
 
     // Private to ensure that generated accessor methods work 
     @async
     private AsyncGenerator<String> moreStrings() {
-        emit(waitString("111"));
-        emit(waitString("222"));
-        emit("333");
-        emit(waitString("444"));
+        AsyncYield<String> async = AsyncGenerator.start();
+        
+        async.yield(waitString("111"));
+        async.yield(waitString("222"));
+        async.yield("333");
+        async.yield(waitString("444"));
         System.out.println("::moreStrings FINALLY CALLED::");
-        return emit();
+        return async.yield();
     }
     
     @async
     private AsyncGenerator<String> moreStringsEx() throws FileNotFoundException {
-        emit(waitString("111"));
-        emit(waitString("222"));
-        emit("333");
+        AsyncYield<String> async = AsyncGenerator.start();
+        
+        async.yield(waitString("111"));
+        async.yield(waitString("222"));
+        async.yield("333");
         // Comment out to check synchronously thrown exception
         // Below is asynchronously sent one
-        emit(waitError(1));
-        emit(waitString("444"));
+        async.yield(waitError(1));
+        async.yield(waitString("444"));
         throw new FileNotFoundException();
     }
 
     @async
     AsyncGenerator<String> chainedGenerator() {
-        emit(waitString("CHAINED-1"));
-        emit(waitString("CHAINED-2"));
-        emit("CHAINED-3");
-        emit(waitString("CHAINED-4"));
+        AsyncYield<String> async = AsyncGenerator.start();
+        
+        async.yield(waitString("CHAINED-1"));
+        async.yield(waitString("CHAINED-2"));
+        async.yield("CHAINED-3");
+        async.yield(waitString("CHAINED-4"));
 
         System.out.println("::chainedGenerator FINALLY CALLED::");
-        return emit();
+        return async.yield();
     }
     
     static CompletionStage<String> waitString(String value) {

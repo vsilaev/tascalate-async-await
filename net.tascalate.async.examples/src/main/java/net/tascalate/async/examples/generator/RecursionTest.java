@@ -25,14 +25,18 @@
 package net.tascalate.async.examples.generator;
 
 import static net.tascalate.async.CallContext.async;
-import static net.tascalate.async.CallContext.emit;
+import static net.tascalate.async.CallContext.await;
 import static net.tascalate.async.AsyncGenerator.awaitValue;
 
+import java.util.concurrent.CompletionStage;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 import java.util.function.Consumer;
 
-import org.apache.commons.javaflow.core.StackRecorder;
-
 import net.tascalate.async.AsyncGenerator;
+import net.tascalate.async.AsyncYield;
+import net.tascalate.async.Scheduler;
+import net.tascalate.async.SchedulerProvider;
 import net.tascalate.async.Sequence;
 import net.tascalate.async.async;
 import net.tascalate.concurrent.Promise;
@@ -41,31 +45,56 @@ import net.tascalate.javaflow.SuspendableStream;
 public class RecursionTest {
 
     public static void main(String[] args) throws Exception {
-        long start = System.currentTimeMillis();
-        System.out.println( consumer().get() );
-        double finish = System.currentTimeMillis();
-        System.out.println((finish - start) / 1000 + " seconds");
-        System.out.println((finish - start) / 10_000 + " ns each");
+        ExecutorService executor = Executors.newFixedThreadPool(2);
+        Scheduler scheduler = Scheduler.interruptible(executor);
+        
+        for (int i = 0; i < 20; i++) {
+            long start = System.nanoTime();
+            long value = consumer(scheduler).get();
+            double finish = System.nanoTime();
+            System.out.println( value );
+            System.out.println((finish - start) / 1_000_000_000 + " seconds");
+            System.out.println((finish - start) / ITERATIONS + " ns each");
+        }
+        
+        executor.shutdownNow();
     }
     
-    @async static Promise<String> consumer() {
+    @async static Promise<Long> consumer(@SchedulerProvider Scheduler scheduler) {
+        /*
         System.out.println( StackRecorder.get().getRunnable().toString() );
+        */
+        /*
         try (SuspendableStream<Object> g = producer().stream().map$(awaitValue())) {
             g.forEach(NOP);
         }
-        return async("Done");
+        */
+        long result = 0;
+        try (AsyncGenerator<Long> g = producer(scheduler)) {
+            CompletionStage<Long> pv = null;
+            while ((pv = g.next()) != null) {
+                result += await(pv);
+            }
+        }
+        return async(result);
     }
     
-    @async static AsyncGenerator<Object> producer() {
-        System.out.println( StackRecorder.get().getRunnable().toString() );        
-        for (int i = 0; i < 10_000_000; i++) {
-            /*
-            yield("");
-            */
-            emit(Sequence.empty());
+    @async static AsyncGenerator<Long> producer(@SchedulerProvider Scheduler scheduler) {
+        AsyncYield<Long> async = AsyncGenerator.start();
+        /*
+        System.out.println( StackRecorder.get().getRunnable().toString() );
+        */
+        for (int i = 0; i < ITERATIONS; i++) {
+            
+            async.yield(VALUE);
+            
+            //emit(Sequence.empty());
         }
-        return emit();
+        return async.yield();
     }
+    
+    private static Long VALUE = Long.valueOf(3);
 
+    private static final int ITERATIONS = 10_000_000;
     private static final Consumer<Object> NOP = v -> {};
 }

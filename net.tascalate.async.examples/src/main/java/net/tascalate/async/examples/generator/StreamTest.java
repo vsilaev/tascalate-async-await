@@ -27,7 +27,6 @@ package net.tascalate.async.examples.generator;
 import static net.tascalate.async.AsyncGenerator.awaitValue;
 import static net.tascalate.async.CallContext.async;
 import static net.tascalate.async.CallContext.await;
-import static net.tascalate.async.CallContext.emit;
 
 import java.time.Duration;
 import java.util.Arrays;
@@ -37,7 +36,7 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
 import net.tascalate.async.AsyncGenerator;
-import net.tascalate.async.CallContext.Reply;
+import net.tascalate.async.AsyncYield;
 import net.tascalate.async.Sequence;
 import net.tascalate.async.async;
 import net.tascalate.async.suspendable;
@@ -115,6 +114,8 @@ public class StreamTest {
     }
 
     @async AsyncGenerator<String> produceMergedStrings() {
+        AsyncYield<String> async = AsyncGenerator.start();
+        
         SuspendableStream<CompletionStage<String>> alphas = 
             produceAlphaStrings()
                 .stream()
@@ -126,49 +127,55 @@ public class StreamTest {
                 .map( Promises::from )
                 .map( p -> p.orTimeout(Duration.ofMillis(500)) );
 
-        emit(
+        async.yield(
             SuspendableStream
                 .zip(numerics, alphas, (a, b) -> a.thenCombine(b, (av, bv) -> av + " - " + bv) )
                 .convert(Sequence.fromStream())
         );
-        return emit();
+        return async.yield();
     }
 
     // Private to ensure that generated accessor methods work 
     @async private AsyncGenerator<String> produceNumericStrings() {
+        AsyncYield<String> async = AsyncGenerator.start();
+        
         try {
-            emit (Sequence.empty());
-            emit (waitString("111"));
-            emit (waitString("222"));
-            emit ("333");
-            emit (waitString("444"));
+            async.yield (Sequence.empty());
+            async.yield (waitString("111"));
+            async.yield (waitString("222"));
+            async.yield ("333");
+            async.yield (waitString("444"));
         } finally {
             System.out.println("::produceNumericStrings FINALLY CALLED::");
         }
-        return emit();
+        return async.yield();
     }
 
     @async AsyncGenerator<String> produceAlphaStrings() {
+        AsyncYield<String> async = AsyncGenerator.start();
+        
         try {
             for (String s : Arrays.asList("AAA", "BBB", "CCC", "DDD")) {
-                emit( waitString(s, 400) );
+                async.yield( waitString(s, 400) );
             }
         } finally {
             System.out.println("::produceAlphaStrings FINALLY CALLED::");
         }
-        return emit();
+        return async.yield();
     }
 
     @async AsyncGenerator<String> producePrefixedStrings(CompletionStage<String> prefix) {
+        AsyncYield<String> async = AsyncGenerator.start();
+        
         try {
             for (int i = 1; i <= 9; i++) {
-                Reply<String> r = emit( prefix.thenCombine(waitString(String.valueOf(i)), (px,v) -> px + v) );
+                AsyncYield.Reply<String> r = async.yield( prefix.thenCombine(waitString(String.valueOf(i)), (px,v) -> px + v) );
                 System.out.println(">> Yield " + r.value);
             }
         } finally {
             System.out.println("::producePrefixedStrings " + await(prefix) + " FINALLY CALLED::");
         }
-        return emit();
+        return async.yield();
     }
 
     static CompletionStage<String> waitString(String value) {

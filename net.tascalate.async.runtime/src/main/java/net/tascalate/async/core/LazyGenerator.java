@@ -28,7 +28,7 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionStage;
 
 import net.tascalate.async.AsyncGenerator;
-import net.tascalate.async.CallContext.Reply;
+import net.tascalate.async.AsyncYield;
 import net.tascalate.async.CustomizableSequence;
 import net.tascalate.async.Scheduler;
 import net.tascalate.async.Sequence;
@@ -39,7 +39,7 @@ class LazyGenerator<T> implements AsyncGenerator<T> {
 	
     // Start with locked producer and unlocked consumer
     // Also assume that next() MAY BE called before begin
-    private CompletableFuture<Reply<T>> producerLock = new CompletableFuture<>();
+    private CompletableFuture<AsyncYield.Reply<T>> producerLock = new CompletableFuture<>();
     private CompletableFuture<?> consumerLock;
     private CompletionStage<T> latestFuture;
 
@@ -82,9 +82,7 @@ class LazyGenerator<T> implements AsyncGenerator<T> {
             // No, need to generate new promise;
     
             // Let produce some value (resumes producer)
-            
-            CompletableFuture<Reply<T>> theProducerLock = this.producerLock;
-            latestResult.releaseLock(theProducerLock, param);
+            latestResult.releaseLock(producerLock, param);
             
             // Wait till value is ready (suspends consumer)
             acquireConsumerLock();
@@ -108,7 +106,7 @@ class LazyGenerator<T> implements AsyncGenerator<T> {
         return owner.scheduler();
     }
 
-    final @suspendable Reply<T> emit(Sequence<? extends CompletionStage<T>> pendingValues) {
+    final @suspendable AsyncYield.Reply<T> emit(Sequence<? extends CompletionStage<T>> pendingValues) {
         currentDelegate = pendingValues;
         // Re-set producerLock
         // It's important to reset it before unlocking consumer!
@@ -135,8 +133,8 @@ class LazyGenerator<T> implements AsyncGenerator<T> {
         releaseConsumerLock();
     }
 
-    private @suspendable Reply<T> acquireProducerLock() {
-        CompletableFuture<Reply<T>> currentLock = producerLock;
+    private @suspendable AsyncYield.Reply<T> acquireProducerLock() {
+        CompletableFuture<AsyncYield.Reply<T>> currentLock = producerLock;
         if (!currentLock.isDone()) {
             return AsyncMethodExecutor.await(currentLock);
         } else {
@@ -183,8 +181,8 @@ class LazyGenerator<T> implements AsyncGenerator<T> {
             }
             
             @Override
-            void releaseLock(CompletableFuture<Reply<T>> lock, Object param) {
-                lock.complete(new Reply<>(result, param));
+            void releaseLock(CompletableFuture<AsyncYield.Reply<T>> lock, Object param) {
+                lock.complete(new AsyncYield.Reply<>(result, param));
             }
         }
         
@@ -196,7 +194,7 @@ class LazyGenerator<T> implements AsyncGenerator<T> {
             }
             
             @Override
-            void releaseLock(CompletableFuture<Reply<T>> lock, Object param) {
+            void releaseLock(CompletableFuture<AsyncYield.Reply<T>> lock, Object param) {
                 lock.completeExceptionally(error);
             }
         }
@@ -216,7 +214,7 @@ class LazyGenerator<T> implements AsyncGenerator<T> {
             }
         }
         
-        abstract void releaseLock(CompletableFuture<Reply<T>> lock, Object param);
+        abstract void releaseLock(CompletableFuture<AsyncYield.Reply<T>> lock, Object param);
         
         private static final FutureResult<Object> EMPTY = new Success<Object>(null);
     }

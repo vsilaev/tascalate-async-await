@@ -61,6 +61,7 @@ import net.tascalate.asmx.tree.VarInsnNode;
 class AsyncGeneratorMethodTransformer extends AbstractAsyncMethodTransformer {
     private final static Type ASYNC_GENERATOR_METHOD_TYPE = Type.getObjectType("net/tascalate/async/core/AsyncGeneratorMethod");
     private final static Type LAZY_GENERATOR_TYPE         = Type.getObjectType("net/tascalate/async/core/LazyGenerator");
+    private final static String ASYNC_YIELD_NAME = "net/tascalate/async/AsyncYield";
     
     AsyncGeneratorMethodTransformer(ClassNode               classNode,
                                     MethodNode              originalAsyncMethodNode,
@@ -238,7 +239,6 @@ class AsyncGeneratorMethodTransformer extends AbstractAsyncMethodTransformer {
 
                 } else if (min.getOpcode() == INVOKESTATIC && CALL_CONTEXT_NAME.equals(min.owner)) {
                     switch (min.name) {
-                        case "emit":
                         case "yield":
                             Type[] args = Type.getArgumentTypes(min.desc);
                             newInstructions.add(new VarInsnNode(ALOAD, 0));
@@ -250,7 +250,7 @@ class AsyncGeneratorMethodTransformer extends AbstractAsyncMethodTransformer {
                                         newInstructions.add(new InsnNode(SWAP));
                                         break;
                                     default:
-                                        throw new IllegalStateException("Can't support EMIT method with more than one argument");
+                                        throw new IllegalStateException("Can't support YIELD method with more than one argument");
                                 }
                             }
                             newInstructions.add(
@@ -304,6 +304,31 @@ class AsyncGeneratorMethodTransformer extends AbstractAsyncMethodTransformer {
                         case "async":
                             throw new IllegalStateException("Async result must be used only inside non-generator methods");
                     }
+                } else if (min.getOpcode() == INVOKEVIRTUAL && ASYNC_YIELD_NAME.equals(min.owner) && "yield".equals(min.name)) {
+                    Type[] args = Type.getArgumentTypes(min.desc);
+                    newInstructions.add(new VarInsnNode(ALOAD, 0));
+                    if (null != args) {
+                        switch (args.length) {
+                            case 0: 
+                                break;
+                            case 1: 
+                                newInstructions.add(new InsnNode(SWAP));
+                                break;
+                            default:
+                                throw new IllegalStateException("Can't support YIELD method with more than one argument");
+                        }
+                    }
+                    newInstructions.add(
+                        new MethodInsnNode(INVOKEVIRTUAL, 
+                                           ASYNC_GENERATOR_METHOD_TYPE.getInternalName(), 
+                                           "emit", 
+                                           Type.getMethodDescriptor(Type.getReturnType(min.desc), args), 
+                                           false
+                        )
+                    );
+                    newInstructions.add(new InsnNode(SWAP));
+                    newInstructions.add(new InsnNode(POP));
+                    continue;
                 }
             } else if (insn instanceof InvokeDynamicInsnNode) {
                 Object[] opts = findOwnerInvokeDynamic(insn, ownerMethods);

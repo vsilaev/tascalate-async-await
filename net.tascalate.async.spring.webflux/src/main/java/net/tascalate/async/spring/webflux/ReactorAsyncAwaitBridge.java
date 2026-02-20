@@ -99,14 +99,14 @@ public final class ReactorAsyncAwaitBridge {
         
         sink.onCancel(() -> source.cancel());
         
-        sink.onRequest(count -> scheduler.schedule(() -> {
+        sink.onRequest(count -> {
             boolean requestAll = Long.MAX_VALUE == count;
             if (requestAll) {
                 source.requestAll();
             } else {
                 source.requestNext(count);    
             }
-        }));
+        });
 
         source.completion().whenComplete((r, e) -> scheduler.schedule(() -> {
             if (null == e) {

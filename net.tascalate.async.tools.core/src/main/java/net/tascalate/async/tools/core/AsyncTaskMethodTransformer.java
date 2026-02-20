@@ -312,9 +312,8 @@ class AsyncTaskMethodTransformer extends AbstractAsyncMethodTransformer {
                                 newInstructions.add(new InsnNode(POP));
                             }
                             continue;
-                        case "emit":                            
                         case "yield":
-                            throw new IllegalStateException("EMIT must be used only inside generator methods");
+                            throw new IllegalStateException("YIELD must be used only inside generator methods");
                     }
                 }
             } else if (insn instanceof InvokeDynamicInsnNode) {

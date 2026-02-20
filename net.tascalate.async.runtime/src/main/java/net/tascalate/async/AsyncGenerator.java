@@ -104,6 +104,16 @@ public interface AsyncGenerator<T> extends CustomizableSequence<CompletionStage<
         return lazyFetch(this,  scheduler, itemProcessor);
     }
 
+    @SuppressWarnings("unchecked")
+    public static <T> AsyncYield<T> start() {
+        return (AsyncYield<T>)AsyncYield.INSTANCE;
+    }
+    
+    @SuppressWarnings("unchecked")
+    public static <T> AsyncYield<T> start(Class<T> itemType) {
+        return (AsyncYield<T>)AsyncYield.INSTANCE;
+    }
+    
     public static <T> Sequence<CompletionStage<T>> from(T readyValue) {
         return from(Stream.of(readyValue));
     }

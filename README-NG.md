@@ -353,7 +353,6 @@ Here is an example how it is done with Tascalate Async / Await:
 ```java
 import static net.tascalate.async.CallContext.async;
 import static net.tascalate.async.CallContext.await;
-import static net.tascalate.async.CallContext.emit;
 
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
@@ -362,15 +361,17 @@ import java.util.concurrent.CompletionStage;
 import java.util.concurrent.ForkJoinPool;
 
 import net.tascalate.async.AsyncGenerator;
+import net.tascalate.async.AsyncYield;
 import net.tascalate.async.async;
 
 @async AsyncGenerator<String> produceAsyncStrings() {
-    emit("Start"); // Yield ready value
+    AsyncYield<String> async = AsyncYield.start();
+    async.yield( "Start" ); // Yield ready value
 
     // Yield pending values    
-    emit( asyncProduceValue("A") );
-    emit( asyncProduceValue("B") );
-    emit( asyncProduceValue("C") );
+    async.yield( asyncProduceValue("A") );
+    async.yield( asyncProduceValue("B") );
+    async.yield( asyncProduceValue("C") );
 
     /* Sequence<CompletionStage<String>> */ 
     var stringsDEF = AsyncGenerator.readyFirst(
@@ -379,22 +380,23 @@ import net.tascalate.async.async;
         asyncProduceValue("D", 100)
     );
     // Emit a sequence of pending values (resolved come first) 
-    emit( stringsDEF );
+    async.yield( stringsDEF );
 
     // Forward values emited by another generator    
-    emit(produceAsyncStringsXYZ());
+    async.yield(produceAsyncStringsXYZ());
         
-    emit("Finish");
+    async.yield( "Finish" );
 
     // Return from the function
-    return emit();
+    return async.yield();
 }
     
 @async AsyncGenerator<String> produceAsyncStringsXYZ() {
+    AsyncYield<String> async = AsyncYield.start();
     for (var v : List.of("X", "Y", "Z")) {
-        emit( asyncProduceValue(v, 50) );
+        async.yield( asyncProduceValue(v, 50) );
     }
-    return emit();
+    return async.yield();
 }
 
 // Helper functions to emulate asynchronously produced values    

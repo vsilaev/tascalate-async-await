@@ -383,7 +383,7 @@ import net.tascalate.async.async;
     async.yield( stringsDEF );
 
     // Forward values emited by another generator    
-    async.yield(produceAsyncStringsXYZ());
+    async.yield( produceAsyncStringsXYZ() );
         
     async.yield( "Finish" );
 
@@ -392,7 +392,7 @@ import net.tascalate.async.async;
 }
     
 @async AsyncGenerator<String> produceAsyncStringsXYZ() {
-    AsyncYield<String> async = AsyncYield.start();
+    var async = AsyncGenerator.<String>start();
     for (var v : List.of("X", "Y", "Z")) {
         async.yield( asyncProduceValue(v, 50) );
     }

@@ -365,7 +365,7 @@ import net.tascalate.async.AsyncYield;
 import net.tascalate.async.async;
 
 @async AsyncGenerator<String> produceAsyncStrings() {
-    AsyncYield<String> async = AsyncYield.start();
+    AsyncYield<String> async = AsyncGenerator.start();
     async.yield( "Start" ); // Yield ready value
 
     // Yield pending values    

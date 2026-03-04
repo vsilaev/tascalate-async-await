@@ -53,21 +53,20 @@ public class AsyncAwaitContextualizer implements Function<Runnable, Runnable> {
         ContextVar<?>.Snapshot currentRequestAttributes = REQUEST_ATTRIBUTES.snapshot();
         ContextVar<?>.Snapshot currentLocaleContext = LOCALE_CONTEXT.snapshot();
         
+        Runnable codeWithContextVars;
         if (currentRequestAttributes.empty() && currentLocaleContext.empty()) {
-            SpringSecurityContextualizer.INSTANCE.contextualize(code);
-        } 
-        
-        return SpringSecurityContextualizer.INSTANCE.contextualize(
-            new Runnable() {
-                @Override
-                public void run() {
-                    try (ContextVar<?>.Modification changeRequestAttributes = currentRequestAttributes.apply();
-                         ContextVar<?>.Modification changeLocaleContext = currentLocaleContext.apply()) {
-                        code.run();
-                    }
+            codeWithContextVars = code;
+        } else {
+            codeWithContextVars = () -> {
+                try (ContextVar<?>.Modification changeRequestAttributes = currentRequestAttributes.apply();
+                     ContextVar<?>.Modification changeLocaleContext = currentLocaleContext.apply()) {
+                    code.run();
                 }
-            }
-        ); 
+            };
+        }
+        
+        return SpringSecurityContextualizer.INSTANCE.contextualize(codeWithContextVars);
+
     }
     
     private static final ContextVar<RequestAttributes> REQUEST_ATTRIBUTES = new ContextVar<>(

@@ -22,7 +22,7 @@
  * OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
-package net.tascalate.async.spring.webflux;
+package net.tascalate.async.spring.reactive;
 
 import java.util.concurrent.CompletionStage;
 import java.util.function.Supplier;

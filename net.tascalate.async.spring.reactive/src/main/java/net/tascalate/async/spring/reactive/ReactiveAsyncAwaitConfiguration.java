@@ -22,48 +22,36 @@
  * OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
-package net.tascalate.async.spring.webflux;
+package net.tascalate.async.spring.reactive;
 
-import java.util.EnumSet;
 import java.util.Optional;
-import java.util.Set;
-import java.util.concurrent.CompletionStage;
-import java.util.function.Function;
 
-import net.tascalate.async.Scheduler;
-import reactor.core.publisher.Mono;
+import org.springframework.beans.factory.InitializingBean;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnClass;
+import org.springframework.context.annotation.Configuration;
+import org.springframework.core.ReactiveAdapterRegistry;
+import org.springframework.core.ReactiveTypeDescriptor;
 
-public class ReactorSchedulerAdapter implements Scheduler {
-    private final reactor.core.scheduler.Scheduler delegate;
-    private final Function<? super Runnable, ? extends Runnable> contextualizer;
+import net.tascalate.async.AsyncGenerator;
+import net.tascalate.async.spi.CurrentCallContext;
+
+import reactor.core.publisher.Flux;
+
+@ConditionalOnClass({ReactiveAdapterRegistry.class, Flux.class})
+@Configuration
+class ReactiveAsyncAwaitConfiguration implements InitializingBean {
+    private final ReactiveAdapterRegistry reactiveAdapterRegistry;
     
-    public ReactorSchedulerAdapter(reactor.core.scheduler.Scheduler delegate) {
-        this(delegate, Function.identity());
+    ReactiveAsyncAwaitConfiguration(Optional<ReactiveAdapterRegistry> reactiveAdapterRegistry) {
+        this.reactiveAdapterRegistry = reactiveAdapterRegistry.orElse(ReactiveAdapterRegistry.getSharedInstance());
     }
-    
-    public ReactorSchedulerAdapter(reactor.core.scheduler.Scheduler delegate, Function<? super Runnable, ? extends Runnable> contextualizer) {
-        this.delegate = delegate;
-        this.contextualizer = contextualizer;
-    }
-    
+
     @Override
-    public Set<Characteristics> characteristics() {
-        return EnumSet.of(Scheduler.Characteristics.INTERRUPTIBLE);
-    }
-    
-    @Override
-    public Runnable contextualize(Runnable resumeContinuation) {
-        return contextualizer.apply(resumeContinuation);
-    }
-    
-    @Override
-    public CompletionStage<?> schedule(Runnable runnable) {
-        return Mono.just(runnable)
-                   .subscribeOn(delegate)
-                   .map(r -> {
-                       r.run();
-                       return Optional.empty();
-                   })
-                   .toFuture();
+    public void afterPropertiesSet() throws Exception {
+        reactiveAdapterRegistry.registerReactiveType(
+            ReactiveTypeDescriptor.multiValue(AsyncGenerator.class, () -> AsyncGenerator.emptyOn(CurrentCallContext.scheduler())),
+            asyncGenerator -> ReactorAsyncAwaitBridge.createFlux(() -> (AsyncGenerator<?>)asyncGenerator),
+            publisher -> ReactorAsyncAwaitBridge.createGenerator((Flux<?>)publisher, CurrentCallContext.scheduler())
+        );
     }
 }

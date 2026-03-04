@@ -46,7 +46,7 @@ import net.tascalate.async.spring.DefaultAsyncAwaitScheduler;
 
 @Component("<<async-await-servlet-web-filter>>")
 @ConditionalOnWebApplication(type = Type.SERVLET)
-@ConditionalOnClass(name = "javax.servlet.Filter")
+@ConditionalOnClass(Filter.class)
 class AsyncAwaitLegacyFilter implements Filter, Ordered {
     
     private final Scheduler scheduler;

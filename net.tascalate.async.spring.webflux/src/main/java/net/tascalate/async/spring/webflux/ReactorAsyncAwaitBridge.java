@@ -95,8 +95,6 @@ public final class ReactorAsyncAwaitBridge {
     }
     
     private static <T> void connectSourceAndSink(AsyncGenerator.Source<? extends T> source, FluxSink<T> sink) {
-        Scheduler scheduler = source.scheduler();
-        
         sink.onCancel(() -> source.cancel());
         
         sink.onRequest(count -> {
@@ -108,13 +106,13 @@ public final class ReactorAsyncAwaitBridge {
             }
         });
 
-        source.completion().whenComplete((r, e) -> scheduler.schedule(() -> {
+        source.completion().whenComplete((r, e) -> {
             if (null == e) {
                 sink.complete();
             } else {
                 sink.error(e);
             }
-        }));
+        });
         
     }
 }

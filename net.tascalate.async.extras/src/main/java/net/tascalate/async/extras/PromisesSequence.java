@@ -24,9 +24,19 @@
  */
 package net.tascalate.async.extras;
 
+import java.util.concurrent.CompletionStage;
+import java.util.function.Function;
+
 import net.tascalate.async.Sequence;
 import net.tascalate.concurrent.Promise;
 
 public interface PromisesSequence<T> extends Sequence<Promise<T>> {
 
+    public static <T> PromisesSequence<T> of(Sequence<? extends CompletionStage<T>> sequence) {
+        return new DefaultPromisesSequence<>(sequence);
+    }
+    
+    public static <T> Function<Sequence<? extends CompletionStage<T>>, PromisesSequence<T>> lift() {
+        return PromisesSequence::of;
+    }
 }

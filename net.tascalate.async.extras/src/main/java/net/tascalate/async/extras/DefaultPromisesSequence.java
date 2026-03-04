@@ -30,7 +30,7 @@ import net.tascalate.async.Sequence;
 import net.tascalate.concurrent.Promise;
 import net.tascalate.concurrent.Promises;
 
-public class DefaultPromisesSequence<T> implements PromisesSequence<T> {
+class DefaultPromisesSequence<T> implements PromisesSequence<T> {
     
     protected final Sequence<? extends CompletionStage<T>> delegate;
     
@@ -51,6 +51,6 @@ public class DefaultPromisesSequence<T> implements PromisesSequence<T> {
     
     @Override
     public String toString() {
-        return String.format("%s[delegate=%s]", PromisesGenerator.class.getSimpleName(), delegate);
+        return String.format("%s[delegate=%s]", PromisesSequence.class.getSimpleName(), delegate);
     }    
 }

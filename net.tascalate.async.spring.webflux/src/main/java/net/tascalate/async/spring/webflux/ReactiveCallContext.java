@@ -22,25 +22,25 @@
  * OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
-package net.tascalate.async.extras;
+package net.tascalate.async.spring.webflux;
 
-import java.util.concurrent.CompletionStage;
+import org.springframework.web.server.ServerWebExchange;
 
-import net.tascalate.async.AsyncGenerator;
-import net.tascalate.concurrent.Promise;
-import net.tascalate.concurrent.Promises;
+import net.tascalate.async.Scheduler;
+import reactor.util.context.Context;
 
-public class DefaultPromisesGenerator<T> extends DefaultPromisesSequence<T> implements PromisesGenerator<T> {
+public class ReactiveCallContext {
+    private ReactiveCallContext() {}
     
-    public DefaultPromisesGenerator(AsyncGenerator<T> delegate) {
-        super(delegate);
+    public static ServerWebExchange currentServerWebExchange() {
+        return WebFluxData.safeGet().serverWebExchange();
     }
     
-    @Override
-    public Promise<T> next(Object producerParam) {
-        @SuppressWarnings("unchecked")
-        AsyncGenerator<T> _delegate = (AsyncGenerator<T>)delegate;
-        CompletionStage<T> original = _delegate.next(producerParam);
-        return null == original ? null : Promises.from(original);
+    public static Context currentReactiveContext() {
+        return WebFluxData.safeGet().context();
+    }
+    
+    public static Scheduler currentScheduler() {
+        return WebFluxData.safeGet().asyncAwaitScheduler();
     }
 }

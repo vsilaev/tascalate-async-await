@@ -27,8 +27,7 @@ package net.tascalate.async.extras;
 import java.util.EnumSet;
 import java.util.Set;
 
-import java.util.concurrent.Executor;
-
+import java.util.concurrent.ExecutorService;
 import java.util.function.Function;
 
 import net.tascalate.async.scheduler.AbstractExecutorScheduler;
@@ -36,21 +35,21 @@ import net.tascalate.async.scheduler.AbstractExecutorScheduler;
 import net.tascalate.concurrent.CompletableTask;
 import net.tascalate.concurrent.Promise;
 
-public class TaskScheduler extends AbstractExecutorScheduler<Executor> {
+public class TaskScheduler extends AbstractExecutorScheduler<ExecutorService> {
 
-    public TaskScheduler(Executor executor) {
+    public TaskScheduler(ExecutorService executor) {
         this(executor, EnumSet.of(Characteristics.INTERRUPTIBLE));
     }
     
-    public TaskScheduler(Executor executor, Set<Characteristics> characteristics) {
+    public TaskScheduler(ExecutorService executor, Set<Characteristics> characteristics) {
         this(executor, characteristics, null);
     }
     
-    public TaskScheduler(Executor executor, Function<? super Runnable, ? extends Runnable> contextualizer) {
+    public TaskScheduler(ExecutorService executor, Function<? super Runnable, ? extends Runnable> contextualizer) {
         this(executor, EnumSet.of(Characteristics.INTERRUPTIBLE), contextualizer);
     }
     
-    public TaskScheduler(Executor executor, Set<Characteristics> characteristics, Function<? super Runnable, ? extends Runnable> contextualizer) {
+    public TaskScheduler(ExecutorService executor, Set<Characteristics> characteristics, Function<? super Runnable, ? extends Runnable> contextualizer) {
         super(executor, ensureInterruptibleCharacteristic(characteristics), contextualizer); 
     }
     

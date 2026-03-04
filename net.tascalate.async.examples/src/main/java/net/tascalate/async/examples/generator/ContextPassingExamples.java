@@ -40,7 +40,6 @@ import java.util.concurrent.Executors;
 import net.tascalate.async.Scheduler;
 import net.tascalate.async.SchedulerProvider;
 import net.tascalate.async.async;
-import net.tascalate.async.extras.Generators;
 import net.tascalate.concurrent.CompletableTask;
 import net.tascalate.concurrent.var.ContextVar;
 import net.tascalate.concurrent.var.ThreadLocalVar;

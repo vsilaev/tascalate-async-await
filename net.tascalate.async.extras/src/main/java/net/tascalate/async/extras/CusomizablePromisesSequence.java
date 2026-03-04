@@ -22,25 +22,22 @@
  * OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
-package net.tascalate.async.spring.webflux;
+package net.tascalate.async.extras;
 
-import org.springframework.web.server.ServerWebExchange;
+import java.util.concurrent.CompletionStage;
+import java.util.function.Function;
 
-import net.tascalate.async.Scheduler;
-import reactor.util.context.Context;
+import net.tascalate.async.CustomizableSequence;
+import net.tascalate.concurrent.Promise;
 
-public class ReactorCallContext {
-    private ReactorCallContext() {}
+public interface CusomizablePromisesSequence<T> extends CustomizableSequence<Promise<T>> {
     
-    public static ServerWebExchange currentServerWebExchange() {
-        return WebFluxData.safeGet().serverWebExchange();
+    public static <T> CusomizablePromisesSequence<T> of(CustomizableSequence<? extends CompletionStage<T>> sequence) {
+        return new DefaultCusomizablePromisesSequence<>(sequence);
+    }
+
+    public static <T> Function<CustomizableSequence<? extends CompletionStage<T>>, CusomizablePromisesSequence<T>> lift() {
+        return CusomizablePromisesSequence::of;
     }
     
-    public static Context currentReactiveContext() {
-        return WebFluxData.safeGet().context();
-    }
-    
-    public static Scheduler currentScheduler() {
-        return WebFluxData.safeGet().asyncAwaitScheduler();
-    }
 }

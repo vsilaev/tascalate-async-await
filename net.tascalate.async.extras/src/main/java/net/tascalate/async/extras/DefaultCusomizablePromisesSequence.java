@@ -24,8 +24,40 @@
  */
 package net.tascalate.async.extras;
 
+import java.util.concurrent.CompletionStage;
+
 import net.tascalate.async.CustomizableSequence;
 import net.tascalate.concurrent.Promise;
+import net.tascalate.concurrent.Promises;
 
-public interface PromisesGenerator<T> extends PromisesSequence<T>, CustomizableSequence<Promise<T>> {
+class DefaultCusomizablePromisesSequence<T> implements CusomizablePromisesSequence<T> {
+    
+    private final CustomizableSequence<? extends CompletionStage<T>> delegate;
+    
+    public DefaultCusomizablePromisesSequence(CustomizableSequence<? extends CompletionStage<T>> delegate) {
+        this.delegate = delegate;
+    }
+    
+
+    @Override
+    public Promise<T> next() {
+        CompletionStage<T> original = delegate.next();
+        return null == original ? null : Promises.from(original);
+    }
+    
+    @Override
+    public Promise<T> next(Object producerParam) {
+        CompletionStage<T> original = delegate.next(producerParam);
+        return null == original ? null : Promises.from(original);
+    }
+
+    @Override
+    public void close() {
+        delegate.close();
+    }
+    
+    @Override
+    public String toString() {
+        return String.format("%s[delegate=%s]", CusomizablePromisesSequence.class.getSimpleName(), delegate);
+    }   
 }

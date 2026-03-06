@@ -24,11 +24,16 @@
  */
 package net.tascalate.async.spring;
 
+import java.util.Collections;
 import java.util.Optional;
 import java.util.concurrent.ExecutorService;
 import java.util.function.Function;
 
+import org.aspectj.lang.ProceedingJoinPoint;
+import org.springframework.beans.factory.config.CustomScopeConfigurer;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnClass;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.ComponentScan;
 import org.springframework.context.annotation.Configuration;
@@ -54,5 +59,23 @@ class AsyncAwaitConfiguration {
     Scheduler defaultAsyncAwaitScheduler(@DefaultAsyncAwaitExecutor ExecutorService executor, 
                                          @DefaultAsyncAwaitContextualizer Optional<Function<? super Runnable, ? extends Runnable>> contextualizer) {
         return Scheduler.interruptible(executor, contextualizer.orElse(null));
+    }
+    
+    @Configuration
+    @ConditionalOnProperty(name = "async-await.async-call-scope.enable", havingValue = "true", matchIfMissing = true)
+    @ConditionalOnClass(ProceedingJoinPoint.class)
+    static class AsyncCallScopeConfiguration {
+        @Bean(name="<<async-await-acync-call-scope-configurer>>")
+        CustomScopeConfigurer customScopeConfigurer() {
+            CustomScopeConfigurer configurer = new CustomScopeConfigurer();
+            configurer.setScopes( Collections.singletonMap("async-call", AsyncExecutionScope.instance()));
+            return configurer;
+        }
+        
+        @Bean(name="<<async-await-async-call-boundary-interceptor>>")
+        AsyncCallBoundaryInterceptor asyncCallBoundaryInterceptor() {
+            return new AsyncCallBoundaryInterceptor();
+        }
+
     }
 }

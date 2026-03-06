@@ -26,6 +26,7 @@ package net.tascalate.async.core;
 
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionStage;
+import java.util.function.Consumer;
 
 import net.tascalate.async.AsyncGenerator;
 import net.tascalate.async.AsyncYield;
@@ -104,6 +105,11 @@ class LazyGenerator<T> implements AsyncGenerator<T> {
     @Override
     public Scheduler scheduler() {
         return owner.scheduler();
+    }
+    
+    @Override
+    public CompletionStage<?> onCompletion(Consumer<? super Throwable> handler) {
+        return owner.future.whenComplete((r, e) -> handler.accept(e));
     }
 
     final @suspendable AsyncYield.Reply<T> emit(Sequence<? extends CompletionStage<T>> pendingValues) {

@@ -92,6 +92,8 @@ public interface AsyncGenerator<T> extends CustomizableSequence<CompletionStage<
     
     abstract Scheduler scheduler();
     
+    abstract CompletionStage<?> onCompletion(Consumer<? super Throwable> handler);
+    
     default ConcurrentGenerator<T> concurrent() {
         return concurrent(this, this.scheduler());
     }
@@ -172,6 +174,7 @@ public interface AsyncGenerator<T> extends CustomizableSequence<CompletionStage<
     }
     
     public static <T> AsyncGenerator<T> emptyOn(Scheduler scheduler) {
+        CompletableFuture<Void> done = CompletableFuture.completedFuture(null);
         return new AsyncGenerator<T>() {
 
             @Override
@@ -193,6 +196,10 @@ public interface AsyncGenerator<T> extends CustomizableSequence<CompletionStage<
                 return scheduler;
             }
             
+            @Override
+            public CompletionStage<?> onCompletion(Consumer<? super Throwable> handler) {
+                return done.whenComplete((r, e) -> handler.accept(e));
+            }
         };
     }
     

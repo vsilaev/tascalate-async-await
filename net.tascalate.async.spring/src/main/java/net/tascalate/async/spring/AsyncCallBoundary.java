@@ -22,18 +22,26 @@
  * OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
-module net.tascalate.async.spring {
-    requires org.slf4j;
-    requires transitive net.tascalate.async.runtime;
+package net.tascalate.async.spring;
+
+import java.lang.annotation.Documented;
+import java.lang.annotation.ElementType;
+import java.lang.annotation.Inherited;
+import java.lang.annotation.Retention;
+import java.lang.annotation.RetentionPolicy;
+import java.lang.annotation.Target;
+
+@Documented
+@Inherited
+@Target({ElementType.TYPE, ElementType.METHOD})
+@Retention(RetentionPolicy.RUNTIME)
+public @interface AsyncCallBoundary {
+    enum Kind {
+        CREATE_NEW,
+        JOIN_OR_CREATE,
+        JOIN_REQUIRED 
+    }
     
-    requires spring.beans;
-    requires spring.context;
-    requires spring.core;
-    
-    requires spring.boot;
-    requires spring.boot.autoconfigure;
-    
-    requires static org.aspectj.weaver;
-    
-    exports net.tascalate.async.spring;
+    public Kind value() default Kind.JOIN_OR_CREATE;
 }
+

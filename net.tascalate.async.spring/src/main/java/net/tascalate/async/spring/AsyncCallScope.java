@@ -22,18 +22,28 @@
  * OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
-module net.tascalate.async.spring {
-    requires org.slf4j;
-    requires transitive net.tascalate.async.runtime;
-    
-    requires spring.beans;
-    requires spring.context;
-    requires spring.core;
-    
-    requires spring.boot;
-    requires spring.boot.autoconfigure;
-    
-    requires static org.aspectj.weaver;
-    
-    exports net.tascalate.async.spring;
+package net.tascalate.async.spring;
+
+import java.lang.annotation.Documented;
+import java.lang.annotation.ElementType;
+import java.lang.annotation.Retention;
+import java.lang.annotation.RetentionPolicy;
+import java.lang.annotation.Target;
+
+import org.springframework.context.annotation.Scope;
+import org.springframework.context.annotation.ScopedProxyMode;
+import org.springframework.core.annotation.AliasFor;
+
+@Target({ElementType.TYPE, ElementType.METHOD})
+@Retention(RetentionPolicy.RUNTIME)
+@Documented
+@Scope("async-call")
+public @interface AsyncCallScope {
+    /**
+     * Alias for {@link Scope#proxyMode}.
+     * <p>Defaults to {@link ScopedProxyMode#TARGET_CLASS}.
+     */
+    @AliasFor(annotation = Scope.class)
+    ScopedProxyMode proxyMode() default ScopedProxyMode.TARGET_CLASS;
 }
+

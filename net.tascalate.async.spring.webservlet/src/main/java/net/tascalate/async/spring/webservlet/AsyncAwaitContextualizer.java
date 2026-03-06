@@ -37,6 +37,7 @@ import org.springframework.web.context.request.RequestContextHolder;
 
 import net.tascalate.async.Scheduler;
 import net.tascalate.async.resolver.scoped.SchedulerScope;
+import net.tascalate.async.spring.AsyncExecutionScope;
 import net.tascalate.async.spring.DefaultAsyncAwaitContextualizer;
 
 @Lazy
@@ -48,7 +49,9 @@ public class AsyncAwaitContextualizer implements Function<Runnable, Runnable> {
     @Override
     public Runnable apply(Runnable rawCode) {
         Scheduler scheduler = SchedulerScope.DEFAULTS.currentScheduler();
-        Runnable code = () -> SchedulerScope.DEFAULTS.runWith(scheduler, rawCode);
+        
+        Runnable codeWithScope = AsyncExecutionScope.instance().contextualize(rawCode);
+        Runnable code = () -> SchedulerScope.DEFAULTS.runWith(scheduler, codeWithScope);
         
         ContextVar<?>.Snapshot currentRequestAttributes = REQUEST_ATTRIBUTES.snapshot();
         ContextVar<?>.Snapshot currentLocaleContext = LOCALE_CONTEXT.snapshot();

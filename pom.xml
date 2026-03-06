@@ -62,7 +62,7 @@
 		<tascalate.asmx.version>9.9.1</tascalate.asmx.version>
 		<tascalate.instrument.version>1.7.0</tascalate.instrument.version>
 		<spring.web.version>5.0.2.RELEASE</spring.web.version>
-		<spring.context.version>3.1.0.RELEASE</spring.context.version>
+		<spring.context.version>4.2.0.RELEASE</spring.context.version>
 		<spring.boot.version>2.0.0.RELEASE</spring.boot.version>
 	</properties>
 

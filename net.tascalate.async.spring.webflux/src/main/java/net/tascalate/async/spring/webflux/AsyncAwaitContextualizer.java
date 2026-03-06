@@ -31,6 +31,7 @@ import org.springframework.boot.autoconfigure.condition.ConditionalOnWebApplicat
 import org.springframework.context.annotation.Lazy;
 import org.springframework.stereotype.Component;
 
+import net.tascalate.async.spring.AsyncExecutionScope;
 import net.tascalate.async.spring.DefaultAsyncAwaitContextualizer;
 
 @Lazy
@@ -44,7 +45,9 @@ class AsyncAwaitContextualizer implements Function<Runnable, Runnable> {
         return contextualize(code);
     }
     
-    static Runnable contextualize(Runnable code) {
+    static Runnable contextualize(Runnable rawCode) {
+        Runnable code = AsyncExecutionScope.instance().contextualize(rawCode);
+        
         WebFluxData current = WebFluxData.get();
         if (null == current) {
             return code;

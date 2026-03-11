@@ -434,17 +434,17 @@ Method annotation | `@async` annotation | Marks the generator method that return
 Method return type | `AsyncGenerator<T>` | Represents an asynchronous sequence of values that can be iterated without blocking |  
 Syntax sugar / Helper object | `AsyncYield<T>` | Helper object used inside `@async` generator methods to `yield` values (ready or pending) |  
 
-In brief, async generator method is a method with `@async` annotation and `AsyncGenerator<T>` return type. Inside the body of the method you must create `AsyncYield<T>` helper variable (any name works, but I suggest either to use `async` or some one-letter name like `g` across all your code base). This `AsyncYield<T>`-type variable is used to asynchronously `yield` values of the following types:
-- `CompletionStage<T>` or subclasses for the single pending value
+In brief, async generator method is a method with `@async` annotation and `AsyncGenerator<T>` return type. Inside the body of the method you must create `AsyncYield<T>` helper variable via `AsyncGenerator.<T>start()`. Any variable name works, but I suggest either to use `async` or some one-letter name like `g` across all your code base consistently. This `AsyncYield<T>`-type variable is used to asynchronously `yield` values of the following types:
+- `CompletionStage<T>` or subclasses of `CompletionStage` for the single pending value
 - `T` for ready value
 - `net.tascalate.async.Sequence<? extends CompletionStage<? extends T>>` to `yield` a sequence of the pending values
-- As a special case of the previous item, you can `yield` another `AsyncGenerator<T>` to chain any nested generator(s)
+- As a special case of the previous option, you can `yield` another `AsyncGenerator<T>` to chain any nested generator(s)
 
 Finally, you should exit the method with `return async.yield()` call.
 
 Now let us take a look how the async generator can be consumed:
 ```java
-@async CompletionStage<Void> consumeGenerator() {  
+@async CompletionStage<Long> consumeGenerator() {  
     try (AsyncGenerator<String> generator = produceAsyncStrings();
         CompletionStage<T> pendingValue;
         while ((pendingValue = generator.next()) != null) {
@@ -452,7 +452,7 @@ Now let us take a look how the async generator can be consumed:
             System.out.println(value);  
         }  
     }
-    return async(null);  
+    return async(42L);  
 }
 ```
 
@@ -530,7 +530,8 @@ import java.util.function.Function;
 
 import net.tascalate.async.Scheduler 
 ...
-ExecutorService myExecutor = Executors.newFixedThreadPool(4); // Or whatever ExecutorService impl. you need
+// whatever ExecutorService impl. you need
+ExecutorService myExecutor = Executors.newFixedThreadPool(4); 
 Scheduler myScheduler = Scheduler.interruptible(myExecutor, 
                                                 Function.identity() /* or actual contextualizer */);
 ```
@@ -602,10 +603,11 @@ Now let us rewrite the example above to automatically propagate scheduler of the
 ```java
 import static net.tascalate.async.CallСontext.async;
 import static net.tascalate.async.CallСontext.await;
+import static net.tascalate.async.CallСontext.scheduler;
+
 import net.tascalate.async.async;
 import net.tascalate.async.Scheduler;
 import net.tascalate.async.SchedulerProvider; 
-import net.tascalate.async.spi.CurrentCallContext;
 
 import java.util.concurrent.CompletionStage;
 import java.util.concurrent.CompletableFuture;
@@ -620,7 +622,7 @@ public class MyClass {
    }
 
     public @async CompletionStage<String> mergeStrings(@SchedulerProvider Scheduler currentScheduler) {
-        System.out.println("Current scheduler (outer) - " + CurrentCallContext.scheduler());
+        System.out.println("Current scheduler (outer) - " + scheduler());
         StringBuilder result = new StringBuilder();
         for (int i = 1; i <= 10; i++) {
             String v = await( decorateStrings(i, "async ", " awaited") );
@@ -630,7 +632,7 @@ public class MyClass {
     }
     
     public @async CompletionStage<String> decorateStrings(int i, String prefix, String suffix) {
-        System.out.println("Current scheduler (inner) - " + CurrentCallContext.scheduler());
+        System.out.println("Current scheduler (inner) - " + scheduler());
         String value = prefix + await( produceString("value " + i) ) + suffix;
         return async(value);
     }
@@ -641,7 +643,7 @@ public class MyClass {
     }
 }
 ```
-You may see that the code was simplified, however no new specific code for the "propagating provider" was introduced. If you run this code you will see that `CurrentCallContext.scheduler()` reports the very same scheduler for both inner and outer methods. Btw, `CurrentCallContext.scheduler()` may be used with any combination of the scheduler providers and reports currently used `Scheduler` for all asynchronous, suspendable and generators methods.
+You may see that the code was simplified, however no new specific code for the "propagating provider" was introduced. If you run this code you will see that `CallContext.scheduler()` reports the very same scheduler for both inner and outer methods. Btw, `CallContext.scheduler()` may be used with any combination of the scheduler providers and reports currently used `Scheduler` for all asynchronous, suspendable and generators methods.
 
 ## More useful SchedulerResolver - per-class/per-instance schedulers
 The next and probably the most useful one `Scheduler` provider is a "provided" provider variant (no pun). The idea is that a `Scheduler` may be specified per class or per class instances as a filed  (an instance one or a static one) or as a getter-like method (no argument method with a `Scheduler` return type).
@@ -660,10 +662,11 @@ Let us modify an example from the above to use the new provider:
 ```java
 import static net.tascalate.async.CallСontext.async;
 import static net.tascalate.async.CallСontext.await;
+import static net.tascalate.async.CallСontext.scheduler;
+
 import net.tascalate.async.async;
 import net.tascalate.async.Scheduler;
 import net.tascalate.async.SchedulerProvider; 
-import net.tascalate.async.spi.CurrentCallContext;
 
 import java.util.concurrent.CompletionStage;
 import java.util.concurrent.CompletableFuture;
@@ -678,14 +681,14 @@ public class MyClass {
    }
 
    @SchedulerProvider /* Mandatory annotation */
-   private final Scheduler scheduler;
+   private final Scheduler myScheduler;
 
    MyClass(Scheduler scheduler) {
-     this.scheduler = scheduler;
+     this.myScheduler = scheduler;
    }
 
     public @async CompletionStage<String> mergeStrings( ) {
-        System.out.println("Current scheduler (outer) - " + CurrentCallContext.scheduler());
+        System.out.println("Current scheduler (outer) - " + scheduler());
         StringBuilder result = new StringBuilder();
         for (int i = 1; i <= 10; i++) {
             String v = await( decorateStrings(i, "async ", " awaited") );
@@ -695,7 +698,7 @@ public class MyClass {
     }
     
     public @async CompletionStage<String> decorateStrings(int i, String prefix, String suffix) {
-        System.out.println("Current scheduler (inner) - " + CurrentCallContext.scheduler());
+        System.out.println("Current scheduler (inner) - " + scheduler());
         String value = prefix + await( produceString("value " + i) ) + suffix;
         return async(value);
     }

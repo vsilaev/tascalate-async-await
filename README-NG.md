@@ -445,7 +445,7 @@ Finally, you should exit the method with `return async.yield()` call.
 Now let us take a look how the async generator can be consumed:
 ```java
 @async CompletionStage<Long> consumeGenerator() {  
-    try (AsyncGenerator<String> generator = produceAsyncStrings();
+    try (AsyncGenerator<String> generator = produceAsyncStrings()) {
         CompletionStage<T> pendingValue;
         while ((pendingValue = generator.next()) != null) {
             String value = await(pendingValue);  
@@ -455,6 +455,57 @@ Now let us take a look how the async generator can be consumed:
     return async(42L);  
 }
 ```
+From the consumer point of view `AsyncGenerator<T>` is a `null`-terminated sequence of pending values. Therefore the core logic of iteration is to call the `AsyncGenerator<T>.next()` until `null` is returned. When the `next()` is invoked,  the *consumer* is suspended until `generator` is ready with next pending item of type `CompletionStage<T>` or `null` if the generator is over. After getting a single pending result you have to await while the returned promise is settled. It's not an error to call `AsyncGenerator<T>.next()` without awaiting previously returned promise, but the consumer will be suspended anyway automatically if you try. Pay attention that `generator` is  used within `try-with-resources` block. This is critical while it's ensures that the `generator` will always be closed even if *consumer* decides to stop processing yielded items without consuming all of them, or an error happens within consumer.
+
+Instead of handling null-terminated sequence of `CompletionStage`-s you can use more familiar `iterator`  idiom:
+```java
+@async CompletionStage<Long> consumeGenerator() {  
+    try (SuspendableIterator<CompletionStage<String>> iterator = produceAsyncStrings().iterator()) {
+        while (iterator.next()) {
+            CompletionStage<T> pendingValue = iterator.next();
+            String value = await(pendingValue);  
+            System.out.println(value);  
+        }  
+    }
+    return async(42L);  
+}
+```
+It's important to admit that `SuspendableIterator` is not a subclass of the standard Java `java.util.Iterator` and hence `AsyncGenerator` is not an instance of the `java.lang.Iteratble`. Rather `SuspendableIterator` is an iterator-like API that allows to suspend caller code for `hasNext()` and `next()` methods' calls.  Pay attention, that the `SuspendableIterator` returned from the `AsyncGenerator` is `Autoclosable` and closes the underlying generator when exiting from `try-with-resources` block.
+
+Both approaches to write the consumer are identical in terms of performance and provides an option to attach some asynchronous pipeline to the returned pending value and await on this pipeline instead of the directly returned promise. However, if this flexibility is unnecessary you can use the third, the most concise form, that is the closest to the functionality provided by ECMA Script or C#:
+```java
+@async CompletionStage<Long> consumeGenerator() {  
+    /* SuspendableIterator<String> */
+    try (var viterator = produceAsyncStrings().valuesIterator()) {
+        while (viterator.next()) {
+            /* String */
+            var value = viterator.next();
+            System.out.println(value);  
+        }  
+    }
+    return async(42L);  
+}
+```
+Compare the code above to the ECMA Script:
+```javascript
+async function consumeGenerator() {
+  for await (const value of produceAsyncStrings()) {
+    console.log(value);
+  }
+}
+```
+...or with C#:
+```csharp
+async Task<long> consumeGenerator() {
+    await foreach (var value in produceAsyncStrings())  {
+        Console.WriteLine(value);
+    }
+    return 42;
+}
+```
+Also Java version with Tascalate Async / Await is more verbose the similarities between different languages are strikingly obvious.
+
+**IMPORTANT**: the `Async<Generator`, its `iterator()` and `valuesIterator()` should not be shared across several threads! Also all these classes are facilizing asynchronous processing, they are not thread-safe and must be used by the single thread at a time. All asynchronous tasks, asynchronous generators and suspendable methods provide correct context to consume `AsyncGenearator`-s, and these are only 3 types of methods that may traverse the generator output.  
 
 # Scheduler & SchedulerResolver - where is my code executed?
 ## Introducing schedulers
@@ -721,11 +772,12 @@ It's an error to provide a `Scheduler` with both a field and a method, or to hav
 It was mentioned that you can use both instance and static (class) field / method to provide a `Scheduler`. However, consider the following rules:
 1. Instance-level provider supplies a `Scheduler` only to `@async` instance methods.
 2. Class-level provider supplies a `Scheduler` to static `@async` methods AND to instance methods UNLESS there is a separate instance-level provider.
-3. It's an error to have more than one class-level provider in the same class via static field(s) / static getter-like method(s) / the combination of thereof (same as with instance-level providers); however it's a fully supported scenario when you have both instance-level provider AND class-level provider: instance level provider will take precedence over the class-level provider for the `@async` instance methods.
+3. It's an error to have more than one class-level provider in the same class via static field(s) / static getter-like method(s) / the combination of thereof (same as with instance-level providers); however it's a fully supported scenario when you have both instance-level provider AND class-level provider: instan
+4. e level provider will take precedence over the class-level provider for the `@async` instance methods.
 
 Last but not least is a visibility of the `Scheduler` provider (field / getter-like method) inherited from the superclass. It follows the same visibility rules as for the regular fields / methods inheritance: public and protected are always visible; package private are visible when both classes are in the same package; and private members are not visible. Take this on account when runtime will report you about ambiguity of the `Scheduler` provider - most probably, your subclass inherits ones from the superclasses chain.
 
-## Scoped SchedulerResolver -- overriding schedulers, providing own schedulers in DI environment
+## Scoped SchedulerResolver -- overriding schedulers, providing own schedulers in DI environment 
 TBD
 
 # Interruptions/cancelation of @async methods & exception handling

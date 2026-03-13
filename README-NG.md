@@ -466,7 +466,7 @@ From the *consumer* perspective, an `AsyncGenerator<T>` represents a `null`‑te
 
 What happens on the *producer* side i.e. inside the `produceAsyncStrings()` generator while the *consumer* iterates over? An `AsyncGenerator<T>` method starts **suspended** when created. Each time the *consumer* calls `generator.next()`, the generator **resumes**, executes until it reaches a `async.yield(...)` (or returns), and then **suspends** again. The value passed to `async.yield(...)` is what the *consumer* receives (a `CompletionStage<T>`, or `T` wrapped inside a completed future). The generator does not continue past the `yield` until the *consumer* advances the iteration again. When the generator yields a pending item (a `CompletionStage<T>`), the *consumer* receives that pending stage and will normally await it to obtain the actual `T` or an error. The generator remains suspended after yielding. In typical usage the generator will not resume until the *consumer* both (a) observes/awaits the yielded stage (so ordering and backpressure are preserved) and (b) calls `next()` again to request the following item. When the generator yields a `Sequence` of `CompletionStage`-s or another `AsyncGenerator`, the generator method is suspended until that entire sequence or nested generator has been fully consumed by the *consumer*.
 
-Use the `generator` inside the *consumer* within a `try-with-resources` block so it is always closed when the consumer stops iterating or an error occurs. This guarantees the generator’s finalization logic runs even if the consumer returns early, throws an exception, or abandons iteration.
+Use the `generator` inside the *consumer* within a `try-with-resources` block so it is always closed when the *consumer* stops iterating or an error occurs. This guarantees the generator’s finalization logic runs even if the *consumer* returns early, throws an exception, or abandons iteration.
 
 Instead of handling a null‑terminated sequence of `CompletionStage`-s  directly, you can use more common `iterator`  idiom in the `consumeGenerator()`:
 ```java
@@ -481,13 +481,9 @@ Instead of handling a null‑terminated sequence of `CompletionStage`-s  directl
     return async(42L);  
 }
 ```
-It's important to admit that `SuspendableIterator` is not a subclass of the standard Java `java.util.Iterator` and hence `AsyncGenerator` is not an instance of the `java.lang.Iteratble`. Rather `SuspendableIterator` is an iterator-like API that allows to suspend caller code for `hasNext()` and `next()` methods' calls.  Pay attention, that the `SuspendableIterator` returned from the `AsyncGenerator` is `Autoclosable` and closes the underlying generator when exiting from `try-with-resources` block.
+It's critical to admit that `SuspendableIterator` is an _iterator‑like_ API, not a subtype of `java.util.Iterator`, and `AsyncGenerator` does **not** implement `java.lang.Iterable`. It provides `hasNext()` and `next()` methods that may **suspend** the caller while awaiting asynchronous results, so it cannot be used with Java’s `for‑each` loop. The `SuspendableIterator` returned by an `AsyncGenerator` is `AutoCloseable`; use it inside a `try‑with‑resources` block so the underlying generator is always closed when iteration ends, the *consumer* returns early, or an exception occurs.
 
-It's critical to admit that `SuspendableIterator` is an _iterator‑like_ API, not a subtype of `java.util.Iterator`, and `AsyncGenerator` does **not** implement `java.lang.Iterable`. It provides `hasNext()` and `next()` methods that may **suspend** the caller while awaiting asynchronous results, so it cannot be used with Java’s `for‑each` loop. The `SuspendableIterator` returned by an `AsyncGenerator` is `AutoCloseable`; use it inside a `try‑with‑resources` block so the underlying generator is always closed when iteration ends, the consumer stops early, or an exception occurs.
-
-Both consumer styles perform similarly and allow attaching an asynchronous pipeline to each returned pending value before awaiting it. If you do not need that flexibility, use the concise iterator form that mirrors ECMAScript and C# async iterators:
-
-Both approaches to write the *consumer* are identical in terms of performance and provides an option to attach some asynchronous pipeline to the returned pending value and await on this pipeline instead of the directly returned promise. However, if this flexibility is unnecessary you can use the third, the most concise form, that is the closest to the functionality provided by ECMA Script or C#:
+Both *consumer* styles perform similarly and allow attaching an asynchronous pipeline to each returned pending value before awaiting it. If you do not need that flexibility, use the concise iterator form that mirrors ECMAScript and C# async iterators:
 ```java
 @async CompletionStage<Long> consumeGenerator() {  
     /* SuspendableIterator<String> */
@@ -501,7 +497,7 @@ Both approaches to write the *consumer* are identical in terms of performance an
     return async(42L);  
 }
 ```
-The consumer iterates over each settled value directly in a simple `await foreach / for await`‑style loop. This form is shorter, easier to read, and is the best choice when you only need to process settled `T` values in order without inserting extra asynchronous stages between `next()` and the awaited result.
+The *consumer* iterates over each settled value directly in a simple `await foreach / for await`‑style loop. This form is shorter, easier to read, and is the best choice when you only need to process settled `T` values in order .
 
 Compare the code above to the ECMA Script:
 ```javascript

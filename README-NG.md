@@ -483,7 +483,7 @@ Instead of handling a null‑terminated sequence of `CompletionStage`-s  directl
 ```
 It's critical to admit that `SuspendableIterator` is an _iterator‑like_ API, not a subtype of `java.util.Iterator`, and `AsyncGenerator` does **not** implement `java.lang.Iterable`. It provides `hasNext()` and `next()` methods that may **suspend** the caller while awaiting asynchronous results, so it cannot be used with Java’s `for‑each` loop. The `SuspendableIterator` returned by an `AsyncGenerator` is `AutoCloseable`; use it inside a `try‑with‑resources` block so the underlying generator is always closed when iteration ends, the *consumer* returns early, or an exception occurs.
 
-Both *consumer* styles perform similarly and allow attaching an asynchronous pipeline to each returned pending value before awaiting it. If you do not need that flexibility, use the concise iterator form that mirrors ECMAScript and C# async iterators:
+Both *consumer* styles perform similarly and allow attaching an asynchronous pipeline to each returned pending value before awaiting it. If you do not need that flexibility, use the concise iterator form, `AsyncGenerator<T>.valuesIterator()`, that mirrors ECMAScript and C# async iterators:
 ```java
 @async CompletionStage<Long> consumeGenerator() {  
     /* SuspendableIterator<String> */
@@ -519,6 +519,36 @@ async Task<long> consumeGenerator() {
 The Java version using Tascalate Async/Await is definitely more verbose, but the underlying semantics closely match those in ECMAScript and C#. .
 
 **IMPORTANT:** Do not share an `AsyncGenerator`, its `iterator()` or `valuesIterator()` across multiple threads! These types *facilitate* asynchronous control flow but are not thread‑safe: they maintain internal suspension and lifecycle state that must be accessed from a single execution context at a time. Only three kinds of callers are guaranteed to provide the correct execution context for consuming an `AsyncGenerator`: asynchronous tasks, other asynchronous generators, and suspendable methods. If you must cross thread boundaries, convert yielded values into a thread‑safe handoff (will be shown below) rather than sharing the generator or its iterator directly.
+
+Tascalate Async / Await `AsyncGenerator` supports passing a value from the *consumer* back to the *producer* (generator) by calling `generator.next(param)`. When the consumer supplies `param`, that value becomes a part of the result of the corresponding `async.yield(...)` expression inside the generator method (the *producer* receives it when it resumes). This mirrors ECMAScript’s `next(value)` behavior and enables two‑way communication: the *consumer* can send control data, acknowledgements, or backpressure hints to the *producer*. Let's review the following example:
+```java
+@async CompletionStage<String> collectLetters(int  n) {
+    try (var g = asyncLetter()) {
+        var result = "";
+        for (int i = 0; i < n; i++) {
+            result += await( g.next(i) );
+        }
+        return  async(result);
+    }
+}
+
+@async AsyncGenerator<String> asyncLetter() {
+    var async = AsyncGenerator.<String>start();
+    /*AsyncYield.Reply<String>*/
+    var reply = async.yield(Sequence.empty()); // <== this requires explanation
+    try {
+        while (true) {
+            var ch = (char)( ((Number)reply.param).intValue() % 26 + 65);
+            reply = async.yield( asyncProduceValue(new String(new char[]{ch})) );
+        }
+    } finally {
+        System.out.println("asyncLetter() generator is closed");
+    }
+}
+```
+The `asyncLetter` generator produces an effectively infinite stream of single‑letter strings. The *consumer* controls which letter is produced by passing a character code to `generator.next(param)`. The *consumer* iterates over the generated values and collects `n` generated letters as a string with characters `'A'..'A'+n` cycling. Inside the *producer*, each `async.yield(...)` returns an `AsyncYield.Reply<String>` object that exposes two fields: `value` for the resolved yielded value and `param` for the parameter supplied by the *consumer*. Note that, as in ECMAScript, there is no *consumer* parameter available for the very first `next()` call. To work around this, yield an empty sequence at the start of the generator so the *producer* can receive a parameter on the subsequent resume. Finally, even though the generator is infinite, its `finally` or close logic runs when the *consumer* breaks out of the loop and the generator is closed via `try‑with‑resources`, ensuring deterministic cleanup.
+
+Use this feature sparingly and document the expected parameter type and semantics for each generator: mismatched expectations between producer and consumer can cause logic errors. Handle `null` or absent parameters explicitly and ensure the producer validates incoming values before using them.
 
 # Scheduler & SchedulerResolver - where is my code executed?
 ## Introducing schedulers

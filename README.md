@@ -1,4 +1,4 @@
-[![Maven Central](https://img.shields.io/maven-central/v/net.tascalate.async/net.tascalate.async.parent.svg)](https://search.maven.org/artifact/net.tascalate.async/net.tascalate.async.parent/1.2.9/pom) [![GitHub release](https://img.shields.io/github/release/vsilaev/tascalate-async-await.svg)](https://github.com/vsilaev/tascalate-async-await/releases/tag/1.2.9) [![license](https://img.shields.io/github/license/vsilaev/tascalate-async-await.svg)](https://github.com/vsilaev/tascalate-async-await/blob/master/LICENSE)
+[![Maven Central](https://img.shields.io/maven-central/v/net.tascalate.async/net.tascalate.async.parent.svg)](https://search.maven.org/artifact/net.tascalate.async/net.tascalate.async.parent/1.3.0/pom) [![GitHub release](https://img.shields.io/github/release/vsilaev/tascalate-async-await.svg)](https://github.com/vsilaev/tascalate-async-await/releases/tag/1.3.0) [![license](https://img.shields.io/github/license/vsilaev/tascalate-async-await.svg)](https://github.com/vsilaev/tascalate-async-await/blob/master/LICENSE)
 
 ![Tascalate Logo](https://raw.githubusercontent.com/vsilaev/tascalate-async-await/refs/heads/master/logo_wide_dark.svg#gh-dark-mode-only)
 ![Tascalate Logo](https://raw.githubusercontent.com/vsilaev/tascalate-async-await/refs/heads/master/logo_wide_light.svg#gh-light-mode-only)
@@ -21,7 +21,7 @@ First, add Maven dependency to the library runtime:
 <dependency>
     <groupId>net.tascalate.async</groupId>
     <artifactId>net.tascalate.async.runtime</artifactId>
-    <version>1.2.9</version>
+    <version>1.3.0</version>
 </dependency>
 ```
 Second, add the following build plugins in the specified order:
@@ -32,7 +32,7 @@ Second, add the following build plugins in the specified order:
     <plugin>
       <groupId>net.tascalate.async</groupId>
       <artifactId>net.tascalate.async.tools.maven</artifactId>
-      <version>1.2.9</version>
+      <version>1.3.0</version>
       <executions>
         <execution>
           <id>tascalate-async-enhance-main-classes</id> 
@@ -55,7 +55,7 @@ Second, add the following build plugins in the specified order:
     <plugin>
       <groupId>net.tascalate.javaflow</groupId>
       <artifactId>net.tascalate.javaflow.tools.maven</artifactId>
-      <version>2.7.8</version>
+      <version>2.8.2</version>
       <executions>
         <execution>
           <id>javaflow-enhance-main-classes</id> 
@@ -88,8 +88,8 @@ buildscript {
     }
 
     dependencies {
-        classpath 'net.tascalate.async:net.tascalate.async.tools.gradle:1.2.9'
-        classpath 'net.tascalate.javaflow:net.tascalate.javaflow.tools.gradle:2.7.8'
+        classpath 'net.tascalate.async:net.tascalate.async.tools.gradle:1.3.0'
+        classpath 'net.tascalate.javaflow:net.tascalate.javaflow.tools.gradle:2.8.2'
         /* other plugins */
     }
 }
@@ -104,7 +104,7 @@ repositories {
 }
 
 dependencies {
-    implementation 'net.tascalate.async:net.tascalate.async.runtime:1.2.9'
+    implementation 'net.tascalate.async:net.tascalate.async.runtime:1.3.0'
     /* other dependencies */
 }
 ```
@@ -116,8 +116,8 @@ buildscript {
     }
 
     dependencies {
-        classpath 'net.tascalate.async:net.tascalate.async.tools.gradle:1.2.9'
-        classpath 'net.tascalate.javaflow:net.tascalate.javaflow.tools.gradle:2.7.8'
+        classpath 'net.tascalate.async:net.tascalate.async.tools.gradle:1.3.0'
+        classpath 'net.tascalate.javaflow:net.tascalate.javaflow.tools.gradle:2.8.2'
         /* other plugins */
     }
 }
@@ -132,20 +132,20 @@ repositories {
 }
 
 dependencies {
-    implementation 'net.tascalate.async:net.tascalate.async.runtime:1.2.9'
+    implementation 'net.tascalate.async:net.tascalate.async.runtime:1.3.0'
     
     /* Async/Await Extras */
-    implementation 'net.tascalate.async:net.tascalate.async.extras:1.2.9'
+    implementation 'net.tascalate.async:net.tascalate.async.extras:1.3.0'
     
     /* Promise<T> implementation */
     /* Necessary because net.tascalate.async.extras uses it as an */
     /* 'optional' dependency to avoid concrete version lock-in.   */
-    implementation 'net.tascalate:net.tascalate.concurrent:0.9.9'
+    implementation 'net.tascalate:net.tascalate.concurrent:0.9.10'
     
     /* Necessary only for different providers */
-    runtimeOnly 'net.tascalate.async:net.tascalate.async.resolver.provided:1.2.9'
+    runtimeOnly 'net.tascalate.async:net.tascalate.async.resolver.provided:1.3.0'
     /*
-    runtimeOnly 'net.tascalate.async:net.tascalate.async.resolver.propagated:1.2.9'
+    runtimeOnly 'net.tascalate.async:net.tascalate.async.resolver.propagated:1.3.0'
     */
 
     

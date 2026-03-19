@@ -24,8 +24,14 @@
  */
 module net.tascalate.async.spring {
     requires org.slf4j;
+    
     requires transitive net.tascalate.async.runtime;
+    
     requires static net.tascalate.async.extras;
+    requires static net.tascalate.async.reactor;
+    
+    requires static reactor.core;
+    requires static org.reactivestreams;
     
     requires spring.beans;
     requires spring.context;

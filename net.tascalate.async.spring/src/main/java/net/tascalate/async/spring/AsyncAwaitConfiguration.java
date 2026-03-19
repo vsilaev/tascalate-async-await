@@ -30,6 +30,7 @@ import java.util.concurrent.ExecutorService;
 import java.util.function.Function;
 
 import org.aspectj.lang.ProceedingJoinPoint;
+import org.springframework.beans.factory.InitializingBean;
 import org.springframework.beans.factory.config.CustomScopeConfigurer;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnClass;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
@@ -38,8 +39,14 @@ import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.ComponentScan;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.context.annotation.Lazy;
+import org.springframework.core.ReactiveAdapterRegistry;
+import org.springframework.core.ReactiveTypeDescriptor;
 
+import net.tascalate.async.AsyncGenerator;
 import net.tascalate.async.Scheduler;
+import net.tascalate.async.reactor.ReactorAsyncAwaitBridge;
+import net.tascalate.async.spi.CurrentCallContext;
+import reactor.core.publisher.Flux;
 
 @Configuration
 @ComponentScan(basePackageClasses = AsyncAwaitConfiguration.class)
@@ -81,5 +88,24 @@ class AsyncAwaitConfiguration {
             return new AsyncCallBoundaryInterceptor();
         }
 
+    }
+    
+    @Configuration
+    @ConditionalOnClass({ReactiveAdapterRegistry.class, Flux.class, ReactorAsyncAwaitBridge.class})
+    static class ReactiveAsyncAwaitConfiguration implements InitializingBean {
+        private final ReactiveAdapterRegistry reactiveAdapterRegistry;
+        
+        ReactiveAsyncAwaitConfiguration(Optional<ReactiveAdapterRegistry> reactiveAdapterRegistry) {
+            this.reactiveAdapterRegistry = reactiveAdapterRegistry.orElse(ReactiveAdapterRegistry.getSharedInstance());
+        }
+
+        @Override
+        public void afterPropertiesSet() throws Exception {
+            reactiveAdapterRegistry.registerReactiveType(
+                ReactiveTypeDescriptor.multiValue(AsyncGenerator.class, () -> AsyncGenerator.emptyOn(CurrentCallContext.scheduler())),
+                asyncGenerator -> ReactorAsyncAwaitBridge.createFlux(() -> (AsyncGenerator<?>)asyncGenerator),
+                publisher -> ReactorAsyncAwaitBridge.createGenerator((Flux<?>)publisher, CurrentCallContext.scheduler())
+            );
+        }
     }
 }

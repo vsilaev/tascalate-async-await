@@ -22,18 +22,12 @@
  * OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
-module net.tascalate.async.spring.reactive {
+module net.tascalate.async.reactor {
     requires org.slf4j;
     requires transitive net.tascalate.async.runtime;
     
     requires transitive reactor.core;
     requires transitive org.reactivestreams;
     
-    requires spring.beans;
-    requires spring.context;
-    requires spring.core;
-    
-    requires spring.boot.autoconfigure;
-    
-    exports net.tascalate.async.spring.reactive;
+    exports net.tascalate.async.reactor;
 }

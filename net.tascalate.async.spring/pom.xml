@@ -31,9 +31,27 @@
 			<optional>true</optional>
 		</dependency>
 		<dependency>
+			<groupId>${project.groupId}</groupId>
+			<artifactId>${project.groupId}.reactor</artifactId>
+			<version>${project.version}</version>
+			<optional>true</optional>
+		</dependency>
+		<dependency>
 			<groupId>net.tascalate</groupId>
 			<artifactId>net.tascalate.concurrent</artifactId>
 			<version>0.9.10</version>
+			<optional>true</optional>
+		</dependency>
+		<dependency>
+			<groupId>org.reactivestreams</groupId>
+			<artifactId>reactive-streams</artifactId>
+			<version>1.0.4</version>
+			<optional>true</optional>
+		</dependency>
+		<dependency>
+			<groupId>io.projectreactor</groupId>
+			<artifactId>reactor-core</artifactId>
+			<version>3.1.14.RELEASE</version>
 			<optional>true</optional>
 		</dependency>
 		<dependency>
@@ -41,6 +59,12 @@
 			<artifactId>${project.groupId}.spring-java21</artifactId>
 			<version>${project.version}</version>
 			<scope>compile</scope>
+			<optional>true</optional>
+		</dependency>
+		<dependency>
+			<groupId>org.springframework</groupId>
+			<artifactId>spring-core</artifactId>
+			<version>${spring.web.version}</version>
 			<optional>true</optional>
 		</dependency>
 		<dependency>

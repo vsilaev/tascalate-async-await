@@ -36,7 +36,7 @@ import net.tascalate.async.extras.TaskScheduler;
 import net.tascalate.concurrent.CompletableTask;
 
 @Component
-@ConditionalOnProperty(name = "async-await.use-tascalate-concurrent-scheduler", havingValue = "true", matchIfMissing = true)
+@ConditionalOnProperty(name = "async-await.scheduler.use-tascalate-concurrent", havingValue = "true", matchIfMissing = true)
 @ConditionalOnClass({TaskScheduler.class, CompletableTask.class})
 class TaskSchedulerFactory {
     Scheduler create(ExecutorService executorService, Function<? super Runnable, ? extends Runnable> contextualizer) {

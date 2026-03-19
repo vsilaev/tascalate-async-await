@@ -26,7 +26,7 @@
 		</dependency>
 		<dependency>
 			<groupId>${project.groupId}</groupId>
-			<artifactId>${project.groupId}.spring.reactive</artifactId>
+			<artifactId>${project.groupId}.reactor</artifactId>
 			<version>${project.version}</version>
 		</dependency>
 		<dependency>

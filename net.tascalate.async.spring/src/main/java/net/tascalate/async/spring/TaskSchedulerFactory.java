@@ -22,21 +22,24 @@
  * OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
-module net.tascalate.async.spring {
-    requires org.slf4j;
-    requires transitive net.tascalate.async.runtime;
-    requires static net.tascalate.async.extras;
-    
-    requires spring.beans;
-    requires spring.context;
-    requires spring.core;
-    
-    requires spring.boot;
-    requires spring.boot.autoconfigure;
-    
-    requires static org.aspectj.weaver;
-    
-    requires static net.tascalate.concurrent;
-    
-    exports net.tascalate.async.spring;
+package net.tascalate.async.spring;
+
+import java.util.concurrent.ExecutorService;
+import java.util.function.Function;
+
+import org.springframework.boot.autoconfigure.condition.ConditionalOnClass;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
+import org.springframework.stereotype.Component;
+
+import net.tascalate.async.Scheduler;
+import net.tascalate.async.extras.TaskScheduler;
+import net.tascalate.concurrent.CompletableTask;
+
+@Component
+@ConditionalOnProperty(name = "async-await.use-tascalate-concurrent-scheduler", havingValue = "true", matchIfMissing = true)
+@ConditionalOnClass({TaskScheduler.class, CompletableTask.class})
+class TaskSchedulerFactory {
+    Scheduler create(ExecutorService executorService, Function<? super Runnable, ? extends Runnable> contextualizer) {
+        return new TaskScheduler(executorService, contextualizer);
+    }
 }

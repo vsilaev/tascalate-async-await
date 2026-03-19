@@ -57,8 +57,12 @@ class AsyncAwaitConfiguration {
     @Bean(name="<<default-async-await-scheduler>>")
     @ConditionalOnMissingBean(annotation = DefaultAsyncAwaitScheduler.class)
     Scheduler defaultAsyncAwaitScheduler(@DefaultAsyncAwaitExecutor ExecutorService executor, 
-                                         @DefaultAsyncAwaitContextualizer Optional<Function<? super Runnable, ? extends Runnable>> contextualizer) {
-        return Scheduler.interruptible(executor, contextualizer.orElse(null));
+                                         @DefaultAsyncAwaitContextualizer Optional<Function<? super Runnable, ? extends Runnable>> contextualizer,
+                                         
+                                         Optional<TaskSchedulerFactory> taskSchedulerFactory) {
+        
+        return taskSchedulerFactory.map(tsf -> tsf.create(executor, contextualizer.orElse(null)))
+                                   .orElseGet(() -> Scheduler.interruptible(executor, contextualizer.orElse(null)));
     }
     
     @Configuration

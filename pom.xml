@@ -57,12 +57,12 @@
 	<properties>
 		<project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
 		<tascalate.concurrent.version>0.9.10</tascalate.concurrent.version>
-		<tascalate.javaflow.version>2.8.1</tascalate.javaflow.version>
+		<tascalate.javaflow.version>2.8.2</tascalate.javaflow.version>
 		<tascalate.javaflow.extras.version>2.4.5</tascalate.javaflow.extras.version>
 		<tascalate.asmx.version>9.9.1</tascalate.asmx.version>
 		<tascalate.instrument.version>1.7.0</tascalate.instrument.version>
 		<spring.web.version>5.0.2.RELEASE</spring.web.version>
-		<spring.context.version>4.2.0.RELEASE</spring.context.version>
+		<spring.context.version>4.3.0.RELEASE</spring.context.version>
 		<spring.boot.version>2.0.0.RELEASE</spring.boot.version>
 	</properties>
 

@@ -24,25 +24,43 @@
  */
 package net.tascalate.async.spring;
 
-import java.util.concurrent.Executors;
 import java.util.concurrent.ThreadFactory;
 import java.util.concurrent.atomic.AtomicInteger;
 
 final class NamedThreadFactory implements ThreadFactory {
     
-    private final ThreadFactory delegate = Executors.defaultThreadFactory();
-    private final AtomicInteger counter = new AtomicInteger(0);
+    private static final boolean USE_CONTINUATION_AWARE_THREAD = Boolean.getBoolean("net.tascalate.javaflow.check-thread");
+    
+    private static final AtomicInteger POOL_NUMBER = new AtomicInteger(1);
+    
+    private final ThreadGroup group;
+    private final AtomicInteger counter = new AtomicInteger(1);
     private final String namePrefix;
-    
+
     NamedThreadFactory(String namePrefix) {
-        this.namePrefix = namePrefix;
+        SecurityManager s = System.getSecurityManager();
+        group = (s != null) ? s.getThreadGroup() : Thread.currentThread().getThreadGroup();
+        this.namePrefix = namePrefix == null || namePrefix.length() == 0? 
+                "pool-" + POOL_NUMBER.getAndIncrement() + "-thread-"
+                :
+                namePrefix;
     }
-    
+
     @Override
-    public final Thread newThread(Runnable r) {
-        Thread result = delegate.newThread(r);
-        result.setDaemon(true);
-        result.setName(namePrefix + counter.incrementAndGet()); 
+    public Thread newThread(Runnable r) {
+        Thread result = USE_CONTINUATION_AWARE_THREAD ?
+            new ContinuationAwareThread(group, r, namePrefix + counter.incrementAndGet(), 0)
+            :
+            new Thread(group, r, namePrefix + counter.incrementAndGet(), 0);
+        
+        if (!result.isDaemon()) {
+            result.setDaemon(true);
+        }
+        
+        if (result.getPriority() != Thread.NORM_PRIORITY) {
+            result.setPriority(Thread.NORM_PRIORITY);
+        }
+        
         return result;
     }
     

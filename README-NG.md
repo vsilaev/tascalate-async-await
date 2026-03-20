@@ -1,3 +1,4 @@
+
 [![Maven Central](https://img.shields.io/maven-central/v/net.tascalate.async/net.tascalate.async.parent.svg)](https://search.maven.org/artifact/net.tascalate.async/net.tascalate.async.parent/1.3.0/pom) [![GitHub release](https://img.shields.io/github/release/vsilaev/tascalate-async-await.svg)](https://github.com/vsilaev/tascalate-async-await/releases/tag/1.3.0) [![license](https://img.shields.io/github/license/vsilaev/tascalate-async-await.svg)](https://github.com/vsilaev/tascalate-async-await/blob/master/LICENSE)
 
 ![Tascalate Logo](https://raw.githubusercontent.com/vsilaev/tascalate-async-await/refs/heads/master/logo_wide_dark.svg#gh-dark-mode-only)
@@ -161,7 +162,7 @@ dependencies {
 }
 ```
 
-# Asynchronous tasks
+# Asynchronous Task Methods
 The first type of function the library supports is an asynchronous task. An asynchronous task refers to a method (either an instance method or a class method) that is marked with the `net.tascalate.async.async` annotation and returns either a `CompletionStage<T>` or `void`. When returning `void`, it functions as a "fire-and-forget" task, designed mainly for use in event-handling scenarios within UI frameworks such as JavaFX or Swing. Let us write a simple example:
 ```java
 import static net.tascalate.async.CallСontext.async;
@@ -342,7 +343,8 @@ Performance-wise suspendable methods behaves the same as asynchronous task metho
 
 Implementation notes: technically suspendable methods are implemented as continuable methods that follow rules defined by [Tascalate JavaFlow](https://github.com/vsilaev/tascalate-javaflow) library, so you may use any continuable annotation that is supported by Tascalate JavaFlow, not only `@suspendable`.
 
-# Generators
+# Asynchronous Generator Methods
+## Overview
 An async generator is a programming construct that produces a sequence of values asynchronously, allowing consumers to iterate over results as they become available without blocking.
 
 It enables:
@@ -356,8 +358,8 @@ Async generators are available in numerous programming languages, the most notab
 - values are produced using `yield` (or `emit` or whatever) within this function.
 - the consumer receives some kind of the async generator instance from the call to producer.
 - the consumer awaits each item as it is yielded, using some or another form of iteration and await for each item return.
-
-Here is an example how it is done with Tascalate Async / Await:
+## Basic usage
+Here is an example how asynchronous generator is done with Tascalate Async / Await:
 ```java
 import static net.tascalate.async.CallContext.async;
 import static net.tascalate.async.CallContext.await;
@@ -407,12 +409,12 @@ import net.tascalate.async.async;
     return async.yield();
 }
 
-// Helper functions to emulate asynchronously produced values    
-CompletionStage<String> asyncProduceValue(String v) {
+// Helper functions to emulate asynchronously produced values   
+<T> CompletionStage<T> asyncProduceValue(T  v) {
     return asyncProduceValue(v, 0L);
 }
-    
-CompletionStage<String> asyncProduceValue(String v, long delayMillis) {
+
+<T> CompletionStage<T> asyncProduceValue(T v, long  delayMillis) {
     return CompletableFuture.supplyAsync(() -> {
         if (delayMillis != 0) {
             try {
@@ -466,7 +468,7 @@ From the *consumer* perspective, an `AsyncGenerator<T>` represents a `null`‑te
 What happens on the *producer* side i.e. inside the `produceAsyncStrings()` generator while the *consumer* iterates over? An `AsyncGenerator<T>` method starts **suspended** when created. Each time the *consumer* calls `generator.next()`, the generator **resumes**, executes until it reaches a `async.yield(...)` (or returns), and then **suspends** again. The value passed to `async.yield(...)` is what the *consumer* receives (a `CompletionStage<T>`, or `T` wrapped inside a completed future). The generator does not continue past the `yield` until the *consumer* advances the iteration again. When the generator yields a pending item (a `CompletionStage<T>`), the *consumer* receives that pending stage and will normally await it to obtain the actual `T` or an error. The generator remains suspended after yielding. In typical usage the generator will not resume until the *consumer* both (a) observes/awaits the yielded stage (so ordering and backpressure are preserved) and (b) calls `next()` again to request the following item. When the generator yields a `Sequence` of `CompletionStage`-s or another `AsyncGenerator`, the generator method is suspended until that entire sequence or nested generator has been fully consumed by the *consumer*.
 
 Use the `generator` inside the *consumer* within a `try-with-resources` block so it is always closed when the *consumer* stops iterating or an error occurs. This guarantees the generator’s finalization logic runs even if the *consumer* returns early, throws an exception, or abandons iteration.
-
+## Alternative iteration options
 Instead of handling a null‑terminated sequence of `CompletionStage`-s  directly, you can use more common `iterator`  idiom in the `consumeGenerator()`:
 ```java
 @async CompletionStage<Long> consumeGenerator() {  
@@ -482,7 +484,9 @@ Instead of handling a null‑terminated sequence of `CompletionStage`-s  directl
 ```
 It's critical to admit that `SuspendableIterator` is an _iterator‑like_ API, not a subtype of `java.util.Iterator`, and `AsyncGenerator` does **not** implement `java.lang.Iterable`. It provides `hasNext()` and `next()` methods that may **suspend** the caller while awaiting asynchronous results, so it cannot be used with Java’s `for‑each` loop. The `SuspendableIterator` returned by an `AsyncGenerator` is `AutoCloseable`; use it inside a `try‑with‑resources` block so the underlying generator is always closed when iteration ends, the *consumer* returns early, or an exception occurs.
 
-Both *consumer* styles perform similarly and allow attaching an asynchronous pipeline to each returned pending value before awaiting it. If you do not need that flexibility, use the concise iterator form, `AsyncGenerator<T>.valuesIterator()`, that mirrors ECMAScript and C# async iterators:
+The alternative and the original version have the same performance traits. Simply pick the style you like better.
+
+Both *consumer* styles discussed above allow attaching an asynchronous pipeline to each returned pending value before awaiting it. If you do not need that flexibility, use the concise iterator form, `AsyncGenerator<T>.valuesIterator()`, that mirrors ECMAScript and C# async iterators:
 ```java
 @async CompletionStage<Long> consumeGenerator() {  
     /* SuspendableIterator<String> */
@@ -519,6 +523,7 @@ The Java version using Tascalate Async/Await is definitely more verbose, but the
 
 **IMPORTANT:** Do not share an `AsyncGenerator`, its `iterator()` or `valuesIterator()` across multiple threads! These types *facilitate* asynchronous control flow but are not thread‑safe: they maintain internal suspension and lifecycle state that must be accessed from a single execution context at a time. Only three kinds of callers are guaranteed to provide the correct execution context for consuming an `AsyncGenerator`: asynchronous tasks, other asynchronous generators, and suspendable methods. If you must cross thread boundaries, convert yielded values into a thread‑safe handoff (will be shown below) rather than sharing the generator or its iterator directly.
 
+## Controlling asynchronous generator from consumer
 Tascalate Async / Await `AsyncGenerator` supports passing a value from the *consumer* back to the *producer* (generator) by calling `generator.next(param)`. When the consumer supplies `param`, that value becomes a part of the result of the corresponding `async.yield(...)` expression inside the generator method (the *producer* receives it when it resumes). This mirrors ECMAScript’s `next(value)` behavior and enables two‑way communication: the *consumer* can send control data, acknowledgements, or backpressure hints to the *producer*. Let's review the following example:
 ```java
 @async CompletionStage<String> collectLetters(int  n) {
@@ -548,6 +553,117 @@ Tascalate Async / Await `AsyncGenerator` supports passing a value from the *cons
 The `asyncLetter` generator produces an effectively infinite stream of single‑letter strings. The *consumer* controls which letter is produced by passing a character code to `generator.next(param)`. The *consumer* iterates over the generated values and collects `n` generated letters as a string with characters `'A'..'A'+n` cycling. Inside the *producer*, each `async.yield(...)` returns an `AsyncYield.Reply<String>` object that exposes two fields: `value` for the resolved yielded value and `param` for the parameter supplied by the *consumer*. Note that, as in ECMAScript, there is no *consumer* parameter available for the very first `next()` call. To work around this, yield an empty sequence at the start of the generator so the *producer* can receive a parameter on the subsequent resume. Finally, even though the generator is infinite, its `finally` or close logic runs when the *consumer* breaks out of the loop and the generator is closed via `try‑with‑resources`, ensuring deterministic cleanup.
 
 Use this feature sparingly and document the expected parameter type and semantics for each generator: mismatched expectations between producer and consumer can cause logic errors. Handle `null` or absent parameters explicitly and ensure the producer validates incoming values before using them.
+
+## Efficient parallel iteration across multiple generators
+`AsyncGenerator` is inherently designed to easy chain several generators. This makes it fairly simple to create a generic `concat` operator, as shown in the following example:
+```java
+static  @async <T> AsyncGenerator<T> concat(Iterable<? extends AsyncGenerator<? extends T>> generators) {
+   var async = AsyncGenerator.<T>start();
+   for (var g : generators) {
+       async.yield(g);
+   }
+   return  async.yield(); 
+}
+```
+However, implementing ZIP-like operators (i.e. combining results of several generators) efficiently is pretty tricky. Let us consider the following scenario: we have several alternative generators and each of them returns a weather forecast when requested; we have to create a generator the returns the first available result. The naïve implementation is the following:
+
+  
+However, implementing ZIP-like operators (i.e., combining results of several generators) efficiently can be a challenging task. or instance, imagine this scenario: we have a number of independent generators, each capable of providing a weather forecast when queried, and our goal is to create a generator that delivers the first forecast available. The naïve implementation is as follows:
+```java
+record WeatherForecast() {...}
+    
+AsyncGenerator<WeatherForecast> nextForecastA() {...}
+    
+AsyncGenerator<WeatherForecast> nextForecastB() {...}
+    
+AsyncGenerator<WeatherForecast> nextForecastC() {...}
+    
+AsyncGenerator<WeatherForecast> nextForecast() {
+    var async = AsyncGenerator.<WeatherForecast>start();
+    try (var ga = nextForecastA();
+         var gb = nextForecastB();
+         var gc = nextForecastC()) {
+            
+        while (true) {
+            var pending = Stream.of(ga.next(), gb.next(), gc.next())
+                                .filter(Objects::nonNull) 
+                                .map(CompletionStage::toCompletableFuture)
+                                .toList();
+            if (pending.isEmpty()) {
+                // This means neither of the generators has more results
+                break;
+            }
+            // Ugly with std. Java
+            CompletableFuture<WeatherForecast>[] array =
+                (CompletableFuture<WeatherForecast>[])
+                Array.newInstance(CompletableFuture.class, pending.size());
+            pending.toArray(array);
+            var  fastest =
+                (CompletableFuture<WeatherForecast>)
+                (Object)CompletableFuture.anyOf(array);
+                    
+            // Pretty with Tascalate Concurrent (https://github.com/vsilaev/tascalate-concurrent)
+            /*
+            var fastest = net.tascalate.concurrent.Promises.any(false, pending);
+            */
+            async.yield(fastest);
+        }
+    }
+    return  async.yield(); 
+}
+```
+Also, the code looks pretty good: we are  selecting the first ready result with the `CompletableFuture.anyOf`, so the code should be parallel. However, there is a hidden caveat: calls to `AsyncGenerator.next()` are executed sequentially, meaning we have to wait for *all* generators  to yield their next pending value. This leads exactly to what we previously referred as *async/await hell* in the asynchronous task methods section. To address this challenge, the user can convert each `AsyncGenerator<T>` into a `ConcurrentGenerator<T>` and modify the code accordingly, as shown below:
+```java
+AsyncGenerator<WeatherForecast> nextForecast() {
+    var async = AsyncGenerator.<WeatherForecast>start();
+    try (var ga = nextForecastA().concurrent();
+         var gb = nextForecastB().concurrent();
+         var gc = nextForecastC().concurrent()) {
+            
+        while (true) {
+            var pending = Stream.of( ga.take(), gb.take(), gc.take() )
+                                .map( f -> f.thenApply(t -> t.orElse(null)).toCompletableFuture() ) 
+                                .toList();
+                
+            CompletableFuture<WeatherForecast>[] array = 
+                (CompletableFuture<WeatherForecast>[])
+                Array.newInstance(CompletableFuture.class, pending.size());
+
+            pending.toArray(array); 
+
+            var fastest = 
+                (CompletableFuture<WeatherForecast>)
+                (Object)CompletableFuture.anyOf(array);
+            /*    
+            var fastest = net.tascalate.concurrent.Promises.any(false, pending);
+            */
+            var reply = async.yield(fastest);
+            if (reply.value == null) {
+                // This means neither of the generators has more results
+                break;
+            }
+        }
+    }
+    return  async.yield(); 
+}
+```
+Let's review the code step by step. Initially, we transform an `AsyncGenerator<T>` into a `ConcurrentGenerator<T>` by invoking `AsyncGenerator.concurrent()`. Since the resulting object implements `AutoCloseable` and takes care of closing the underlying asynchronous generator, we utilize it within a `try-with-resources` block. The sole remaining API method in `ConcurrentGenerator<T>` is `take()`, which retrieves the next available item from the underlying asynchronous generator (if available). This method produces a result of type `ConcurrentGenerator.Result<T>` with the following interface:
+```java
+public  abstract  static  class Result<T> {
+    public  boolean hasNext();
+    public  boolean isValue();
+    public T value();
+    public T orElse(T substitution);
+    public  final Stream<T> stream();
+}
+```
+The API reflects the fact, that the returned value from `take` may be either a true value holder or a marker object for completed generator. We can inspect this object with `isValue` to distinguish between both cases. If the `ConcurrentGenerator.Result<T>` represents a value holder, then we can retrieve a contained `value()` with corresponding method. Calling this method for the termination marker object will throw an exception. Additionally, we can convert the result to a `java.util.Stream` of 0..1 elements or safely access a value with some replacement via `orElse` call. The latest option is exactly what is used in the example above: we convert a `CompletionStage` returned from `take()` to a new stage with exact value using `null` as sentinel:
+
+The API highlights that the value returned by `take` can either be a genuine value holder or a marker object signifying a completed generator. To differentiate between these scenarios, we can use `isValue` for inspection. When `ConcurrentGenerator.Result<T>` reflects a value holder, the contained `value()` can be accessed via the appropriate method. However, invoking this method on the termination marker object results in an exception. Furthermore, the result can be transformed into a `java.util.Stream` comprising 0 to 1 elements or utilized with a fallback using the `orElse` method. In the aforementioned example, this latter approach is demonstrated: a `CompletionStage` returned from `take()` is transformed into a new stage containing the definitive value, with `null` employed as a placeholder.
+```java
+f -> f.thenApply(t -> t.orElse(null))
+```
+Afterwards we combine 3 returned promises into a single `CompletableFuture`, yield the result to the consumer
 
 # Scheduler & SchedulerResolver - where is my code executed?
 ## Introducing schedulers

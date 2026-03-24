@@ -69,7 +69,7 @@ public class InterruptibleScheduler extends AbstractExecutorScheduler<ExecutorSe
                 try {
                     command.run();
                     result.internalSuccess(null);
-                } catch (final Throwable ex) {
+                } catch (Throwable ex) {
                     result.internalFailure(ex);
                     throw ex;
                 }

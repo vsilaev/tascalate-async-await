@@ -214,7 +214,8 @@ class LazyGenerator<T> implements AsyncGenerator<T> {
             } else {
                 try {
                     return new Success<T>(AsyncMethodExecutor.await(future));
-                } catch (Exception ex) {
+                } catch (Throwable ex) {
+                    InternalCallContext.checkExitSignal(ex);
                     return new Failure<T>(ex);
                 }
             }

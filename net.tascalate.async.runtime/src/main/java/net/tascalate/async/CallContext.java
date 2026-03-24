@@ -103,8 +103,12 @@ public class CallContext {
                    E4 extends Throwable,
                    E5 extends Throwable> void throwing(Class<E1> e1, Class<E2> e2, Class<E3> e3, Class<E4> e4, Class<E5> e5) throws E1, E2, E3, E4, E5 {}
     
-    public static boolean isCloseSignal(Throwable ex) {
-        return InternalCallContext.isCloseSignal(ex);
+    public static boolean isExitSignal(Throwable ex) {
+        return InternalCallContext.isExitSignal(ex);
+    }
+    
+    public static void checkExitSignal(Throwable ex) {
+        InternalCallContext.checkExitSignal(ex);
     }
     
     static <R> R methodCallMustBeReplaced() {

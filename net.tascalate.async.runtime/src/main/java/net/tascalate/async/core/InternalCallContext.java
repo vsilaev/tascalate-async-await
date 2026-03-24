@@ -42,8 +42,14 @@ public class InternalCallContext {
         return asyncMethod != null && asyncMethod.interrupted();
     }
     
-    public static boolean isCloseSignal(Throwable ex) {
-        return ex == CloseSignal.INSTANCE;
+    public static boolean isExitSignal(Throwable ex) {
+        return "org.apache.commons.javaflow.core.ContinuationDeath".equals(ex.getClass().getName());
+    }
+    
+    public static void checkExitSignal(Throwable ex) {
+        if (isExitSignal(ex)) {
+            throw (Error)ex;
+        }
     }
     
     static AbstractAsyncMethod asyncMethod() {
@@ -73,5 +79,10 @@ public class InternalCallContext {
         } else {
             return null;
         }
+    }
+    
+    @SuppressWarnings("unchecked")
+    public static <T, E extends Throwable> T sneakyThrow(Throwable ex) throws E {
+        throw (E)ex;
     }
 }

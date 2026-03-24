@@ -24,15 +24,11 @@
  */
 package net.tascalate.async.core;
 
-import java.lang.reflect.Method;
-import java.util.concurrent.CancellationException;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionStage;
-import java.util.concurrent.Future;
 import java.util.concurrent.RejectedExecutionException;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.AtomicReference;
-import java.util.function.Function;
 
 import net.tascalate.async.AsyncResult;
 import net.tascalate.async.Scheduler;
@@ -88,10 +84,6 @@ abstract public class AbstractAsyncMethod implements Runnable {
     
     protected final <T> boolean failure(Throwable exception) {
         return ((ResultPromise<?>)future).internalFailure(exception);
-    }
-    
-    final void cancelAwaitIfNecessary() {
-        cancelAwaitIfNecessary(terminateMethod, originalAwait);
     }
     
     protected final Scheduler scheduler() {
@@ -167,7 +159,11 @@ abstract public class AbstractAsyncMethod implements Runnable {
     final <V> CompletionStage<V> registerAwaitTarget(CompletionStage<V> originalAwait) {
         blockerVersion.incrementAndGet();
     	CompletableFuture<V> terminateMethod = new CompletableFuture<>();
+    	/*
         CompletionStage<V> guardedAwait = terminateMethod.applyToEither(originalAwait, Function.identity());
+        */
+        CompletionStage<V> guardedAwait = CompletionStageHelper.applyToEitherPropagate(terminateMethod, originalAwait);
+        
         // Save references for outer promise cancellation
         this.terminateMethod = terminateMethod;
         this.originalAwait   = originalAwait;
@@ -178,18 +174,27 @@ abstract public class AbstractAsyncMethod implements Runnable {
 
     private void cancelAwaitIfNecessary(CompletableFuture<?> terminateMethod, CompletionStage<?> originalAwait) {
         if (future.isCancelled()) {
-            this.terminateMethod = null;
-            // First terminate method to avoid exceptions in method
-            if (null != terminateMethod) {
-                terminateMethod.completeExceptionally(CloseSignal.INSTANCE);
-            }
-            // No longer need reference
-            this.originalAwait = null;
-            // Then cancel promise we are waiting on
-            if (null != originalAwait) {
-                cancelCompletionStage(originalAwait, true);
-            }
+            cancelAwaitUnconditionally(terminateMethod, originalAwait);
         }
+    }
+    
+    private void cancelAwaitUnconditionally(CompletableFuture<?> terminateMethod, CompletionStage<?> originalAwait) {
+        this.terminateMethod = null;
+        // First terminate method to avoid exceptions in method
+        if (null != terminateMethod) {
+            terminateMethod.completeExceptionally(CloseSignal.INSTANCE);
+        }
+        // No longer need reference
+        this.originalAwait = null;
+        // Then cancel promise we are waiting on
+        if (null != originalAwait) {
+            CompletionStageHelper.cancelCompletionStage(originalAwait, true);
+        }
+    }
+    
+    
+    final void cancelAwaitUnconditionally() {
+        cancelAwaitUnconditionally(terminateMethod, originalAwait);
     }
     
     final class ResultPromise<T> extends CompletableFuture<T> implements AsyncResult<T> {
@@ -224,42 +229,8 @@ abstract public class AbstractAsyncMethod implements Runnable {
             if (!doCancel) {
                 return false;
             }
-            if (super.cancel(mayInterruptIfRunning)) {
-                cancelAwaitIfNecessary();
-                return true;
-            } else {
-                return false;
-            }
+            cancelAwaitUnconditionally();
+            return super.cancel(mayInterruptIfRunning);
         }
     }
-    
-    
-    private static boolean cancelCompletionStage(CompletionStage<?> promise, boolean mayInterruptIfRunning) {
-        if (promise instanceof Future) {
-            Future<?> future = (Future<?>) promise;
-            return future.cancel(mayInterruptIfRunning);
-        } else {
-            Method m = completeExceptionallyMethodOf(promise);
-            if (null != m) {
-                try {
-                    return (Boolean) m.invoke(promise, new CancellationException());
-                } catch (final ReflectiveOperationException ex) {
-                    return false;
-                }
-            } else {
-                return false;
-            }
-        }
-    }
-    
-
-    private static Method completeExceptionallyMethodOf(CompletionStage<?> promise) {
-        try {
-            Class<?> clazz = promise.getClass();
-            return clazz.getMethod("completeExceptionally", Throwable.class);
-        } catch (ReflectiveOperationException | SecurityException ex) {
-            return null;
-        }
-    }
-
 }

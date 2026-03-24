@@ -28,6 +28,7 @@ module net.tascalate.async.runtime {
     requires transitive net.tascalate.javaflow.extras;
     
     exports net.tascalate.async;
+    exports net.tascalate.async.concurrent;
     exports net.tascalate.async.core;
     exports net.tascalate.async.scheduler;
     exports net.tascalate.async.spi;

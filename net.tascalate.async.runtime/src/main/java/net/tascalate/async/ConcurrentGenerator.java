@@ -25,12 +25,19 @@
 package net.tascalate.async;
 
 import java.lang.invoke.MethodHandles;
+import java.util.Arrays;
+import java.util.List;
+import java.util.concurrent.CancellationException;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionStage;
+import java.util.function.Function;
 import java.util.stream.Stream;
 
+import net.tascalate.async.concurrent.CombiningCompletionStage;
 import net.tascalate.async.core.AsyncMethodExecutor;
 import net.tascalate.async.core.AsyncTaskMethod;
+import net.tascalate.async.core.CompletionStageHelper;
+import net.tascalate.async.core.InternalCallContext;
 
 public final class ConcurrentGenerator<T> implements AutoCloseable {
     
@@ -98,14 +105,14 @@ public final class ConcurrentGenerator<T> implements AutoCloseable {
         }
         
         @SuppressWarnings("unchecked")
-        public static <T> Done<T> done() {
+        static <T> Done<T> done() {
             return (Done<T>) DONE;
         }
         
-        public static <T> Value<T> value(T value) {
+        static <T> Value<T> of(T value) {
             return new Value<>(value);
         }
-        
+
         private static final Initial<Object> INITIAL = new Initial<>();
         private static final Done<Object> DONE = new Done<>();
     }
@@ -136,20 +143,33 @@ public final class ConcurrentGenerator<T> implements AutoCloseable {
                        
                        CompletableFuture<Result<T>> request;
                        while ((request = queue.poll()) != null) {
-                           CompletionStage<? extends T> next = sequence.next();
-                           if (null == next) {
-                               request.complete(Result.done());
-                               break outer;
-                           } else {
-                               T produced = AsyncMethodExecutor.await(next);
-                               request.complete(Result.value(produced));
+                           try {
+                               CompletionStage<? extends T> next = sequence.next();
+                               if (null == next) {
+                                   request.complete(Result.done());
+                                   break outer;
+                               } else {
+                                   // If request is canceled by client, then we are canceling an item we are waiting for
+                                   request.whenComplete((r,e) -> CompletionStageHelper.cancelCompletionStage(next, true));
+                                   
+                                   T produced = AsyncMethodExecutor.await(next);
+                                   request.complete(Result.of(produced));
+                               }
+                           } catch (Throwable ex) {
+                               if (InternalCallContext.isExitSignal(ex)) {
+                                   request.complete(Result.done());
+                                   throw (Error)ex;
+                               } else {
+                                   request.completeExceptionally(ex);
+                                   // Don't throw -- this will handle the scenario when source sequence tolerates errors 
+                                   /*
+                                   InternalCallContext.sneakyThrow(ex);
+                                   break;
+                                   */
+                               }
                            }
                        }
-                   }
-               } finally {
-                   CompletableFuture<Result<T>> request;
-                   while ((request = queue.poll()) != null) {
-                       request.complete(Result.done()); 
+
                    }
                }
            }      
@@ -157,10 +177,13 @@ public final class ConcurrentGenerator<T> implements AutoCloseable {
        AsyncMethodExecutor.execute(method);
        completion = method.future;
        completion.whenComplete((r, e) -> {
-           if (null != e) {
-               CompletableFuture<Result<T>> request;
-               while ((request = queue.poll()) != null) {
-                   request.completeExceptionally(e);
+           CompletableFuture<Result<T>> request;
+           boolean isException = null != e && !(e instanceof CancellationException);
+           while ((request = queue.poll()) != null) {
+               if (isException) {
+                   request.completeExceptionally(e);  
+               } else {
+                   request.complete(Result.done());
                }
            }
        });
@@ -169,19 +192,37 @@ public final class ConcurrentGenerator<T> implements AutoCloseable {
    
    public CompletionStage<Result<T>> take() {
        if (completion.isDone()) {
-           return done;
+           return finalResult();
        }
+       
        CompletableFuture<Result<T>> next = new CompletableFuture<>();
        queue.offer(next);
+       
+       if (completion.isDone()) {
+           // Clear requests queue
+           while (queue.poll() != null) {}
+           return finalResult();
+       }
+       
        return next;
    }
    
-   public boolean cancel() {
-       return completion.cancel(true);
+   private CompletionStage<Result<T>> finalResult() {
+       if (completion.isCancelled()) {
+           return done;
+       }
+       if (completion.isCompletedExceptionally()) {
+           // It holds no value, so we can cast
+           @SuppressWarnings("unchecked")
+           CompletionStage<Result<T>> result = (CompletionStage<Result<T>>)completion;
+           return result;
+       } else {
+           return done;
+       }       
    }
-   
+
    public void close() {
-       cancel();
+       completion.cancel(true);
    }
    
    public Result<T> initial() {
@@ -192,8 +233,57 @@ public final class ConcurrentGenerator<T> implements AutoCloseable {
        return new Done<>(scheduler);
    }
    
-   static class Done<T> extends CompletableFuture<Result<T>>
-                        implements AsyncResult<Result<T>> {
+   @SafeVarargs
+   public static <T> CompletionStage<T> any(CompletionStage<Result<T>>... sources) {
+       return any(true, sources);
+   }
+   
+   @SafeVarargs
+   public static <T> CompletionStage<T> any(boolean cancelOthers, CompletionStage<Result<T>>... sources) {
+       return any(cancelOthers, Arrays.asList(sources));
+   }
+   
+   public static <T> CompletionStage<T> any(List<? extends CompletionStage<Result<T>>> sources) {
+       return any(true, sources);
+   }
+   
+   public static <T> CompletionStage<T> any(boolean cancelOthers, List<? extends CompletionStage<Result<T>>> sources) {
+       return CombiningCompletionStage.any(sources, cancelOthers, Result::isValue, Result::value);
+   }
+   
+   @SafeVarargs
+   public static <T> CompletionStage<T> anyStrict(CompletionStage<Result<T>>... sources) {
+       return anyStrict(true, sources);
+   }
+   
+   @SafeVarargs
+   public static <T> CompletionStage<T> anyStrict(boolean cancelOthers, CompletionStage<Result<T>>... sources) {
+       return anyStrict(cancelOthers, Arrays.asList(sources));
+   }
+   
+   public static <T> CompletionStage<T> anyStrict(List<? extends CompletionStage<Result<T>>> sources) {
+       return anyStrict(true, sources);
+   }
+   
+   public static <T> CompletionStage<T> anyStrict(boolean cancelOthers, List<? extends CompletionStage<Result<T>>> sources) {
+       return CombiningCompletionStage.anyStrict(sources, cancelOthers, Result::isValue, Result::value);
+   }
+   
+   @SafeVarargs
+   public static <T> CompletionStage<List<T>> all(CompletionStage<Result<T>>... sources) {
+       return all(Arrays.asList(sources));
+   }
+   
+   public static <T> CompletionStage<List<T>> all(List<? extends CompletionStage<Result<T>>> sources) {
+       return combine(sources, Function.identity());
+   }
+   
+   public static <T, R> CompletionStage<R> combine(List<? extends CompletionStage<Result<T>>> sources, Function<? super List<T>, ? extends R> converter) {
+       return CombiningCompletionStage.combine(sources, false, Result::isValue, Result::value, converter);
+   }
+   
+   static final class Done<T> extends CompletableFuture<Result<T>>
+                              implements AsyncResult<Result<T>> {
        
        private final Scheduler scheduler;
        
@@ -209,12 +299,12 @@ public final class ConcurrentGenerator<T> implements AutoCloseable {
         
        @Override
        public boolean complete(Result<T> value) {
-           throw new UnsupportedOperationException("ResultPromise may not be completed explicitly");
+           throw new UnsupportedOperationException("Done promise may not be completed explicitly");
        }
         
        @Override
        public boolean completeExceptionally(Throwable exception) {
-           throw new UnsupportedOperationException("ResultPromise may not be completed explicitly");
+           throw new UnsupportedOperationException("Done promise may not be completed explicitly");
        }   
    }
 }

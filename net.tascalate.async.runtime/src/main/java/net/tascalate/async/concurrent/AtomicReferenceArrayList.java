@@ -22,49 +22,52 @@
  * OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
-package net.tascalate.async;
+package net.tascalate.async.concurrent;
 
-import java.util.Queue;
-import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.ConcurrentLinkedQueue;
-import java.util.concurrent.locks.Lock;
-import java.util.concurrent.locks.ReentrantLock;
+import java.util.AbstractList;
+import java.util.Objects;
+import java.util.RandomAccess;
+import java.util.concurrent.atomic.AtomicReferenceArray;
 
-import net.tascalate.async.core.AsyncMethodExecutor;
+final class AtomicReferenceArrayList<E> extends AbstractList<E>
+                                        implements RandomAccess {
 
-final class AwaitableQueue<T> {
-    private final Queue<T> items = new ConcurrentLinkedQueue<>();
-    private final Lock lock = new ReentrantLock();
-    
-    private CompletableFuture<?> currentAwaitingSignal = new CompletableFuture<>();
-    
-    AwaitableQueue() {
+    private final AtomicReferenceArray<E> array;
+
+    public AtomicReferenceArrayList(int size) {
+        this(new AtomicReferenceArray<>(size));
     }
     
-    @suspendable void await() {
-        AsyncMethodExecutor.await(currentAwaitingSignal);
+    public AtomicReferenceArrayList(AtomicReferenceArray<E> array) {
+        Objects.requireNonNull(array);
+        this.array = array;
     }
-    
-    void offer(T item) {
-        lock.lock();
-        try {
-            items.offer(item);
-            currentAwaitingSignal.complete(null);
-        } finally {
-            lock.unlock();
-        }
+
+    @Override
+    public E get(int index) {
+        rangeCheck(index);
+        return array.get(index);
     }
-    
-    T poll() {
-        lock.lock();
-        try {
-            T result = items.poll();
-            if (null == result) {
-                currentAwaitingSignal = new CompletableFuture<>(); 
-            }
-            return result;
-        } finally {
-            lock.unlock();
-        }
+
+    @Override
+    public E set(int index, E element) {
+        rangeCheck(index);
+        return array.getAndSet(index, element);
+    }
+
+    @Override
+    public int size() {
+        return array.length();
+    }
+
+    private void rangeCheck(int index) {
+        if (index < 0 || index >= array.length())
+            throw new IndexOutOfBoundsException("index: " + index);
+    }
+
+    // Optional convenience: expose CAS
+    public boolean compareAndSet(int index, E expect, E update) {
+        rangeCheck(index);
+        return array.compareAndSet(index, expect, update);
     }
 }

@@ -64,7 +64,7 @@ public class SimpleScheduler extends AbstractExecutorScheduler<Executor> {
                 try {
                     command.run();
                     result.internalSuccess(null);
-                } catch (final Throwable ex) {
+                } catch (Throwable ex) {
                     result.internalFailure(ex);
                 }
             }

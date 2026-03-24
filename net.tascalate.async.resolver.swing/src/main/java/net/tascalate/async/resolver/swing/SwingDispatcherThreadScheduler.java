@@ -64,7 +64,7 @@ public class SwingDispatcherThreadScheduler extends AbstractScheduler {
                     try {
                         command.run();
                         result.internalSuccess(null);
-                    } catch (final Throwable ex) {
+                    } catch (Throwable ex) {
                         result.internalFailure(ex);
                     }
                 }

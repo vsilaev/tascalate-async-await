@@ -30,11 +30,6 @@ import java.util.concurrent.ExecutionException;
 final class Exceptions {
     private Exceptions() {}
     
-    @SuppressWarnings("unchecked")
-    static <T, E extends Throwable> T sneakyThrow(Throwable ex) throws E {
-        throw (E)ex;
-    }
-    
     static Throwable unrollExecutionException(Throwable ex) {
         Throwable nested = ex;
         while (nested instanceof ExecutionException) {

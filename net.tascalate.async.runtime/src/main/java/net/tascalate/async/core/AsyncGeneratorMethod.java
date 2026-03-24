@@ -67,11 +67,11 @@ abstract public class AsyncGeneratorMethod<T> extends AbstractAsyncMethod {
             if (!future.isCancelled() && future.isCompletedExceptionally()) {
                 try {
                     future.join();
-                } catch (final CancellationException ex) {
+                } catch (CancellationException ex) {
                     // Should not happen -- completed exceptionally already checked
                     throw new IllegalStateException(ex);
-                } catch (final CompletionException ex) {
-                    Exceptions.sneakyThrow(Exceptions.unrollCompletionException(ex));
+                } catch (CompletionException ex) {
+                    InternalCallContext.sneakyThrow(Exceptions.unrollCompletionException(ex));
                 }
             }
             return true;

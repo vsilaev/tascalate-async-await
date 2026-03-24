@@ -1,0 +1,80 @@
+/**
+ * Copyright 2015-2025 Valery Silaev (http://vsilaev.com)
+ *
+ * Redistribution and use in source and binary forms, with or without
+ * modification, are permitted provided that the following conditions are met:
+
+ * * Redistributions of source code must retain the above copyright notice, this
+ *   list of conditions and the following disclaimer.
+
+ * * Redistributions in binary form must reproduce the above copyright notice,
+ *   this list of conditions and the following disclaimer in the documentation
+ *   and/or other materials provided with the distribution.
+
+ * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
+ * AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+ * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
+ * DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE
+ * FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+ * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR
+ * SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
+ * CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY,
+ * OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
+ * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ */
+package net.tascalate.async.core;
+
+import java.lang.reflect.Method;
+import java.util.concurrent.CancellationException;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CompletionStage;
+import java.util.concurrent.Future;
+import java.util.function.BiConsumer;
+
+public class CompletionStageHelper {
+    
+    private CompletionStageHelper() {
+        
+    }
+    
+    static <T> CompletionStage<T> applyToEitherPropagate(CompletionStage<T> a, CompletionStage<T> b) {
+        CompletableFuture<T> result = new CompletableFuture<>();
+        BiConsumer<T, Throwable> handler = (value, ex) -> {
+            if (ex == null) {
+                result.complete(value);
+            } else {
+                result.completeExceptionally(ex);
+            }
+        };
+        a.whenComplete(handler);
+        b.whenComplete(handler);
+        return result;
+    }
+    
+    public static boolean cancelCompletionStage(CompletionStage<?> promise, boolean mayInterruptIfRunning) {
+        if (promise instanceof Future) {
+            Future<?> future = (Future<?>) promise;
+            return future.cancel(mayInterruptIfRunning);
+        } else {
+            Method m = completeExceptionallyMethodOf(promise);
+            if (null != m) {
+                try {
+                    return (Boolean) m.invoke(promise, new CancellationException());
+                } catch (ReflectiveOperationException ex) {
+                    return false;
+                }
+            } else {
+                return false;
+            }
+        }
+    }
+    
+    private static Method completeExceptionallyMethodOf(CompletionStage<?> promise) {
+        try {
+            Class<?> clazz = promise.getClass();
+            return clazz.getMethod("completeExceptionally", Throwable.class);
+        } catch (ReflectiveOperationException | SecurityException ex) {
+            return null;
+        }
+    }
+}

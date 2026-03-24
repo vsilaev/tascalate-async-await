@@ -34,6 +34,7 @@ import java.util.function.LongConsumer;
 
 import net.tascalate.async.core.AsyncGeneratorMethod;
 import net.tascalate.async.core.AsyncMethodExecutor;
+import net.tascalate.async.core.InternalCallContext;
 
 abstract class AsyncGeneratorSinkBase<T> {
     private final AtomicBoolean subscribed = new AtomicBoolean(false);
@@ -129,7 +130,7 @@ abstract class AsyncGeneratorSinkBase<T> {
                                 }
                             }
                             if (null != error) {
-                                sneakyThrow(error);
+                                InternalCallContext.sneakyThrow(error);
                             }
                         }
                     }
@@ -143,11 +144,6 @@ abstract class AsyncGeneratorSinkBase<T> {
         };
         AsyncMethodExecutor.execute(method);
         return method.generator;
-    }
-    
-    @SuppressWarnings("unchecked")
-    static <T, E extends Throwable> T sneakyThrow(Throwable ex) throws E {
-        throw (E)ex;
     }
     
     @SuppressWarnings("unchecked")

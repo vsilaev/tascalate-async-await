@@ -29,6 +29,7 @@ import java.util.concurrent.CompletionStage;
 import java.util.concurrent.RejectedExecutionException;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.AtomicReference;
+import java.util.function.Function;
 
 import net.tascalate.async.AsyncResult;
 import net.tascalate.async.Scheduler;
@@ -159,10 +160,7 @@ abstract public class AbstractAsyncMethod implements Runnable {
     final <V> CompletionStage<V> registerAwaitTarget(CompletionStage<V> originalAwait) {
         blockerVersion.incrementAndGet();
     	CompletableFuture<V> terminateMethod = new CompletableFuture<>();
-    	/*
         CompletionStage<V> guardedAwait = terminateMethod.applyToEither(originalAwait, Function.identity());
-        */
-        CompletionStage<V> guardedAwait = CompletionStageHelper.applyToEitherPropagate(terminateMethod, originalAwait);
         
         // Save references for outer promise cancellation
         this.terminateMethod = terminateMethod;
@@ -197,32 +195,14 @@ abstract public class AbstractAsyncMethod implements Runnable {
         cancelAwaitUnconditionally(terminateMethod, originalAwait);
     }
     
-    final class ResultPromise<T> extends CompletableFuture<T> implements AsyncResult<T> {
+    final class ResultPromise<T> extends RestrictedCompletableFuture<T> implements AsyncResult<T> {
         
         ResultPromise() {}
-        
-        protected boolean internalSuccess(T value) {
-            return super.complete(value);
-        }
-        
-        protected boolean internalFailure(Throwable exception) {
-            return super.completeExceptionally(exception);
-        }
         
         public Scheduler scheduler() {
             return scheduler;
         }
-        
-        @Override
-        public boolean complete(T value) {
-            throw new UnsupportedOperationException("ResultPromise may not be completed explicitly");
-        }
-        
-        @Override
-        public boolean completeExceptionally(Throwable exception) {
-            throw new UnsupportedOperationException("ResultPromise may not be completed explicitly");
-        }        
-        
+
         @Override
         public boolean cancel(boolean mayInterruptIfRunning) {
             boolean doCancel = mayInterruptIfRunning || !isRunning();

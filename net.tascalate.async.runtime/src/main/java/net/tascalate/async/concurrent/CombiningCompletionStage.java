@@ -24,20 +24,23 @@
  */
 package net.tascalate.async.concurrent;
 
+import static net.tascalate.async.core.CompletionStageHelper.completeSuccess;
+import static net.tascalate.async.core.CompletionStageHelper.completeFailure;
+import static net.tascalate.async.core.CompletionStageHelper.cancelCompletionStage;
+
 import java.util.Collections;
 import java.util.List;
 import java.util.NoSuchElementException;
 import java.util.Objects;
-import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionStage;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Function;
 import java.util.function.Predicate;
 import java.util.stream.Collectors;
 
-import net.tascalate.async.core.CompletionStageHelper;
+import net.tascalate.async.core.RestrictedCompletableFuture;
 
-abstract public class CombiningCompletionStage<T, R> extends CompletableFuture<R> {
+abstract public class CombiningCompletionStage<T, R> extends RestrictedCompletableFuture<R> {
     
     protected static class Outcome<T> {
         public final T value;
@@ -81,15 +84,15 @@ abstract public class CombiningCompletionStage<T, R> extends CompletableFuture<R
                 Outcome<R> finalResult = combine(total, remaining, safeOutcomes);
                 if (null != finalResult) {
                     if (finalResult.error != null) {
-                        super.completeExceptionally(finalResult.error);
+                        completeFailure(this, finalResult.error);
                     } else {
-                        super.complete(finalResult.value);
+                        completeSuccess(this, finalResult.value);
                     }
                     if (cancelRemaining) {
                         cancelSources(true);
                     }
                 } else if (0 == remaining) {
-                    super.completeExceptionally(new NoSuchElementException());
+                    completeFailure(this, new NoSuchElementException());
                 }
             });
         }
@@ -98,27 +101,17 @@ abstract public class CombiningCompletionStage<T, R> extends CompletableFuture<R
             Outcome<R> finalResult = combine(0, 0, safeOutcomes);
             if (null != finalResult) {
                 if (finalResult.error != null) {
-                    super.completeExceptionally(finalResult.error);
+                    completeFailure(this, finalResult.error);
                 } else {
-                    super.complete(finalResult.value);
+                    completeSuccess(this, finalResult.value);
                 }
             } else {
-                super.completeExceptionally(new NoSuchElementException());
+                completeFailure(this, new NoSuchElementException());
             } 
         }
     }
     
     abstract protected Outcome<R> combine(int total, int remaining, List<Outcome<T>> outcomes);
-    
-    @Override
-    public final boolean complete(R value) {
-        throw new UnsupportedOperationException("ResultPromise may not be completed explicitly");
-    }
-    
-    @Override
-    public final boolean completeExceptionally(Throwable exception) {
-        throw new UnsupportedOperationException("ResultPromise may not be completed explicitly");
-    }   
     
     @Override
     public boolean cancel(boolean mayInterruptIfRunning) {
@@ -131,7 +124,7 @@ abstract public class CombiningCompletionStage<T, R> extends CompletableFuture<R
     }
     
     final void cancelSources(boolean mayInterruptIfRunning) {
-        sources.forEach(c -> CompletionStageHelper.cancelCompletionStage(c, mayInterruptIfRunning));
+        sources.forEach(c -> cancelCompletionStage(c, mayInterruptIfRunning));
     }
     
     public static <T> CompletionStage<T> any(List<? extends CompletionStage<T>> sources) {

@@ -30,13 +30,12 @@ import java.util.concurrent.CompletionStage;
 import net.tascalate.async.Scheduler;
 import net.tascalate.async.suspendable;
 
-
 abstract public class AsyncTaskMethod<T> extends AbstractAsyncMethod {
 
     protected AsyncTaskMethod(Scheduler scheduler) {
         super(scheduler);
     }
-    
+
     @Override
     protected final @suspendable void internalRun() {
         try {
@@ -47,16 +46,17 @@ abstract public class AsyncTaskMethod<T> extends AbstractAsyncMethod {
             failure(ex);
         }
     }
-    
+
     abstract protected @suspendable void doRun() throws Throwable;
 
+    // Used in generated code; don't remove
     protected final CompletionStage<T> complete(final T value) {
         success(value);
         @SuppressWarnings("unchecked")
         CompletableFuture<T> typedFuture = (CompletableFuture<T>)future;
         return typedFuture;
     }
-  
+
     protected final String toString(String className, String methodSignature) {
         return toString("<generated-async-task>", className, methodSignature);
     }

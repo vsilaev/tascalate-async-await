@@ -30,6 +30,8 @@ import java.util.concurrent.Executor;
 import java.util.function.Function;
 
 import net.tascalate.async.Scheduler;
+import net.tascalate.async.core.CompletionStageHelper;
+import net.tascalate.async.core.RestrictedCompletableFuture;
 
 public class SimpleScheduler extends AbstractExecutorScheduler<Executor> {
     public static final Scheduler SAME_THREAD_SCHEDULER = new SimpleScheduler(Runnable::run) {
@@ -57,15 +59,15 @@ public class SimpleScheduler extends AbstractExecutorScheduler<Executor> {
     
     @Override
     public CompletionStage<?> schedule(Runnable command) {
-        SchedulePromise<?> result = new SchedulePromise<>();
+        RestrictedCompletableFuture<?> result = new RestrictedCompletableFuture<>();
         Runnable wrapper = new Runnable() {
             @Override
             public void run() {
                 try {
                     command.run();
-                    result.internalSuccess(null);
+                    CompletionStageHelper.completeSuccess(result, null);
                 } catch (Throwable ex) {
-                    result.internalFailure(ex);
+                    CompletionStageHelper.completeFailure(result, ex);
                 }
             }
         };

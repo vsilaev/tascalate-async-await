@@ -31,6 +31,9 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Future;
 import java.util.function.Function;
 
+import net.tascalate.async.core.CompletionStageHelper;
+import net.tascalate.async.core.RestrictedCompletableFuture;
+
 public class InterruptibleScheduler extends AbstractExecutorScheduler<ExecutorService> {
     
     public InterruptibleScheduler(ExecutorService executor) {
@@ -52,7 +55,7 @@ public class InterruptibleScheduler extends AbstractExecutorScheduler<ExecutorSe
     @Override
     public CompletableFuture<?> schedule(Runnable command) {
         Future<?>[] delegate = {null};
-        SchedulePromise<?> result = new SchedulePromise<Void>() {
+        RestrictedCompletableFuture<?> result = new RestrictedCompletableFuture<Void>() {
             @Override
             public boolean cancel(boolean mayInterruptIfRunning) {
                 if (super.cancel(mayInterruptIfRunning)) {
@@ -68,9 +71,9 @@ public class InterruptibleScheduler extends AbstractExecutorScheduler<ExecutorSe
             public void run() {
                 try {
                     command.run();
-                    result.internalSuccess(null);
+                    CompletionStageHelper.completeSuccess(result, null);
                 } catch (Throwable ex) {
-                    result.internalFailure(ex);
+                    CompletionStageHelper.completeFailure(result, ex);
                     throw ex;
                 }
             }

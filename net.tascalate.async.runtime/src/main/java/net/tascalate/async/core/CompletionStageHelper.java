@@ -26,10 +26,8 @@ package net.tascalate.async.core;
 
 import java.lang.reflect.Method;
 import java.util.concurrent.CancellationException;
-import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionStage;
 import java.util.concurrent.Future;
-import java.util.function.BiConsumer;
 
 public class CompletionStageHelper {
     
@@ -37,18 +35,12 @@ public class CompletionStageHelper {
         
     }
     
-    static <T> CompletionStage<T> applyToEitherPropagate(CompletionStage<T> a, CompletionStage<T> b) {
-        CompletableFuture<T> result = new CompletableFuture<>();
-        BiConsumer<T, Throwable> handler = (value, ex) -> {
-            if (ex == null) {
-                result.complete(value);
-            } else {
-                result.completeExceptionally(ex);
-            }
-        };
-        a.whenComplete(handler);
-        b.whenComplete(handler);
-        return result;
+    public static <T> boolean completeSuccess(RestrictedCompletableFuture<T> future, T value) {
+        return future.internalSuccess(value);
+    }
+    
+    public static boolean completeFailure(RestrictedCompletableFuture<?> future, Throwable exception) {
+        return future.internalFailure(exception);
     }
     
     public static boolean cancelCompletionStage(CompletionStage<?> promise, boolean mayInterruptIfRunning) {

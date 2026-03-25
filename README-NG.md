@@ -565,20 +565,17 @@ static  @async <T> AsyncGenerator<T> concat(Iterable<? extends AsyncGenerator<? 
    return  async.yield(); 
 }
 ```
-However, implementing ZIP-like operators (i.e. combining results of several generators) efficiently is pretty tricky. Let us consider the following scenario: we have several alternative generators and each of them returns a weather forecast when requested; we have to create a generator the returns the first available result. The naïve implementation is the following:
-
-  
-However, implementing ZIP-like operators (i.e., combining results of several generators) efficiently can be a challenging task. or instance, imagine this scenario: we have a number of independent generators, each capable of providing a weather forecast when queried, and our goal is to create a generator that delivers the first forecast available. The naïve implementation is as follows:
+However, implementing ZIP-like operators (i.e. combining results of several generators) efficiently is pretty tricky. For instance, imagine this scenario: we have a number of independent generators, each capable of providing a weather forecast when queried, and our goal is to create a generator that delivers the first forecast available. The naïve implementation is as follows:
 ```java
 record WeatherForecast() {...}
     
-AsyncGenerator<WeatherForecast> nextForecastA() {...}
+@async AsyncGenerator<WeatherForecast> nextForecastA() {...}
     
-AsyncGenerator<WeatherForecast> nextForecastB() {...}
+@async AsyncGenerator<WeatherForecast> nextForecastB() {...}
     
-AsyncGenerator<WeatherForecast> nextForecastC() {...}
+@async AsyncGenerator<WeatherForecast> nextForecastC() {...}
     
-AsyncGenerator<WeatherForecast> nextForecast() {
+@async AsyncGenerator<WeatherForecast> nextForecast() {
     var async = AsyncGenerator.<WeatherForecast>start();
     try (var ga = nextForecastA();
          var gb = nextForecastB();
@@ -596,8 +593,9 @@ AsyncGenerator<WeatherForecast> nextForecast() {
             // Ugly with std. Java
             CompletableFuture<WeatherForecast>[] array =
                 (CompletableFuture<WeatherForecast>[])
-                Array.newInstance(CompletableFuture.class, pending.size());
+                new  CompletableFuture[pending.size()];
             pending.toArray(array);
+            
             var  fastest =
                 (CompletableFuture<WeatherForecast>)
                 (Object)CompletableFuture.anyOf(array);
@@ -614,35 +612,32 @@ AsyncGenerator<WeatherForecast> nextForecast() {
 ```
 Also, the code looks pretty good: we are  selecting the first ready result with the `CompletableFuture.anyOf`, so the code should be parallel. However, there is a hidden caveat: calls to `AsyncGenerator.next()` are executed sequentially, meaning we have to wait for *all* generators  to yield their next pending value. This leads exactly to what we previously referred as *async/await hell* in the asynchronous task methods section. To address this challenge, the user can convert each `AsyncGenerator<T>` into a `ConcurrentGenerator<T>` and modify the code accordingly, as shown below:
 ```java
-AsyncGenerator<WeatherForecast> nextForecast() {
+@async AsyncGenerator<WeatherForecast> nextForecast() {
     var async = AsyncGenerator.<WeatherForecast>start();
     try (var ga = nextForecastA().concurrent();
          var gb = nextForecastB().concurrent();
          var gc = nextForecastC().concurrent()) {
             
-        while (true) {
-            var pending = Stream.of( ga.take(), gb.take(), gc.take() )
-                                .map( f -> f.thenApply(t -> t.orElse(null)).toCompletableFuture() ) 
-                                .toList();
-                
-            CompletableFuture<WeatherForecast>[] array = 
-                (CompletableFuture<WeatherForecast>[])
-                Array.newInstance(CompletableFuture.class, pending.size());
-
-            pending.toArray(array); 
-
-            var fastest = 
-                (CompletableFuture<WeatherForecast>)
-                (Object)CompletableFuture.anyOf(array);
-            /*    
-            var fastest = net.tascalate.concurrent.Promises.any(false, pending);
-            */
-            var reply = async.yield(fastest);
-            if (reply.value == null) {
-                // This means neither of the generators has more results
-                break;
-            }
-        }
+         while (true) {
+             var  pendingItem = ConcurrentGenerator.any( ga.take(), gb.take(), gc.take() );
+             try {
+                 var  item = await( pendingItem );
+                 async.yield(item);
+             } catch (NoSuchElementException ex) {
+                 // All generators are over
+                 break;
+             }
+             // Alternative option is to yield pendingItem
+             // However, the consumer of generator must be able
+             // to handle NoSuchElementException on it's own
+             /*
+             try {
+                 async.yield(pendingItem);
+             } catch (NoSuchElementException ex) {
+                 break;
+             }
+             */
+         }
     }
     return  async.yield(); 
 }
@@ -657,13 +652,9 @@ public  abstract  static  class Result<T> {
     public  final Stream<T> stream();
 }
 ```
-The API reflects the fact, that the returned value from `take` may be either a true value holder or a marker object for completed generator. We can inspect this object with `isValue` to distinguish between both cases. If the `ConcurrentGenerator.Result<T>` represents a value holder, then we can retrieve a contained `value()` with corresponding method. Calling this method for the termination marker object will throw an exception. Additionally, we can convert the result to a `java.util.Stream` of 0..1 elements or safely access a value with some replacement via `orElse` call. The latest option is exactly what is used in the example above: we convert a `CompletionStage` returned from `take()` to a new stage with exact value using `null` as sentinel:
+The API highlights that the value returned by `take` can either be a genuine value holder or a marker object signifying a completed generator. To differentiate between these scenarios, we can use `isValue` for inspection. When `ConcurrentGenerator.Result<T>` reflects a value holder, the contained `value()` can be accessed via the appropriate method. However, invoking this method on the termination marker object results in an exception. Furthermore, the result can be transformed into a `java.util.Stream` comprising 0 or 1 elements or utilized with a sentinel fallback using the `orElse` method. 
 
-The API highlights that the value returned by `take` can either be a genuine value holder or a marker object signifying a completed generator. To differentiate between these scenarios, we can use `isValue` for inspection. When `ConcurrentGenerator.Result<T>` reflects a value holder, the contained `value()` can be accessed via the appropriate method. However, invoking this method on the termination marker object results in an exception. Furthermore, the result can be transformed into a `java.util.Stream` comprising 0 to 1 elements or utilized with a fallback using the `orElse` method. In the aforementioned example, this latter approach is demonstrated: a `CompletionStage` returned from `take()` is transformed into a new stage containing the definitive value, with `null` employed as a placeholder.
-```java
-f -> f.thenApply(t -> t.orElse(null))
-```
-Afterwards we combine 3 returned promises into a single `CompletableFuture`, yield the result to the consumer
+Afterwards we combine 3 returned promises into a single `CompletionStage<WeatherForecast>` via the call to `ConcurrentGenerator.any(<stages>)`, await the result in the asynchronous generator and yield it to the consumer. Notice, that while awaiting the result we can get `java.util.NoSuchElementException` when all of the generators are iterated over.
 
 # Scheduler & SchedulerResolver - where is my code executed?
 ## Introducing schedulers
@@ -930,8 +921,8 @@ It's an error to provide a `Scheduler` with both a field and a method, or to hav
 It was mentioned that you can use both instance and static (class) field / method to provide a `Scheduler`. However, consider the following rules:
 1. Instance-level provider supplies a `Scheduler` only to `@async` instance methods.
 2. Class-level provider supplies a `Scheduler` to static `@async` methods AND to instance methods UNLESS there is a separate instance-level provider.
-3. It's an error to have more than one class-level provider in the same class via static field(s) / static getter-like method(s) / the combination of thereof (same as with instance-level providers); however it's a fully supported scenario when you have both instance-level provider AND class-level provider: instan
-4. e level provider will take precedence over the class-level provider for the `@async` instance methods.
+3. It's an error to have more than one class-level provider in the same class via static field(s) / static getter-like method(s) / the combination of thereof (same as with instance-level providers); however it's a fully supported scenario when you have both instance-level provider AND class-level provider.
+4. Instance level provider will take precedence over the class-level provider for the `@async` instance methods.
 
 Last but not least is a visibility of the `Scheduler` provider (field / getter-like method) inherited from the superclass. It follows the same visibility rules as for the regular fields / methods inheritance: public and protected are always visible; package private are visible when both classes are in the same package; and private members are not visible. Take this on account when runtime will report you about ambiguity of the `Scheduler` provider - most probably, your subclass inherits ones from the superclasses chain.
 

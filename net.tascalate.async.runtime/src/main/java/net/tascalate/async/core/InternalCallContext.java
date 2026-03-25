@@ -43,11 +43,11 @@ public class InternalCallContext {
     }
     
     public static boolean isExitSignal(Throwable ex) {
-        return "org.apache.commons.javaflow.core.ContinuationDeath".equals(ex.getClass().getName());
+        return StackRecorder.isExitSignal(ex);
     }
     
     public static void checkExitSignal(Throwable ex) {
-        if (isExitSignal(ex)) {
+        if (StackRecorder.isExitSignal(ex)) {
             throw (Error)ex;
         }
     }

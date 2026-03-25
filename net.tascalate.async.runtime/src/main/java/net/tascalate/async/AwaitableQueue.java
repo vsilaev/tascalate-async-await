@@ -27,17 +27,14 @@ package net.tascalate.async;
 import java.util.Queue;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentLinkedQueue;
-import java.util.concurrent.locks.Lock;
-import java.util.concurrent.locks.ReentrantLock;
 
 import net.tascalate.async.core.AsyncMethodExecutor;
 
 final class AwaitableQueue<T> {
     private final Queue<T> items = new ConcurrentLinkedQueue<>();
-    private final Lock lock = new ReentrantLock();
-    
-    private CompletableFuture<?> currentAwaitingSignal = new CompletableFuture<>();
-    
+
+    private volatile CompletableFuture<?> currentAwaitingSignal = new CompletableFuture<>();
+
     AwaitableQueue() {
     }
     
@@ -45,26 +42,16 @@ final class AwaitableQueue<T> {
         AsyncMethodExecutor.await(currentAwaitingSignal);
     }
     
-    void offer(T item) {
-        lock.lock();
-        try {
-            items.offer(item);
-            currentAwaitingSignal.complete(null);
-        } finally {
-            lock.unlock();
+    T poll() {
+        T result = items.poll();
+        if (null == result) {
+            currentAwaitingSignal = new CompletableFuture<>();
         }
+        return result;
     }
     
-    T poll() {
-        lock.lock();
-        try {
-            T result = items.poll();
-            if (null == result) {
-                currentAwaitingSignal = new CompletableFuture<>(); 
-            }
-            return result;
-        } finally {
-            lock.unlock();
-        }
+    void offer(T item) {
+        items.offer(item);
+        currentAwaitingSignal.complete(null);
     }
 }

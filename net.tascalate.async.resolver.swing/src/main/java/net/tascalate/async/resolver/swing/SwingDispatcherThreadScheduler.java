@@ -31,6 +31,8 @@ import java.util.function.Function;
 
 import javax.swing.SwingUtilities;
 
+import net.tascalate.async.core.CompletionStageHelper;
+import net.tascalate.async.core.RestrictedCompletableFuture;
 import net.tascalate.async.scheduler.AbstractScheduler;
 
 public class SwingDispatcherThreadScheduler extends AbstractScheduler {
@@ -57,15 +59,15 @@ public class SwingDispatcherThreadScheduler extends AbstractScheduler {
             command.run();
             return CompletableFuture.completedFuture(null);
         } else {
-            SchedulePromise<?> result = new SchedulePromise<>();
+            RestrictedCompletableFuture<?> result = new RestrictedCompletableFuture<>();
             Runnable wrapper = new Runnable() {
                 @Override
                 public void run() {
                     try {
                         command.run();
-                        result.internalSuccess(null);
+                        CompletionStageHelper.completeSuccess(result, null);
                     } catch (Throwable ex) {
-                        result.internalFailure(ex);
+                        CompletionStageHelper.completeFailure(result, ex);
                     }
                 }
             };
@@ -81,27 +83,5 @@ public class SwingDispatcherThreadScheduler extends AbstractScheduler {
             throw new IllegalArgumentException("Characteristics must not contain " + Characteristics.INTERRUPTIBLE);
         }
         return characteristics;
-    }
-    
-    static final class SchedulePromise<T> extends CompletableFuture<T> {
-        SchedulePromise() {}
-        
-        protected boolean internalSuccess(T value) {
-            return super.complete(value);
-        }
-        
-        protected boolean internalFailure(Throwable exception) {
-            return super.completeExceptionally(exception);
-        }
-        
-        @Override
-        public boolean complete(T value) {
-            throw new UnsupportedOperationException("ResultPromise may not be completed explicitly");
-        }
-        
-        @Override
-        public boolean completeExceptionally(Throwable exception) {
-            throw new UnsupportedOperationException("ResultPromise may not be completed explicitly");
-        }
     }
 }

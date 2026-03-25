@@ -454,7 +454,7 @@ Now let us take a look how the async generator can be consumed:
 ```java
 @async CompletionStage<Long> consumeGenerator() {  
     try (AsyncGenerator<String> generator = produceAsyncStrings()) {
-        CompletionStage<T> pendingValue;
+        CompletionStage<String> pendingValue;
         while ((pendingValue = generator.next()) != null) {
             String value = await(pendingValue);  
             System.out.println(value);  
@@ -474,7 +474,7 @@ Instead of handling a null‑terminated sequence of `CompletionStage`-s  directl
 @async CompletionStage<Long> consumeGenerator() {  
     try (SuspendableIterator<CompletionStage<String>> iterator = produceAsyncStrings().iterator()) {
         while (iterator.next()) {
-            CompletionStage<T> pendingValue = iterator.next();
+            CompletionStage<String> pendingValue = iterator.next();
             String value = await(pendingValue);  
             System.out.println(value);  
         }  
@@ -560,9 +560,9 @@ Use this feature sparingly and document the expected parameter type and semantic
 static  @async <T> AsyncGenerator<T> concat(Iterable<? extends AsyncGenerator<? extends T>> generators) {
    var async = AsyncGenerator.<T>start();
    for (var g : generators) {
-       async.yield(g);
+	     async.yield(g);
    }
-   return  async.yield(); 
+   return async.yield(); 
 }
 ```
 However, implementing ZIP-like operators (i.e. combining results of several generators) efficiently is pretty tricky. For instance, imagine this scenario: we have a number of independent generators, each capable of providing a weather forecast when queried, and our goal is to create a generator that delivers the first forecast available. The naïve implementation is as follows:
@@ -620,13 +620,15 @@ Also, the code looks pretty good: we are  selecting the first ready result with 
             
          while (true) {
              var  pendingItem = ConcurrentGenerator.any( ga.take(), gb.take(), gc.take() );
+             WeatherForecast item;
              try {
-                 var  item = await( pendingItem );
-                 async.yield(item);
+                 item = await( pendingItem );
              } catch (NoSuchElementException ex) {
                  // All generators are over
                  break;
              }
+             async.yield(item);
+
              // Alternative option is to yield pendingItem
              // However, the consumer of generator must be able
              // to handle NoSuchElementException on it's own

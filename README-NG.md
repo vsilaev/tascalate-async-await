@@ -856,8 +856,6 @@ public class MyClass {
     }
 }
 ```
-Rephrase it
-
 The concept is straightforward: include a `Scheduler` parameter in each asynchronous method where it's utilized, ensuring the parameter is annotated with `@SchedulerProvider`, and pass it explicitly. Keep in mind that it's incorrect to have more than one parameter with the `@SchedulerProvider` annotation - only one is permissible. Additionally, providing an unannotated `Scheduler` won't have any special effect -- it will be treated as a standard parameter and not used for asynchronous execution. 
 
 It's worth noting that the `currentScheduler` parameter in the `mergeStrings` method is directly passed to the `decorateStrings` method. This step is essential when you want to use the same scheduler across multiple asynchronous methods. By default, schedulers are not automatically propagated to nested calls. 
@@ -925,7 +923,7 @@ The code was simplified but no dedicated "propagating provider" was added. As a 
 As an extra takeaway, `CallContext.scheduler()` may be used with any combination of the scheduler providers and reports currently used `Scheduler` for all asynchronous, suspendable and generators methods.
 
 ## More useful SchedulerResolver — per-class and per-instance schedulers
-The next provider variant lets you associate a `Scheduler` with a specific class. The resolver locates a `Scheduler` declared on the target type either as a field (static or instance) or as a no-argument method that returns `Scheduler`. When present, that `Scheduler` is used for asynchronous, suspendable, and generator methods invoked on that class or class instance.
+The next provider variant lets you associate a `Scheduler` with a specific class. The resolver locates a `Scheduler` declared on the target type either as a field (static or instance) or as a no-argument method that returns `Scheduler`. When present, that `Scheduler` is used for asynchronous task and generator methods invoked on that class or class instance.
 
 To use this provider you need to add a new *runtime* dependency:
 ```xml
@@ -988,22 +986,21 @@ public class MyClass {
     }
 }
 ```
+The  `Scheduler`  is provided as an instance field for all  `@async`  instance methods in the  `MyClass`  class. You can initialize this variable in the constructor or at any time before invoking an  `@async`  method. In  Spring  or CDI  environments, the  `scheduler`  field may be injected by the container via the corresponding annotation (`@Autowired`  or  `@Inject`).
 
-The `Scheduler` is provided as an instance field for all of `@async` instance methods of the class `MyClass`. You can initialize this variable in the constructor (as above) or at any time before invoking the `@async` method. In Spring / CDI environment the `scheduler` field might be injected by the container via corresponding annotation (`@Autowired` or `@Injected`). 
+Please note that re-assigning the field during the execution of an  `@async`  method has no effect on methods currently in progress; only  newly invoked  methods will reflect the change. However, special consideration is required: in the example above, if you redefine the  `scheduler`  field after calling  `mergeStrings`  but before calling  `decorateStrings`, the methods will use different schedulers. Additionally, the library performs no internal  synchronization, so it is the user's responsibility to synchronize access to such fields.  Therefore the most robust and safe approach is to treat provider field as read-only.
 
-Please notice that when you are re-assigning the field during execution of the `@async` method it has no effect on the methods these are in progress -- only freshly invoked ones will see the change. However, special consideration should be taken on account: in the example above if you re-define the `scheduler` field after `mergeStrings` invocation but before `decorateStrings` invocation then methods will use different schedulers. Also, no special synchronization is performed by the library itself, and it's library's user responsibility to synchronize access to such fields.
+As mentioned, you can use a getter-like method annotated with  `@SchedulerProvider`  to supply the scheduler. Use this option when you need different schedulers based on different  object states, but ensure you provide all necessary state synchronization.
 
-As it was mentioned, you can use a getter-like method annotated with `@SchedulerProvider ` to supply scheduler. Use this option when you need different schedulers for the different object states, but, again, provide all necessary state synchronization on your own.
+It is an error to provide a  `Scheduler`  via both a field and a method, or to have more than one field or getter-like method annotated with  `@SchedulerProvider`.
 
-It's an error to provide a `Scheduler` with both a field and a method, or to have more than one filed or more than one getter-like method annotated with `@SchedulerProvider `.
+As previously mentioned, both  instance  and  static (class)  fields or methods can provide a  `Scheduler`. However, the following rules apply:
+1.  Instance-level providers  supply a  `Scheduler`  only to instance-level  `@async`  methods.
+2.  Class-level providers  supply a  `Scheduler`  to static  `@async`  methods and, by default, to instance `@async` methods  **unless**  a separate instance-level provider is defined.
+3.  Defining more than one class-level provider (via static fields, static getter-like methods, or a combination thereof) results in an  error. However, defining both an instance-level and a class-level provider within the same class is  fully supported.
+4.  For instance-level  `@async`  methods, the  instance-level provider  takes precedence over the class-level provider.
 
-It was mentioned that you can use both instance and static (class) field / method to provide a `Scheduler`. However, consider the following rules:
-1. Instance-level provider supplies a `Scheduler` only to `@async` instance methods.
-2. Class-level provider supplies a `Scheduler` to static `@async` methods AND to instance methods UNLESS there is a separate instance-level provider.
-3. It's an error to have more than one class-level provider in the same class via static field(s) / static getter-like method(s) / the combination of thereof (same as with instance-level providers); however it's a fully supported scenario when you have both instance-level provider AND class-level provider.
-4. Instance level provider will take precedence over the class-level provider for the `@async` instance methods.
-
-Last but not least is a visibility of the `Scheduler` provider (field / getter-like method) inherited from the superclass. It follows the same visibility rules as for the regular fields / methods inheritance: public and protected are always visible; package private are visible when both classes are in the same package; and private members are not visible. Take this on account when runtime will report you about ambiguity of the `Scheduler` provider - most probably, your subclass inherits ones from the superclasses chain.
+Lastly, the visibility of a  `Scheduler` provider (field or getter-like method) inherited from a superclass follows standard inheritance rules: `public` and `protected` members are always visible; `package-private` members are visible only if both classes are in the same package; and `private` members are not visible. Keep this in mind if the runtime reports an ambiguity regarding the `Scheduler` provider, as your subclass likely inherits providers from its superclass hierarchy.
 
 ## Scoped SchedulerResolver -- overriding schedulers, providing own schedulers in DI environment 
 TBD

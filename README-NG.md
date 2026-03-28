@@ -1,4 +1,3 @@
-
 [![Maven Central](https://img.shields.io/maven-central/v/net.tascalate.async/net.tascalate.async.parent.svg)](https://search.maven.org/artifact/net.tascalate.async/net.tascalate.async.parent/1.3.0/pom) [![GitHub release](https://img.shields.io/github/release/vsilaev/tascalate-async-await.svg)](https://github.com/vsilaev/tascalate-async-await/releases/tag/1.3.0) [![license](https://img.shields.io/github/license/vsilaev/tascalate-async-await.svg)](https://github.com/vsilaev/tascalate-async-await/blob/master/LICENSE)
 
 ![Tascalate Logo](https://raw.githubusercontent.com/vsilaev/tascalate-async-await/refs/heads/master/logo_wide_dark.svg#gh-dark-mode-only)
@@ -16,6 +15,134 @@ To address the outlined issues of readability and maintainability, several progr
 The Tascalate Async/Await library brings this `async/await` programming style to Java projects starting from Java 8. Built on [continuations for Java](https://github.com/vsilaev/tascalate-javaflow), the library provides runtime APIs and bytecode enhancement tools that enable Java developers to work with syntax resembling C# 5 or ECMAScript 2017/2018, all within the pure Java.
 
 # How to use ?
+## ...with Gradle 7+
+The first thing you have to do is to define Tascalate Async/Await build plugins in the `settings.gradle` file:
+```groovy
+pluginManagement {
+    repositories {
+        gradlePluginPortal()
+        mavenCentral()
+    }
+    resolutionStrategy {
+        eachPlugin {
+            if (requested.id.id == "async-await") {
+                useModule("net.tascalate.async:net.tascalate.async.tools.gradle:1.3.0")
+            } else if (requested.id.id == "continuations") {
+                useModule("net.tascalate.javaflow:net.tascalate.javaflow.tools.gradle:2.8.3")
+            }
+        }
+    }
+}
+rootProject.name = '<your-project-name>'
+```
+Next, the following must be added to the `build.gradle`:
+```groovy
+plugins {
+    id 'java'
+    id 'async-await'
+    id 'continuations'
+    /* ASYNC-AWAIT should be after JAVA                */
+    /* CONTINUATIONS should be added after ASYNC-AWAIT */
+    /* other plugins if necessary                      */
+}
+...
+dependencies {
+    implementation 'net.tascalate.async:net.tascalate.async.runtime:1.3.0'
+    // The rest is optional and per your project requirements
+    /* Async/Await Extras + Tascalate Concurrent */
+    /*
+    implementation 'net.tascalate.async:net.tascalate.async.extras:1.3.0'
+    implementation 'net.tascalate:net.tascalate.concurrent:0.9.11'
+    */
+    
+    /* Necessary only for different providers */
+    /*
+    runtimeOnly 'net.tascalate.async:net.tascalate.async.resolver.provided:1.3.0'
+    runtimeOnly 'net.tascalate.async:net.tascalate.async.resolver.propagated:1.3.0'
+    */
+}
+```
+## ...with Gradle before 7
+As of Gradle 7+, you need to specify both build plugins and runtime dependencies. However, the procedure is slightly different. The minimal Gradle script should include the following prologue:
+```groovy
+buildscript {
+    repositories {
+        mavenCentral()
+    }
+
+    dependencies {
+        classpath 'net.tascalate.async:net.tascalate.async.tools.gradle:1.3.0'
+        classpath 'net.tascalate.javaflow:net.tascalate.javaflow.tools.gradle:2.8.3'
+        /* other plugins */
+    }
+}
+
+apply plugin: "java"
+/* ORDER IS IMPORTANT: Async/Await before Continuations! */
+apply plugin: "async-await"
+apply plugin: "continuations"
+
+repositories {
+    mavenCentral()
+}
+
+dependencies {
+    implementation 'net.tascalate.async:net.tascalate.async.runtime:1.3.0'
+    /* other dependencies */
+}
+```
+The more advanced example with `Async/Await Extras` module + [Tascalate Concurrent](https://github.com/vsilaev/tascalate-concurrent) and `Async/Await SchedulerResolver-s` (discussed below) will be:
+```groovy
+buildscript {
+    repositories {
+        mavenCentral()
+    }
+
+    dependencies {
+        classpath 'net.tascalate.async:net.tascalate.async.tools.gradle:1.3.0'
+        classpath 'net.tascalate.javaflow:net.tascalate.javaflow.tools.gradle:2.8.3'
+        /* other plugins */
+    }
+}
+
+apply plugin: "java"
+/* ORDER IS IMPORTANT: Async/Await before Continuations! */
+apply plugin: "async-await"
+apply plugin: "continuations"
+
+repositories {
+    mavenCentral()
+}
+
+dependencies {
+    implementation 'net.tascalate.async:net.tascalate.async.runtime:1.3.0'
+    
+    /* Async/Await Extras */
+    implementation 'net.tascalate.async:net.tascalate.async.extras:1.3.0'
+    
+    /* Promise<T> implementation */
+    /* Necessary because net.tascalate.async.extras uses it as an */
+    /* 'optional' dependency to avoid concrete version lock-in.   */
+    implementation 'net.tascalate:net.tascalate.concurrent:0.9.11'
+    
+    /* Necessary only for different providers */
+    runtimeOnly 'net.tascalate.async:net.tascalate.async.resolver.provided:1.3.0'
+    /*
+    runtimeOnly 'net.tascalate.async:net.tascalate.async.resolver.propagated:1.3.0'
+    */
+
+    
+    /* other dependencies */
+}
+/* Optional config */
+'async-await' {
+    /* ... */
+}
+
+'continuations' {
+    /* ... */
+}
+```
 ## ...with Maven
 First, add Maven dependency to the library runtime:
 ```xml
@@ -80,88 +207,6 @@ Second, add the following build plugins in the specified order:
 </build>
 ```
 You are ready to start coding!
-## ...with Gradle
-As with Maven, you have to specify both build plugins and runtime dependencies. The minimal Gradle scipt should have the following prologue:
-```groovy
-buildscript {
-    repositories {
-        mavenCentral()
-    }
-
-    dependencies {
-        classpath 'net.tascalate.async:net.tascalate.async.tools.gradle:1.3.0'
-        classpath 'net.tascalate.javaflow:net.tascalate.javaflow.tools.gradle:2.8.3'
-        /* other plugins */
-    }
-}
-
-apply plugin: "java"
-/* ORDER IS IMPORTANT: Async/Await before Continuations! */
-apply plugin: "async-await"
-apply plugin: "continuations"
-
-repositories {
-    mavenCentral()
-}
-
-dependencies {
-    implementation 'net.tascalate.async:net.tascalate.async.runtime:1.3.0'
-    /* other dependencies */
-}
-```
-The more advanced example with `Async/Await Extras` module + [Tascalate Concurrent](https://github.com/vsilaev/tascalate-concurrent) and `Async/Await SchedulerResolver-s` (discussed below) will be:
-```groovy
-buildscript {
-    repositories {
-        mavenCentral()
-    }
-
-    dependencies {
-        classpath 'net.tascalate.async:net.tascalate.async.tools.gradle:1.3.0'
-        classpath 'net.tascalate.javaflow:net.tascalate.javaflow.tools.gradle:2.8.3'
-        /* other plugins */
-    }
-}
-
-apply plugin: "java"
-/* ORDER IS IMPORTANT: Async/Await before Continuations! */
-apply plugin: "async-await"
-apply plugin: "continuations"
-
-repositories {
-    mavenCentral()
-}
-
-dependencies {
-    implementation 'net.tascalate.async:net.tascalate.async.runtime:1.3.0'
-    
-    /* Async/Await Extras */
-    implementation 'net.tascalate.async:net.tascalate.async.extras:1.3.0'
-    
-    /* Promise<T> implementation */
-    /* Necessary because net.tascalate.async.extras uses it as an */
-    /* 'optional' dependency to avoid concrete version lock-in.   */
-    implementation 'net.tascalate:net.tascalate.concurrent:0.9.10'
-    
-    /* Necessary only for different providers */
-    runtimeOnly 'net.tascalate.async:net.tascalate.async.resolver.provided:1.3.0'
-    /*
-    runtimeOnly 'net.tascalate.async:net.tascalate.async.resolver.propagated:1.3.0'
-    */
-
-    
-    /* other dependencies */
-}
-/* Optional config */
-'async-await' {
-    /* ... */
-}
-
-'continuations' {
-    /* ... */
-}
-```
-
 # Asynchronous Task Methods
 The first type of function the library supports is an asynchronous task. An asynchronous task refers to a method (either an instance method or a class method) that is marked with the `net.tascalate.async.async` annotation and returns either a `CompletionStage<T>` or `void`. When returning `void`, it functions as a "fire-and-forget" task, designed mainly for use in event-handling scenarios within UI frameworks such as JavaFX or Swing. Let us write a simple example:
 ```java
@@ -300,7 +345,7 @@ This way, all internal async operations initiate nearly at the same time and exe
 | C# parity | High | Low | Medium |
 
 # Suspendable methods
-Sometimes it is necessary to await for asynchronous result in some helper method that per se should not be asynchronous. To support this use case Tascalate Async/Await provides `@suspendable` annotation. The original example above hence can be rewritten as following:
+In certain situations, it becomes essential to wait for an asynchronous outcome within a helper method that is not inherently asynchronous. To address this scenario, Tascalate Async/Await offers the `@suspendable` annotation. Consequently, the earlier example can be restructured as shown below:
 ```java
 import static net.tascalate.async.CallСontext.async;
 import static net.tascalate.async.CallСontext.await;
@@ -337,11 +382,11 @@ class MyClass {
     private static final ExecutorService executor = Executors.newFixedThreadPool(4);
 }
 ```
-As you see, suspendable methods are just like regular ones but with special annotation - `@suspendable`. You should follow regular rules about returning results from this methods, moreover - it's an error to call `return async(<value>)` inside these methods. The important thing about `@suspendable` methods is that they may be called only from `@async` methods or from other `@suspendable` methods.
+As you can see, suspendable methods are similar to regular ones but require a special annotation - `@suspendable`. You should adhere to the usual rules for returning results from these methods. Additionally, calling `return async(<value>)` inside these methods is considered an error. The key aspect of `@suspendable` methods is that they can only be invoked from `@async` methods or other `@suspendable` methods.
 
-Performance-wise suspendable methods behaves the same as asynchronous task methods, so the question "which kind should be used" is just a matter of organizing and structuring your code . The recommended approach is to use asynchronous task methods when they are exposed to outside clients and suspendable ones for internal implementation details. However, the final decision is up to library user till s/he holds the rule that suspendable methods may be called only from asynchronous context (`@async` methods or other `@suspendable` methods) as stated above.
+In terms of performance, suspendable methods function the same as asynchronous task methods. As a result, the decision between using one or the other mainly comes down to how you intend to organize your code. A commonly suggested approach is to use asynchronous task methods for interfaces exposed to external clients, while reserving suspendable methods for internal implementation purposes. That said, the choice ultimately lies with the library user, provided they adhere to the rule: suspendable methods are only usable within an asynchronous context (either `@async` methods or other `@suspendable` methods).
 
-Implementation notes: technically suspendable methods are implemented as continuable methods that follow rules defined by [Tascalate JavaFlow](https://github.com/vsilaev/tascalate-javaflow) library, so you may use any continuable annotation that is supported by Tascalate JavaFlow, not only `@suspendable`.
+On the implementation side, suspendable methods are technically built as continuable methods, following the conventions outlined in the [Tascalate JavaFlow](https://github.com/vsilaev/tascalate-javaflow) library. Consequently, you’re not limited to the `@suspendable` annotation but can apply any continuable annotation supported by the Tascalate JavaFlow framework.
 
 # Asynchronous Generator Methods
 ## Overview
@@ -486,7 +531,7 @@ It's critical to admit that `SuspendableIterator` is an _iterator‑like_ API, n
 
 The alternative and the original version have the same performance traits. Simply pick the style you like better.
 
-Both *consumer* styles discussed above allow attaching an asynchronous pipeline to each returned pending value before awaiting it. If you do not need that flexibility, use the concise iterator form, `AsyncGenerator<T>.valuesIterator()`, that mirrors ECMAScript and C# async iterators:
+Both *consumer* styles discussed above allow attaching an asynchronous pipeline to each returned pending value before awaiting it. Additionally, errors can be managed while awaiting individual pending tasks, as will be demonstrated later, thereby allowing for sophisticated error handling and recovery strategies. If you do not need that flexibility, use the concise iterator form, `AsyncGenerator<T>.valuesIterator()`, that mirrors ECMAScript and C# async iterators:
 ```java
 @async CompletionStage<Long> consumeGenerator() {  
     /* SuspendableIterator<String> */
@@ -568,13 +613,11 @@ static  @async <T> AsyncGenerator<T> concat(Iterable<? extends AsyncGenerator<? 
 However, implementing ZIP-like operators (i.e. combining results of several generators) efficiently is pretty tricky. For instance, imagine this scenario: we have a number of independent generators, each capable of providing a weather forecast when queried, and our goal is to create a generator that delivers the first forecast available. The naïve implementation is as follows:
 ```java
 record WeatherForecast() {...}
-    
+
 @async AsyncGenerator<WeatherForecast> nextForecastA() {...}
-    
 @async AsyncGenerator<WeatherForecast> nextForecastB() {...}
-    
 @async AsyncGenerator<WeatherForecast> nextForecastC() {...}
-    
+
 @async AsyncGenerator<WeatherForecast> nextForecast() {
     var async = AsyncGenerator.<WeatherForecast>start();
     try (var ga = nextForecastA();
@@ -619,7 +662,7 @@ Also, the code looks pretty good: we are  selecting the first ready result with 
          var gc = nextForecastC().concurrent()) {
             
          while (true) {
-             var  pendingItem = ConcurrentGenerator.any( ga.take(), gb.take(), gc.take() );
+             var  pendingItem = ConcurrentGenerator.any( true, ga.take(), gb.take(), gc.take() );
              WeatherForecast item;
              try {
                  item = await( pendingItem );
@@ -656,7 +699,51 @@ public  abstract  static  class Result<T> {
 ```
 The API highlights that the value returned by `take` can either be a genuine value holder or a marker object signifying a completed generator. To differentiate between these scenarios, we can use `isValue` for inspection. When `ConcurrentGenerator.Result<T>` reflects a value holder, the contained `value()` can be accessed via the appropriate method. However, invoking this method on the termination marker object results in an exception. Furthermore, the result can be transformed into a `java.util.Stream` comprising 0 or 1 elements or utilized with a sentinel fallback using the `orElse` method. 
 
-Afterwards we combine 3 returned promises into a single `CompletionStage<WeatherForecast>` via the call to `ConcurrentGenerator.any(<stages>)`, await the result in the asynchronous generator and yield it to the consumer. Notice, that while awaiting the result we can get `java.util.NoSuchElementException` when all of the generators are iterated over.
+Afterwards we combine 3 returned promises into a single `CompletionStage<WeatherForecast>` via the call to `ConcurrentGenerator.any(cancelRemaining, <stages>)`, await the result in the asynchronous generator and yield it to the consumer. Notice, that while awaiting the result we can get `java.util.NoSuchElementException` when all of the generators are iterated over.
+
+A key aspect to emphasize is that the code provided above cancels the pending item we are awaiting at every step (first parameter to `ConcurrentGenerator.any(...)` is `true`. In other words, the first available item from any of generators is selected while the remaining ones get canceled. This requires each individual generator, such as `nextForecastB`, to handle cancellation exceptions for each yielded item, as demonstrated below:
+```java
+@async AsyncGenerator<WeatherForecast> nextForecastB() {
+    var  async = AsyncGenerator.<WeatherForecast>start();
+    try {
+        for (int  i = 0; i < 9; i++) {
+            try {
+                async.yield( someExternalAsyncServiceProducingWeatherForecast()( );
+            } catch (CancellationException ex) {
+                System.out.println("Skip item in Generator B");
+            }
+        }
+    } finally {
+        System.out.println("<< GEN B IS OVER ");
+    }
+    return  async.yield();
+}
+```
+Of course, zipping can be done not just by taking the first item available from each generator, but also by gathering a collection of items from all the generators' steps as a single frame:
+```java
+@async AsyncGenerator<List<WeatherForecast>> nextForecastAll() {
+    var async = AsyncGenerator.<List<WeatherForecast>>start();
+    try (var ga = nextForecastA().concurrent();
+         var gb = nextForecastB().concurrent();
+         var gc = nextForecastC().concurrent()) {
+        while (true) {
+            var  pendingItem = ConcurrentGenerator.all(ga.take(), gb.take(), gc.take());
+            try {
+                var  item = await( pendingItem );
+                async.yield(item);
+            } catch (NoSuchElementException ex) {
+                System.out.println("Over!!!");
+                // All generators are over
+                break;
+            }
+        }
+    } finally {
+        System.out.println("<< GEN :MERGED: IS OVER ");
+    }
+    return  async.yield();
+}
+```
+As an extension to `all`, a more intriguing alternative is utilizing `ConcurrentGenerator.combine`, which facilitates the transformation of a generic `List` into a specialized application-dependent object. Refer to the library's source code for further insights.
 
 # Scheduler & SchedulerResolver - where is my code executed?
 ## Introducing schedulers

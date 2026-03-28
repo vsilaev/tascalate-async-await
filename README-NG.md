@@ -703,7 +703,7 @@ A key aspect to emphasize is that the code provided above cancels the pending it
     try {
         for (int  i = 0; i < 9; i++) {
             try {
-                async.yield( someExternalAsyncServiceProducingWeatherForecast()( );
+                async.yield( someExternalAsyncServiceProducingWeatherForecast() );
             } catch (CancellationException ex) {
                 System.out.println("Skip item in Generator B");
             }

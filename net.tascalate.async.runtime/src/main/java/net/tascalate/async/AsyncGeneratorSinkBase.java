@@ -35,6 +35,7 @@ import java.util.function.LongConsumer;
 import net.tascalate.async.core.AsyncGeneratorMethod;
 import net.tascalate.async.core.AsyncMethodExecutor;
 import net.tascalate.async.core.InternalCallContext;
+import net.tascalate.async.spi.MethodDefinition;
 
 abstract class AsyncGeneratorSinkBase<T> {
     private final AtomicBoolean subscribed = new AtomicBoolean(false);
@@ -83,7 +84,7 @@ abstract class AsyncGeneratorSinkBase<T> {
     }
     
     AsyncGenerator<T> start() {
-        Scheduler resolvedScheduler = AsyncMethodExecutor.currentScheduler(scheduler, this, MethodHandles.lookup());
+        Scheduler resolvedScheduler = AsyncMethodExecutor.currentScheduler(scheduler, this, MethodHandles.lookup(), MD_START);
         AsyncGeneratorMethod<T> method = new AsyncGeneratorMethod<T>(resolvedScheduler) {
             @Override
             protected @suspendable void doRun() throws Throwable {
@@ -239,4 +240,6 @@ abstract class AsyncGeneratorSinkBase<T> {
             return true;
         }
     };
+    
+    static final MethodDefinition MD_START = MethodDefinition.create("start", AsyncGenerator.class);
 }

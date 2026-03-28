@@ -43,9 +43,9 @@ import org.springframework.core.ReactiveAdapterRegistry;
 import org.springframework.core.ReactiveTypeDescriptor;
 
 import net.tascalate.async.AsyncGenerator;
+import net.tascalate.async.CallContext;
 import net.tascalate.async.Scheduler;
 import net.tascalate.async.reactor.ReactorAsyncAwaitBridge;
-import net.tascalate.async.spi.CurrentCallContext;
 import reactor.core.publisher.Flux;
 
 @Configuration
@@ -102,9 +102,9 @@ class AsyncAwaitConfiguration {
         @Override
         public void afterPropertiesSet() throws Exception {
             reactiveAdapterRegistry.registerReactiveType(
-                ReactiveTypeDescriptor.multiValue(AsyncGenerator.class, () -> AsyncGenerator.emptyOn(CurrentCallContext.scheduler())),
+                ReactiveTypeDescriptor.multiValue(AsyncGenerator.class, () -> AsyncGenerator.emptyOn(CallContext.scheduler())),
                 asyncGenerator -> ReactorAsyncAwaitBridge.createFlux(() -> (AsyncGenerator<?>)asyncGenerator),
-                publisher -> ReactorAsyncAwaitBridge.createGenerator((Flux<?>)publisher, CurrentCallContext.scheduler())
+                publisher -> ReactorAsyncAwaitBridge.createGenerator((Flux<?>)publisher, CallContext.scheduler())
             );
         }
     }

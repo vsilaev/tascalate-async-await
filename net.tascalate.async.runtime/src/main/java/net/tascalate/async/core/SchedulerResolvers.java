@@ -26,12 +26,15 @@ package net.tascalate.async.core;
 
 import java.lang.invoke.MethodHandles;
 import java.util.Comparator;
+import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.ServiceLoader;
+import java.util.stream.Collectors;
 import java.util.stream.StreamSupport;
 
 import net.tascalate.async.Scheduler;
+import net.tascalate.async.spi.MethodDefinition;
 import net.tascalate.async.spi.SchedulerResolver;
 import net.tascalate.async.util.Cache;
 import net.tascalate.async.util.ReferenceType;
@@ -39,17 +42,16 @@ import net.tascalate.async.util.ReferenceType;
 class SchedulerResolvers {
     private SchedulerResolvers() {}
     
-    static Scheduler currentScheduler(Object owner, MethodHandles.Lookup ownerClassLookup) {
+    static Scheduler currentScheduler(Object owner, MethodHandles.Lookup ownerClassLookup, MethodDefinition methodDef) {
         ClassLoader serviceClassLoader = getServiceClassLoader(owner != null ? owner.getClass() : ownerClassLookup.lookupClass());
-        ServiceLoader<SchedulerResolver> serviceLoader = getServiceLoader(serviceClassLoader);
+        List<SchedulerResolver> schedulerResolvers = getSchedulerResolvers(serviceClassLoader);
 
-        return StreamSupport.stream(serviceLoader.spliterator(), false)
-            .sorted(SCHEDULER_RESOLVER_BY_PRIORITY)
-            .map(l -> l.resolve(owner, ownerClassLookup))
-            .filter(Objects::nonNull)
-            .findFirst()
-            .orElseGet(() -> Optional.ofNullable(Scheduler.defaultScheduler())
-                                     .orElse(Scheduler.sameThreadContextless()));
+        return schedulerResolvers.stream()
+                                 .map(l -> l.resolve(owner, ownerClassLookup, methodDef))
+                                 .filter(Objects::nonNull)
+                                 .findFirst()
+                                 .orElseGet(() -> Optional.ofNullable(Scheduler.defaultScheduler())
+                                                          .orElse(Scheduler.sameThreadContextless()));
     }
     
     private static ClassLoader getServiceClassLoader(Class<?> ownerClassLoaderSource) {
@@ -58,14 +60,16 @@ class SchedulerResolvers {
         }
         ClassLoader ownerClassLoader   = classLoaderOfClass(ownerClassLoaderSource);
         ClassLoader contextClassLoader = classLoaderOfContext();
-        return isParent(ownerClassLoader, contextClassLoader) ? 
-            contextClassLoader : ownerClassLoader;
+        return isParent(contextClassLoader, ownerClassLoader) ? ownerClassLoader : contextClassLoader;
     }
     
-    private static ServiceLoader<SchedulerResolver> getServiceLoader(ClassLoader classLoader) {
-        return SERVICE_LOADER_BY_CLASS_LOADER.get(
+    private static List<SchedulerResolver> getSchedulerResolvers(ClassLoader classLoader) {
+        return SCHEDULER_RESOLVERS_BY_CLASS_LOADER.get(
             classLoader, 
-            cl -> ServiceLoader.load(SchedulerResolver.class, cl)
+            cl -> StreamSupport.stream(ServiceLoader.load(SchedulerResolver.class, cl).spliterator(), false)
+                               .sorted(SCHEDULER_RESOLVER_BY_PRIORITY)
+                               .collect(Collectors.toList()) 
+                                
         );
     }
     
@@ -94,7 +98,7 @@ class SchedulerResolvers {
     private static final Comparator<SchedulerResolver> SCHEDULER_RESOLVER_BY_PRIORITY = 
         Comparator.comparing(SchedulerResolver::priority).reversed();
     
-    private static final Cache<ClassLoader, ServiceLoader<SchedulerResolver>> SERVICE_LOADER_BY_CLASS_LOADER = 
+    private static final Cache<ClassLoader, List<SchedulerResolver>> SCHEDULER_RESOLVERS_BY_CLASS_LOADER = 
         new Cache<>(ReferenceType.WEAK, ReferenceType.SOFT);
 
 }

@@ -31,6 +31,7 @@ import javax.swing.SwingUtilities;
 import org.kohsuke.MetaInfServices;
 
 import net.tascalate.async.Scheduler;
+import net.tascalate.async.spi.MethodDefinition;
 import net.tascalate.async.spi.SchedulerResolver;
 
 @MetaInfServices
@@ -40,11 +41,11 @@ public class GetSwingDispatcherThreadScheduler implements SchedulerResolver {
     
     @Override
     public int priority() {
-        return 0;
+        return 5;
     }
 
     @Override
-    public Scheduler resolve(Object owner, MethodHandles.Lookup ownerClassLookup) {
+    public Scheduler resolve(Object owner, MethodHandles.Lookup ownerClassLookup, MethodDefinition methodDef) {
         // Use SwingDispatcherThreadScheduler for methods invoked from Swing UI action handlers
         return SwingUtilities.isEventDispatchThread() ? swingDispatcherThreadScheduler : null;
     }

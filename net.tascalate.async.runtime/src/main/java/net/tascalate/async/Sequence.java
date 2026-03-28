@@ -106,7 +106,7 @@ public interface Sequence<T> extends AutoCloseable {
         };
     }
     
-    default T itemType() {
+    default T nullItem() {
         return null;
     }
     

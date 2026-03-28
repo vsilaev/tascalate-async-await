@@ -64,30 +64,22 @@ class AsyncCallBoundaryInterceptor {
     
     @Around("asyncTasksMethodsWithBoundary(asyncCallBoundary)")
     CompletionStage<?> invokeAsyncTask(ProceedingJoinPoint joinPoint, AsyncCallBoundary asyncCallBoundary) throws Throwable {
-        switch (asyncCallBoundary.value()) {
+        AsyncCallBoundary.Kind kind = asyncCallBoundary.value();
+        switch (kind) {
             case CREATE_NEW:
-                return AsyncExecutionScope.instance().withNewFrame(frame -> {
+            case JOIN_OR_CREATE:                
+                return AsyncExecutionScope.instance().withFrame(kind == AsyncCallBoundary.Kind.CREATE_NEW, newFrame -> {
                     CompletionStage<?> result = (CompletionStage<?>)joinPoint.proceed();
                     if (null == result) {
                         MethodSignature signature = (MethodSignature) joinPoint.getSignature();
                         throw new IllegalStateException("Method with async call boundary returned null result " + signature);
                     } else {
-                        result.whenComplete((r, e) -> destroyFrame(frame));
+                        if (null != newFrame) {
+                            result.whenComplete((r, e) -> destroyFrame(newFrame));
+                        }
                         return result;
                     }
                 });
-            case JOIN_OR_CREATE:
-                Map<String, AsyncExecutionScope.ScopedObject> frame = AsyncExecutionScope.instance().createOrGetFrame();
-                CompletionStage<?> result = (CompletionStage<?>)joinPoint.proceed();
-                if (null == result) {
-                    MethodSignature signature = (MethodSignature) joinPoint.getSignature();
-                    throw new IllegalStateException("Method with async call boundary returned null result " + signature);
-                } else {
-                    if (null != frame) {
-                        result.whenComplete((r, e) -> destroyFrame(frame));
-                    }
-                    return result;
-                }
             case JOIN_REQUIRED:
                 if (AsyncExecutionScope.instance().hasFrame()) {
                     return (CompletionStage<?>)joinPoint.proceed();
@@ -102,30 +94,22 @@ class AsyncCallBoundaryInterceptor {
     
     @Around("asyncGeneratorMethodsWithBoundary(asyncCallBoundary)")
     AsyncGenerator<?> invokeAsyncGenerator(ProceedingJoinPoint joinPoint, AsyncCallBoundary asyncCallBoundary) throws Throwable {
-        switch (asyncCallBoundary.value()) {
+        AsyncCallBoundary.Kind kind = asyncCallBoundary.value();
+        switch (kind) {
             case CREATE_NEW:
-                return AsyncExecutionScope.instance().withNewFrame(frame -> {
+            case JOIN_OR_CREATE:                
+                return AsyncExecutionScope.instance().withFrame(asyncCallBoundary.value() == AsyncCallBoundary.Kind.CREATE_NEW, newFrame -> {
                     AsyncGenerator<?> result = (AsyncGenerator<?>)joinPoint.proceed();
                     if (null == result) {
                         MethodSignature signature = (MethodSignature) joinPoint.getSignature();
                         throw new IllegalStateException("Method with async call boundary returned null result " + signature);
                     } else {
-                        result.onCompletion(e -> destroyFrame(frame));
+                        if (null != newFrame) {
+                            result.onCompletion(e -> destroyFrame(newFrame));
+                        }
                         return result;
                     }
                 });
-            case JOIN_OR_CREATE:
-                Map<String, AsyncExecutionScope.ScopedObject> frame = AsyncExecutionScope.instance().createOrGetFrame();
-                AsyncGenerator<?> result = (AsyncGenerator<?>)joinPoint.proceed();
-                if (null == result) {
-                    MethodSignature signature = (MethodSignature) joinPoint.getSignature();
-                    throw new IllegalStateException("Method with async call boundary returned null result " + signature);
-                } else {
-                    if (null != frame) {
-                        result.onCompletion(e -> destroyFrame(frame));
-                    }
-                    return result;
-                }
             case JOIN_REQUIRED:
                 if (AsyncExecutionScope.instance().hasFrame()) {
                     return (AsyncGenerator<?>)joinPoint.proceed();

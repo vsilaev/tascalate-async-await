@@ -58,7 +58,7 @@ public class ContextPassingExamples {
 
     public static void main(String[] argv) {
         @SuppressWarnings("unused")
-        ContextVar<List<? extends Number>> l = ThreadLocalVar.of(VN_1, VN_2);
+        ContextVar<List<Number>> l = ThreadLocalVar.of(VN_1, VN_2);
         
         Scheduler scheduler = Scheduler.interruptible(ownExecutor, ThreadLocalVar.of(MY_CONTEXT_VAR, YOUR_CONTEXT_VAR).relay()::contextual);
         MY_CONTEXT_VAR.set("CORRECT");

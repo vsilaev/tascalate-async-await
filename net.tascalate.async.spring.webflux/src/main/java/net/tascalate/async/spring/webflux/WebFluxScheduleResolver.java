@@ -27,17 +27,18 @@ package net.tascalate.async.spring.webflux;
 import java.lang.invoke.MethodHandles.Lookup;
 
 import net.tascalate.async.Scheduler;
+import net.tascalate.async.spi.MethodDefinition;
 import net.tascalate.async.spi.SchedulerResolver;
 
 public class WebFluxScheduleResolver implements SchedulerResolver {
 
     @Override
     public int priority() {
-        return 0;
+        return 9;
     }
 
     @Override
-    public Scheduler resolve(Object owner, Lookup ownerClassLookup) {
+    public Scheduler resolve(Object owner, Lookup ownerClassLookup, MethodDefinition methodDef) {
         return WebFluxData.safeGet().asyncAwaitScheduler();
     }
 

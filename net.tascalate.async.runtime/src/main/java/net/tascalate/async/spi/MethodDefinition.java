@@ -24,13 +24,41 @@
  */
 package net.tascalate.async.spi;
 
-import net.tascalate.async.Scheduler;
-import net.tascalate.async.core.InternalCallContext;
+import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
-final public class CurrentCallContext {
-    private CurrentCallContext() {}
+public final class MethodDefinition {
+    private final String name;
+    private final Class<?> returnType;
+    private final Class<?>[] argumentTypes;
     
-    public static Scheduler scheduler() {
-        return InternalCallContext.scheduler(false);
+    private MethodDefinition(String name, Class<?> returnType, Class<?>[] argumentTypes) {
+        this.name = name;
+        this.returnType = returnType;
+        this.argumentTypes = argumentTypes;
+    }
+    
+    public static MethodDefinition create(String name, Class<?> returnType, Class<?>... argumentTypes) {
+        return new MethodDefinition(name, returnType, argumentTypes);
+    }
+
+    public String getName() {
+        return name;
+    }
+
+    public Class<?> getReturnType() {
+        return returnType;
+    }
+
+    public Class<?>[] getArgumentTypes() {
+        return argumentTypes;
+    }
+    
+    @Override
+    public String toString( ) {
+        return returnType.getName() + " " + name + 
+               "(" + Stream.of(argumentTypes)
+                           .map(Class::getName)
+                           .collect(Collectors.joining(", ")) + ")";
     }
 }

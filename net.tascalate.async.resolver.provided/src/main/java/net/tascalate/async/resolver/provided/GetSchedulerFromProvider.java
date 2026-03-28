@@ -29,6 +29,7 @@ import java.lang.invoke.MethodHandles;
 import org.kohsuke.MetaInfServices;
 
 import net.tascalate.async.Scheduler;
+import net.tascalate.async.spi.MethodDefinition;
 import net.tascalate.async.spi.SchedulerProviderLookup;
 import net.tascalate.async.spi.SchedulerResolver;
 
@@ -43,7 +44,7 @@ public class GetSchedulerFromProvider implements SchedulerResolver {
     }
 
     @Override
-    public Scheduler resolve(Object owner, MethodHandles.Lookup ownerClassLookup) {
+    public Scheduler resolve(Object owner, MethodHandles.Lookup ownerClassLookup, MethodDefinition methodDef) {
         if (null == owner) {
             if (null == ownerClassLookup) {
                 return null;

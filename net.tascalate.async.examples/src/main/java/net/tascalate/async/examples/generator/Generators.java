@@ -30,16 +30,14 @@ import java.util.Iterator;
 import java.util.concurrent.CompletionStage;
 import java.util.concurrent.Executor;
 import java.util.concurrent.TimeUnit;
-import java.util.function.Function;
 import java.util.stream.Stream;
 
 import net.tascalate.async.AsyncGenerator;
 import net.tascalate.async.AsyncYield;
+import net.tascalate.async.CallContext;
 import net.tascalate.async.Scheduler;
 import net.tascalate.async.Sequence;
 import net.tascalate.async.async;
-
-import net.tascalate.async.spi.CurrentCallContext;
 
 import net.tascalate.concurrent.CompletableTask;
 
@@ -70,7 +68,7 @@ public class Generators {
    
    public static @async AsyncGenerator<Duration> delays(Duration duration) {
        AsyncYield<Duration> async = AsyncGenerator.start();
-       Executor executor = new CurrentSchedulerExecutor(CurrentCallContext.scheduler());
+       Executor executor = new CurrentSchedulerExecutor(CallContext.scheduler());
        while (true) {
            async.yield( CompletableTask.delay(duration, executor) );
        }
@@ -78,7 +76,7 @@ public class Generators {
    
    public static @async AsyncGenerator<Duration> delays(long timeout, TimeUnit timeUnit) {
        AsyncYield<Duration> async = AsyncGenerator.start();
-       Executor executor = new CurrentSchedulerExecutor(CurrentCallContext.scheduler());
+       Executor executor = new CurrentSchedulerExecutor(CallContext.scheduler());
        while (true) {
            async.yield( CompletableTask.delay(timeout, timeUnit, executor) );
        }

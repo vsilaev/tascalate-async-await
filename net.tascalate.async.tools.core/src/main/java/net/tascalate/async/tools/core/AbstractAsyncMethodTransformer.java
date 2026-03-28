@@ -88,7 +88,8 @@ abstract public class AbstractAsyncMethodTransformer {
 
     protected final static Type SCHEDULER_TYPE              = Type.getObjectType("net/tascalate/async/Scheduler");
 
-    private final static Type SCHEDULER_PROVIDER_TYPE    = Type.getObjectType("net/tascalate/async/SchedulerProvider");
+    private final static Type METHOD_DEFINITION_TYPE  = Type.getObjectType("net/tascalate/async/spi/MethodDefinition");
+    private final static Type SCHEDULER_PROVIDER_TYPE = Type.getObjectType("net/tascalate/async/SchedulerProvider");
     
 
     protected final ClassNode classNode;
@@ -193,7 +194,7 @@ abstract public class AbstractAsyncMethodTransformer {
                 asyncRunnableClass.visitField(ACC_PRIVATE /* + ACC_FINAL */ + ACC_SYNTHETIC, argName, argDesc, null, null);
             }
         }
-
+        addAnonymousClassMetadata(asyncRunnableClass);
         addAnonymousClassConstructor(asyncRunnableClass, superClassType, outerClassField);
         addAnonymousClassRunMethod(asyncRunnableClass, outerClassField);
         addAnonymousClassToStringMethod(asyncRunnableClass, superClassType);
@@ -266,7 +267,80 @@ abstract public class AbstractAsyncMethodTransformer {
         result.visitInsn(ARETURN);
         result.visitMaxs(3, 1);
         return result;
+    }
+    
+    protected MethodVisitor addAnonymousClassMetadata(ClassNode asyncRunnableClass) {
+        asyncRunnableClass.visitField(Opcodes.ACC_STATIC | Opcodes.ACC_FINAL,
+                                      "__METHOD_DEFINITION",
+                                      METHOD_DEFINITION_TYPE.getDescriptor(), // descriptor
+                                      METHOD_DEFINITION_TYPE.getDescriptor(), // generic signature (optional)
+                                      null /* no compile-time constant */);
+        MethodVisitor result = asyncRunnableClass.visitMethod(ACC_STATIC, "<clinit>", "()V", null, null);
+        // 1) push the String name
+        result.visitLdcInsn(originalAsyncMethod.name);
+        // 2) push the return type as a Class literal, e.g. java.lang.String.class
+        pushClassLiteral(result, Type.getReturnType(originalAsyncMethod.desc));
+
+        // 3) build Class[] for varargs: new Class[n]; fill elements
+        Type[] argTypes = Type.getArgumentTypes(originalAsyncMethod.desc);
+        int n = argTypes.length;
+
+        // push array length
+        // push array length
+        switch (n) {
+            case 0: result.visitInsn(Opcodes.ICONST_0); break;
+            case 1: result.visitInsn(Opcodes.ICONST_1); break;
+            case 2: result.visitInsn(Opcodes.ICONST_2); break;
+            case 3: result.visitInsn(Opcodes.ICONST_3); break;
+            case 4: result.visitInsn(Opcodes.ICONST_4); break;
+            case 5: result.visitInsn(Opcodes.ICONST_5); break;
+            default:
+                if (n <= Short.MAX_VALUE) {
+                    result.visitIntInsn(Opcodes.SIPUSH, n);
+                } else {
+                    result.visitLdcInsn(n);
+                }
+        }
+
+        // create new array of java.lang.Class
+        result.visitTypeInsn(Opcodes.ANEWARRAY, CLASS_TYPE.getInternalName());
+
+        // fill array: for each index do DUP, push index, push class literal, AASTORE
+        for (int i = 0; i < n; i++) {
+            result.visitInsn(Opcodes.DUP);
+
+            // push index
+            switch (i) {
+                case 0: result.visitInsn(Opcodes.ICONST_0); break;
+                case 1: result.visitInsn(Opcodes.ICONST_1); break;
+                case 2: result.visitInsn(Opcodes.ICONST_2); break;
+                case 3: result.visitInsn(Opcodes.ICONST_3); break;
+                case 4: result.visitInsn(Opcodes.ICONST_4); break;
+                case 5: result.visitInsn(Opcodes.ICONST_5); break;
+                default:
+                    if (i <= Short.MAX_VALUE) {
+                        result.visitIntInsn(Opcodes.SIPUSH, i);
+                    } else {
+                        result.visitLdcInsn(i);
+                    }
+            }
+
+            // push class literal for argTypes[i]
+            pushClassLiteral(result, argTypes[i]);
+            // store into array
+            result.visitInsn(Opcodes.AASTORE);
+        }
         
+        result.visitMethodInsn(
+            Opcodes.INVOKESTATIC, METHOD_DEFINITION_TYPE.getInternalName(), "create", 
+            "(Ljava/lang/String;Ljava/lang/Class;[Ljava/lang/Class;)" + METHOD_DEFINITION_TYPE.getDescriptor(), false
+        );
+        result.visitFieldInsn(
+            Opcodes.PUTSTATIC, asyncRunnableClass.name, "__METHOD_DEFINITION", METHOD_DEFINITION_TYPE.getDescriptor()
+        );
+        result.visitInsn(RETURN);
+        result.visitMaxs(3, 0);
+        return result;
     }
     
     protected Object[] findOwnerInvokeDynamic(AbstractInsnNode instruction, List<MethodNode> ownerMethods) {
@@ -350,9 +424,10 @@ abstract public class AbstractAsyncMethodTransformer {
             INVOKESTATIC, METHOD_HANDLES_TYPE.getInternalName(), "lookup", 
             Type.getMethodDescriptor(METHOD_HANDLES_LOOKUP_TYPE), false
         );
+        result.visitFieldInsn(Opcodes.GETSTATIC, asyncTaskClassName, "__METHOD_DEFINITION", METHOD_DEFINITION_TYPE.getDescriptor());
         result.visitMethodInsn(
             INVOKESTATIC, ASYNC_METHOD_EXECUTOR_TYPE.getInternalName(), "currentScheduler", 
-            Type.getMethodDescriptor(SCHEDULER_TYPE, SCHEDULER_TYPE, OBJECT_TYPE, METHOD_HANDLES_LOOKUP_TYPE), false
+            Type.getMethodDescriptor(SCHEDULER_TYPE, SCHEDULER_TYPE, OBJECT_TYPE, METHOD_HANDLES_LOOKUP_TYPE, METHOD_DEFINITION_TYPE), false
         );
         
         String constructorDesc = Type.getMethodDescriptor(
@@ -814,6 +889,31 @@ abstract public class AbstractAsyncMethodTransformer {
         System.arraycopy(array, 0, result, 0, array.length);
         result[result.length - 1] = value;
         return result;
+    }
+    
+    
+    static void pushClassLiteral(MethodVisitor mv, Type t) {
+        if (t.getSort() == Type.VOID) {
+            mv.visitFieldInsn(GETSTATIC, "java/lang/Void", "TYPE", "Ljava/lang/Class;");
+        } else if (t.getSort() == Type.BOOLEAN) {
+            mv.visitFieldInsn(GETSTATIC, "java/lang/Boolean", "TYPE", "Ljava/lang/Class;");
+        } else if (t.getSort() == Type.CHAR) {
+            mv.visitFieldInsn(GETSTATIC, "java/lang/Character", "TYPE", "Ljava/lang/Class;");
+        } else if (t.getSort() == Type.BYTE) {
+            mv.visitFieldInsn(GETSTATIC, "java/lang/Byte", "TYPE", "Ljava/lang/Class;");
+        } else if (t.getSort() == Type.SHORT) {
+            mv.visitFieldInsn(GETSTATIC, "java/lang/Short", "TYPE", "Ljava/lang/Class;");
+        } else if (t.getSort() == Type.INT) {
+            mv.visitFieldInsn(GETSTATIC, "java/lang/Integer", "TYPE", "Ljava/lang/Class;");
+        } else if (t.getSort() == Type.LONG) {
+            mv.visitFieldInsn(GETSTATIC, "java/lang/Long", "TYPE", "Ljava/lang/Class;");
+        } else if (t.getSort() == Type.FLOAT) {
+            mv.visitFieldInsn(GETSTATIC, "java/lang/Float", "TYPE", "Ljava/lang/Class;");
+        } else if (t.getSort() == Type.DOUBLE) {
+            mv.visitFieldInsn(GETSTATIC, "java/lang/Double", "TYPE", "Ljava/lang/Class;");
+        } else {
+            mv.visitLdcInsn(t);
+        }
     }
     
 }

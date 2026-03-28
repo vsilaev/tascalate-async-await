@@ -54,7 +54,7 @@ public class ExceptionsTest {
     
     @async static Promise<String> consumer() {
         try (AsyncGenerator<Object> generator = producer()) {
-            CompletionStage<Object> f = generator.itemType();
+            CompletionStage<Object> f = generator.nullItem();
             while (null != (f = generator.next())) {
                 System.out.println("Consumed future: " + f);
                 try {

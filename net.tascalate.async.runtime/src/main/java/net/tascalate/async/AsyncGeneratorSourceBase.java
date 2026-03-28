@@ -30,6 +30,7 @@ import java.util.function.Consumer;
 
 import net.tascalate.async.core.AsyncMethodExecutor;
 import net.tascalate.async.core.AsyncTaskMethod;
+import net.tascalate.async.spi.MethodDefinition;
 
 abstract class AsyncGeneratorSourceBase<T> {
     private final Sequence<? extends CompletionStage<? extends T>> sequence;
@@ -54,7 +55,7 @@ abstract class AsyncGeneratorSourceBase<T> {
     }
     
     private AsyncResult<Long> doStart() {
-        Scheduler resolvedScheduler = AsyncMethodExecutor.currentScheduler(scheduler, this, MethodHandles.lookup());
+        Scheduler resolvedScheduler = AsyncMethodExecutor.currentScheduler(scheduler, this, MethodHandles.lookup(), MD_DO_START);
         AsyncTaskMethod<Long> method = new AsyncTaskMethod<Long>(resolvedScheduler) {
             @Override
             protected @suspendable void doRun() {
@@ -144,4 +145,6 @@ abstract class AsyncGeneratorSourceBase<T> {
         }
 
     }
+    
+    static final MethodDefinition MD_DO_START = MethodDefinition.create("doStart", AsyncResult.class);
 }

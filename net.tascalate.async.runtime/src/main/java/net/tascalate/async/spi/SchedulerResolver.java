@@ -27,10 +27,15 @@ package net.tascalate.async.spi;
 import java.lang.invoke.MethodHandles;
 
 import net.tascalate.async.Scheduler;
+import net.tascalate.async.core.InternalCallContext;
 
 public interface SchedulerResolver {
     
     int priority();
     
-    Scheduler resolve(Object owner, MethodHandles.Lookup ownerClassLookup);
+    Scheduler resolve(Object owner, MethodHandles.Lookup ownerClassLookup, MethodDefinition methodDef);
+    
+    public static Scheduler callContextScheduler() {
+        return InternalCallContext.scheduler(false);
+    }
 }

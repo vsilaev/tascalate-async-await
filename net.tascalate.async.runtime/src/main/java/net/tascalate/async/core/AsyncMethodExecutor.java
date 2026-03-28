@@ -38,6 +38,7 @@ import org.slf4j.LoggerFactory;
 import net.tascalate.async.InvalidCallContextException;
 import net.tascalate.async.Scheduler;
 import net.tascalate.async.suspendable;
+import net.tascalate.async.spi.MethodDefinition;
 
 /**
  * 
@@ -158,11 +159,11 @@ public class AsyncMethodExecutor {
         }
     }
     
-    public static Scheduler currentScheduler(Scheduler explicitScheduler, Object owner, MethodHandles.Lookup ownerClassLookup) {
+    public static Scheduler currentScheduler(Scheduler explicitScheduler, Object owner, MethodHandles.Lookup ownerClassLookup, MethodDefinition methodDef) {
         return null != explicitScheduler ? 
             explicitScheduler 
             : 
-            SchedulerResolvers.currentScheduler(owner, ownerClassLookup);
+            SchedulerResolvers.currentScheduler(owner, ownerClassLookup, methodDef);
     }
     
     private static <R, E extends Throwable> FutureResult<R, E> getResolvedOutcome(CompletionStage<R> stage) {

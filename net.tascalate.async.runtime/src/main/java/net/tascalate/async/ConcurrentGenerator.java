@@ -42,6 +42,7 @@ import net.tascalate.async.core.AsyncMethodExecutor;
 import net.tascalate.async.core.AsyncTaskMethod;
 import net.tascalate.async.core.InternalCallContext;
 import net.tascalate.async.core.RestrictedCompletableFuture;
+import net.tascalate.async.spi.MethodDefinition;
 
 public final class ConcurrentGenerator<T> implements AutoCloseable {
     
@@ -136,7 +137,7 @@ public final class ConcurrentGenerator<T> implements AutoCloseable {
    }
    
    ConcurrentGenerator<T> start() {
-       Scheduler resolvedScheduler = AsyncMethodExecutor.currentScheduler(scheduler, this, MethodHandles.lookup());
+       Scheduler resolvedScheduler = AsyncMethodExecutor.currentScheduler(scheduler, this, MethodHandles.lookup(), MD_START);
        AsyncTaskMethod<Result<T>> method = new AsyncTaskMethod<Result<T>>(resolvedScheduler) {
            @Override
            protected @suspendable void doRun() {
@@ -301,4 +302,6 @@ public final class ConcurrentGenerator<T> implements AutoCloseable {
            return scheduler;
        }
    }
+   
+   static final MethodDefinition MD_START = MethodDefinition.create("start", ConcurrentGenerator.class);
 }

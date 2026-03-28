@@ -120,6 +120,30 @@ public class AsyncExecutionScope implements Scope {
         }
     }
     
+    <T> T withFrame(boolean enforceNew, NewFrameCall<T> call) throws Throwable {
+        if (enforceNew) {
+            return withNewFrame(call);
+        } else {
+            return withNewOrExistingFrame(call);
+        }
+    }
+    
+    <T> T withNewOrExistingFrame(NewFrameCall<T> call) throws Throwable {
+        Map<String, ScopedObject> frame = threadScope.get();
+        if (null == frame) {
+            Map<String, ScopedObject> newFrame = new ConcurrentHashMap<>();
+            threadScope.set(newFrame);
+            try {
+                return call.apply(frame);
+            } finally {
+                threadScope.remove();
+            }
+        } else {
+            // No scope added
+            return call.apply(null);
+        }
+    }
+    
     <T> T withNewFrame(NewFrameCall<T> call) throws Throwable {
         Map<String, ScopedObject> frame = new ConcurrentHashMap<>();
         Map<String, ScopedObject> previous = threadScope.get(); 

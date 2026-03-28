@@ -476,17 +476,12 @@ import net.tascalate.async.async;
  An **async generator method** is a method annotated with `@async` that returns `AsyncGenerator<T>`. Inside the method body, create an `AsyncYield<T>` helper by calling `AsyncGenerator.<T>start()`. Any variable name is allowed; choose a consistent name across the codebase such as `async` or a single letter like `g`.
 
 Use the `AsyncYield<T>` variable to yield values of these forms:
-
 1.  `CompletionStage<T>` or a subclass -- a single pending value.
-    
 2.  `T` -- a ready value.
-    
 3.  `net.tascalate.async.Sequence<? extends CompletionStage<? extends T>>` -- a sequence of pending values.
-    
 4.  `AsyncGenerator<T>` -- a nested generator, which is a special case of the sequence option.
     
 End the method with `return async.yield()`. Treat `return async.yield()` as a single, atomic syntax construct -- do **not** assign the result of `async.yield()` to a variable for later reuse while this leads to unexpected behavior. Instead, call `async.yield()` directly at the point where you want to yield and immediately return its result.
-
 ```java
 // Correct
 return async.yield();
@@ -747,7 +742,7 @@ As an extension to `all`, a more intriguing alternative is utilizing `Concurrent
 
 # Scheduler & SchedulerResolver - where is my code executed?
 ## Introducing schedulers
-When executing asynchronous code with `CompletionStage` / `CompletableFuture` it's critical to know where the code is resumed once the corresponding completion stage is settled. With regular `CompletionStage` API the answer is pretty straightforward: the code will be resumed with the `Executor` supplied as an additional parameter to the API method like below:
+When working with asynchronous code using `CompletionStage` or `CompletableFuture`, it's essential to consider where the execution continues once the corresponding stage is completed. In the standard `CompletionStage` API, the answer is clear: the code will proceed on the `Executor` specified as an additional parameter in the API method, as demonstrated below:
 ```java
 import java.util.concurrent.CompletionStage;
 import java.util.concurrent.ExecutorService;
@@ -758,30 +753,27 @@ CompletionStage<String> myCompletionStage = ... ; // Start asynchronous operatio
 ExecutorService myExecutor = Executors.newFixedThreadPool(4);
 myCompletionStage.thenAcceptAsync(System.out::println, myExecutor);
 ``` 
-In the example above the code to print result to the console will run on the thread provided by `myExecutor`.
+In the example above, the code responsible for printing the result to the console will execute on the thread supplied by `myExecutor`.
 
-However, for Tascalate Async / Await there is no way to specify where the code will be resumed once the corresponding `await(future)` operation is complete. Instead of the passing `Executor` explicitly, the library uses fully declarative pluggable mechanism to  specify asynchronous executor to run with.
+In contrast to traditional practices, Tascalate Async/Await doesn’t allow you to directly define where the code execution should continue when the associated `await(future)` operation concludes. Rather than explicitly providing an `Executor`, the library employs a fully declarative and pluggable system to designate the asynchronous executor to be utilized. 
 
-First we must introduce the `Scheduler` interface:
+To begin, let's take a look at the `Scheduler` interface:
 ```java
 package net.tascalate.async;
 
 public interface Scheduler {
-
    ...    
     abstract public CompletionStage<?> schedule(Runnable runnable);
-        
+    
     default Runnable contextualize(Runnable resumeContinuation) {
         return resumeContinuation;
     }
    ...
 }
 ```
-The `Schedulre` API has 2 responsibilities:
-1. Execute supplied runnable command, most probably asynchronously (thought, this is implementation-dependent)
-2. Capture execution context of the currently running thread before suspension so it can later be restored when the code is resumed after `await(future)`. The `execution context` is typically defined as a set of thread local variables - either via explicit usage of the `ThreadLocal` or via some API wrapping `ThreadLocal`-s (like [RequestContextHolder](https://docs.spring.io/spring-framework/docs/current/javadoc-api/org/springframework/web/context/request/RequestContextHolder.html) in Spring) 
-
-There are several factory methods in `Scheduler` interface that create concrete `Scheduler` implementation using the `ExecutorService` supplied and optional `contextualizer` - a function that captures current thread execution context and creates a wrapper for the runnable to re-apply context on the new thread.
+The `Scheduler` API serves two responsibilities: 
+1. To execute a provided runnable task, which is generally done asynchronously -- but the actual behavior may vary depending on the implementation. 
+2. To preserve the execution context of the active thread before it is suspended, allowing the context to be reinstated later when the code resumes execution following an `await(future)` call. The `execution context` usually encompasses a collection of thread-local variables—either managed directly via `ThreadLocal` or indirectly through APIs that utilize `ThreadLocal`, such as [RequestContextHolder](https://docs.spring.io/spring-framework/docs/current/javadoc-api/org/springframework/web/context/request/RequestContextHolder.html) in Spring. The `Scheduler` interface includes several factory methods that let you create specific `Scheduler` implementations by using a provided `ExecutorService` and, optionally, a `contextualizer`. This contextualizer is a function designed to capture the thread's current execution context and generate a runnable wrapper that re-applies this context within the new thread.
 ```
 package net.tascalate.async;
 ...
@@ -792,9 +784,7 @@ import java.util.function.Function;
 
 public interface Scheduler {
     ...
-
     public static Scheduler nonInterruptible(Executor executor);
-    
     public static Scheduler nonInterruptible(
         Executor executor, 
         Function<? super Runnable, ? extends Runnable> contextualizer);     
@@ -804,17 +794,14 @@ public interface Scheduler {
     public static Scheduler interruptible(
         ExecutorService executor, 
         Function<? super Runnable, ? extends Runnable> contextualizer);
-
    ...
 }
 ```
-
 So the sequence to create `Scheduler` is:
 ```java
 import java.util.concurrent.CompletionStage;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
-
 import java.util.function.Function;
 
 import net.tascalate.async.Scheduler 
@@ -824,11 +811,10 @@ ExecutorService myExecutor = Executors.newFixedThreadPool(4);
 Scheduler myScheduler = Scheduler.interruptible(myExecutor, 
                                                 Function.identity() /* or actual contextualizer */);
 ```
+The attentive reader might observe a distinction between `interruptible` and `non-interruptible` schedulers; however, let us set that aside for now. Instead, let’s focus on exploring how the scheduler we’ve created can be applied to asynchronous methods.
 
-The careful reader may notice that there is a divide between `interruptible` vs `non-interruptible` schedulers, but let us left this out of the scope for a while. Instead, let's discuss how to apply the scheduler created to the asynchronous methods.
-
- ## Explicit (method-scoped) schedulers
- The most explicit and straightforward way to specify asynchronous `Scheduler` is to pass it explicitly to the  asynchronous method as an annotated parameter:
+## Explicit (method-scoped) schedulers
+The most explicit and straightforward way to specify a `Scheduler` is to pass it explicitly to the asynchronous method as an annotated parameter:
 ```java
 import static net.tascalate.async.CallСontext.async;
 import static net.tascalate.async.CallСontext.await;
@@ -870,16 +856,18 @@ public class MyClass {
     }
 }
 ```
-The scenario is simple: add parameter of the type `Scheduler` annotated with `@SchedulerProvider` annotation to the each asynchronous method where this scheduler is used and pass it explicitly. Note that it's an error to have more than one parameter annotated with `@SchedulerProvider` - only one is allowed. Also, passing non-annotated `Scheduler` will have no effect -- it's treated just like regular parameter and do not used for asynchronous execution.
+Rephrase it
 
-You may notice that `currentScheduler` parameter from the `mergeStrings` method is passed directly to the `decorateStrings` method. This is mandatory if you want to share the same scheduler across several asynchronous methods. By default schedulers are not inherited for nested calls.
+The concept is straightforward: include a `Scheduler` parameter in each asynchronous method where it's utilized, ensuring the parameter is annotated with `@SchedulerProvider`, and pass it explicitly. Keep in mind that it's incorrect to have more than one parameter with the `@SchedulerProvider` annotation - only one is permissible. Additionally, providing an unannotated `Scheduler` won't have any special effect -- it will be treated as a standard parameter and not used for asynchronous execution. 
 
-Notice that in both methods above `currentScheduler` is not used with `await(...)` operator - it's used implicitly behinds the scenes in the generated code. This has one important implication: you can use only one scheduler per asynchronous method, there is no way to use different schedulers for different `await(...)` operations within the same method. If you ever need to then please re-factor your code to use separate asynchronous methods where individual schedulers may be defined per-method.
+It's worth noting that the `currentScheduler` parameter in the `mergeStrings` method is directly passed to the `decorateStrings` method. This step is essential when you want to use the same scheduler across multiple asynchronous methods. By default, schedulers are not automatically propagated to nested calls. 
 
-## SchedulerResolver introduction -- propagating scheduler to nested calls
-As it was mentioned right above "by default schedulers are not inherited for nested calls". This is a good point to introduce pluggable scheduler providers mechanism and alleviate this limitation.
+Also, observe that in both of the above methods, the `currentScheduler` parameter isn’t directly used with the `await(...)` operator. Instead, it's implicitly handled behind the scenes within the generated code. This leads to one crucial limitation: only one scheduler can be tied to any given asynchronous method, meaning it's not possible to assign distinct schedulers to different `await(...)` operations within the same method. If such a distinction is necessary, it's advisable to refactor your code to separate asynchronous methods, so each method can define its own specific scheduler.
 
-To use pluggable schedule provider you need to add corresponding Maven dependency and introduce new artifact on the project class-path / module-path. For example:
+## Introducing SchedulerResolver – Propagating Schedulers to Nested Calls 
+As highlighted earlier, "schedulers are not automatically propagated to nested calls" This creates an excellent opportunity to discuss the pluggable scheduler providers mechanism, which helps to address this limitation effectively. 
+
+To enable a pluggable scheduler provider, you must include the relevant Maven dependency and ensure the new artifact is added to your project's class-path or module-path. For instance:
 ```xml
 <dependency>
     <groupId>net.tascalate.async</groupId>
@@ -888,7 +876,7 @@ To use pluggable schedule provider you need to add corresponding Maven dependenc
     <scope>runtime</scope>
 </dependency>
 ```
-Now let us rewrite the example above to automatically propagate scheduler of the outer asynchronous method to the inner one:
+Let's rewrite the previous example so that the scheduler of the outer asynchronous method is automatically passed to the inner one:
 ```java
 import static net.tascalate.async.CallСontext.async;
 import static net.tascalate.async.CallСontext.await;
@@ -932,12 +920,14 @@ public class MyClass {
     }
 }
 ```
-You may see that the code was simplified, however no new specific code for the "propagating provider" was introduced. If you run this code you will see that `CallContext.scheduler()` reports the very same scheduler for both inner and outer methods. Btw, `CallContext.scheduler()` may be used with any combination of the scheduler providers and reports currently used `Scheduler` for all asynchronous, suspendable and generators methods.
+The code was simplified but no dedicated "propagating provider" was added. As a result, when you run it, `CallContext.scheduler()` returns the same `Scheduler` instance for both the outer and inner methods.
 
-## More useful SchedulerResolver - per-class/per-instance schedulers
-The next and probably the most useful one `Scheduler` provider is a "provided" provider variant (no pun). The idea is that a `Scheduler` may be specified per class or per class instances as a filed  (an instance one or a static one) or as a getter-like method (no argument method with a `Scheduler` return type).
+As an extra takeaway, `CallContext.scheduler()` may be used with any combination of the scheduler providers and reports currently used `Scheduler` for all asynchronous, suspendable and generators methods.
 
-To use this provider you first need to add a new runtime dependency:
+## More useful SchedulerResolver — per-class and per-instance schedulers
+The next provider variant lets you associate a `Scheduler` with a specific class. The resolver locates a `Scheduler` declared on the target type either as a field (static or instance) or as a no-argument method that returns `Scheduler`. When present, that `Scheduler` is used for asynchronous, suspendable, and generator methods invoked on that class or class instance.
+
+To use this provider you need to add a new *runtime* dependency:
 ```xml
 <dependency>
     <groupId>net.tascalate.async</groupId>

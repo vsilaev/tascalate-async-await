@@ -48,6 +48,7 @@
 		<module>net.tascalate.async.reactor</module>
 		<module>net.tascalate.async.spring-java21</module>
 		<module>net.tascalate.async.spring</module>
+		<module>net.tascalate.async.spring.scheduler</module>
 		<module>net.tascalate.async.spring.webflux</module>
 		<module>net.tascalate.async.spring.webservlet</module>
 		<module>net.tascalate.async.examples</module>

@@ -48,9 +48,9 @@ public class AsyncAwaitContextualizer implements Function<Runnable, Runnable> {
 
     @Override
     public Runnable apply(Runnable rawCode) {
-        Scheduler scheduler = SchedulerScope.DEFAULTS.currentScheduler();
-        
         Runnable codeWithScope = AsyncExecutionScope.instance().contextualize(rawCode);
+        
+        Scheduler scheduler = SchedulerScope.DEFAULTS.currentScheduler();
         Runnable code = () -> SchedulerScope.DEFAULTS.runWith(scheduler, codeWithScope);
         
         ContextVar<?>.Snapshot currentRequestAttributes = REQUEST_ATTRIBUTES.snapshot();

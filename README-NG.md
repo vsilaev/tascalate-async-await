@@ -1,4 +1,3 @@
-
 [![Maven Central](https://img.shields.io/maven-central/v/net.tascalate.async/net.tascalate.async.parent.svg)](https://search.maven.org/artifact/net.tascalate.async/net.tascalate.async.parent/1.3.0/pom) [![GitHub release](https://img.shields.io/github/release/vsilaev/tascalate-async-await.svg)](https://github.com/vsilaev/tascalate-async-await/releases/tag/1.3.0) [![license](https://img.shields.io/github/license/vsilaev/tascalate-async-await.svg)](https://github.com/vsilaev/tascalate-async-await/blob/master/LICENSE)
 
 ![Tascalate Logo](https://raw.githubusercontent.com/vsilaev/tascalate-async-await/refs/heads/master/logo_wide_dark.svg#gh-dark-mode-only)
@@ -16,6 +15,134 @@ To address the outlined issues of readability and maintainability, several progr
 The Tascalate Async/Await library brings this `async/await` programming style to Java projects starting from Java 8. Built on [continuations for Java](https://github.com/vsilaev/tascalate-javaflow), the library provides runtime APIs and bytecode enhancement tools that enable Java developers to work with syntax resembling C# 5 or ECMAScript 2017/2018, all within the pure Java.
 
 # How to use ?
+## ...with Gradle 7+
+The first thing you have to do is to define Tascalate Async/Await build plugins in the `settings.gradle` file:
+```groovy
+pluginManagement {
+    repositories {
+        gradlePluginPortal()
+        mavenCentral()
+    }
+    resolutionStrategy {
+        eachPlugin {
+            if (requested.id.id == "async-await") {
+                useModule("net.tascalate.async:net.tascalate.async.tools.gradle:1.3.0")
+            } else if (requested.id.id == "continuations") {
+                useModule("net.tascalate.javaflow:net.tascalate.javaflow.tools.gradle:2.8.3")
+            }
+        }
+    }
+}
+rootProject.name = '<your-project-name>'
+```
+Next, the following must be added to the `build.gradle`:
+```groovy
+plugins {
+    id 'java'
+    id 'async-await'
+    id 'continuations'
+    /* ASYNC-AWAIT should be after JAVA                */
+    /* CONTINUATIONS should be added after ASYNC-AWAIT */
+    /* other plugins if necessary                      */
+}
+...
+dependencies {
+    implementation 'net.tascalate.async:net.tascalate.async.runtime:1.3.0'
+    // The rest is optional and per your project requirements
+    /* Async/Await Extras + Tascalate Concurrent */
+    /*
+    implementation 'net.tascalate.async:net.tascalate.async.extras:1.3.0'
+    implementation 'net.tascalate:net.tascalate.concurrent:0.9.11'
+    */
+    
+    /* Necessary only for different providers */
+    /*
+    runtimeOnly 'net.tascalate.async:net.tascalate.async.resolver.provided:1.3.0'
+    runtimeOnly 'net.tascalate.async:net.tascalate.async.resolver.propagated:1.3.0'
+    */
+}
+```
+## ...with Gradle before 7
+As of Gradle 7+, you need to specify both build plugins and runtime dependencies. However, the procedure is slightly different. The minimal Gradle script should include the following prologue:
+```groovy
+buildscript {
+    repositories {
+        mavenCentral()
+    }
+
+    dependencies {
+        classpath 'net.tascalate.async:net.tascalate.async.tools.gradle:1.3.0'
+        classpath 'net.tascalate.javaflow:net.tascalate.javaflow.tools.gradle:2.8.3'
+        /* other plugins */
+    }
+}
+
+apply plugin: "java"
+/* ORDER IS IMPORTANT: Async/Await before Continuations! */
+apply plugin: "async-await"
+apply plugin: "continuations"
+
+repositories {
+    mavenCentral()
+}
+
+dependencies {
+    implementation 'net.tascalate.async:net.tascalate.async.runtime:1.3.0'
+    /* other dependencies */
+}
+```
+The more advanced example with `Async/Await Extras` module + [Tascalate Concurrent](https://github.com/vsilaev/tascalate-concurrent) and `Async/Await SchedulerResolver-s` (discussed below) will be:
+```groovy
+buildscript {
+    repositories {
+        mavenCentral()
+    }
+
+    dependencies {
+        classpath 'net.tascalate.async:net.tascalate.async.tools.gradle:1.3.0'
+        classpath 'net.tascalate.javaflow:net.tascalate.javaflow.tools.gradle:2.8.3'
+        /* other plugins */
+    }
+}
+
+apply plugin: "java"
+/* ORDER IS IMPORTANT: Async/Await before Continuations! */
+apply plugin: "async-await"
+apply plugin: "continuations"
+
+repositories {
+    mavenCentral()
+}
+
+dependencies {
+    implementation 'net.tascalate.async:net.tascalate.async.runtime:1.3.0'
+    
+    /* Async/Await Extras */
+    implementation 'net.tascalate.async:net.tascalate.async.extras:1.3.0'
+    
+    /* Promise<T> implementation */
+    /* Necessary because net.tascalate.async.extras uses it as an */
+    /* 'optional' dependency to avoid concrete version lock-in.   */
+    implementation 'net.tascalate:net.tascalate.concurrent:0.9.11'
+    
+    /* Necessary only for different providers */
+    runtimeOnly 'net.tascalate.async:net.tascalate.async.resolver.provided:1.3.0'
+    /*
+    runtimeOnly 'net.tascalate.async:net.tascalate.async.resolver.propagated:1.3.0'
+    */
+
+    
+    /* other dependencies */
+}
+/* Optional config */
+'async-await' {
+    /* ... */
+}
+
+'continuations' {
+    /* ... */
+}
+```
 ## ...with Maven
 First, add Maven dependency to the library runtime:
 ```xml
@@ -80,88 +207,6 @@ Second, add the following build plugins in the specified order:
 </build>
 ```
 You are ready to start coding!
-## ...with Gradle
-As with Maven, you have to specify both build plugins and runtime dependencies. The minimal Gradle scipt should have the following prologue:
-```groovy
-buildscript {
-    repositories {
-        mavenCentral()
-    }
-
-    dependencies {
-        classpath 'net.tascalate.async:net.tascalate.async.tools.gradle:1.3.0'
-        classpath 'net.tascalate.javaflow:net.tascalate.javaflow.tools.gradle:2.8.3'
-        /* other plugins */
-    }
-}
-
-apply plugin: "java"
-/* ORDER IS IMPORTANT: Async/Await before Continuations! */
-apply plugin: "async-await"
-apply plugin: "continuations"
-
-repositories {
-    mavenCentral()
-}
-
-dependencies {
-    implementation 'net.tascalate.async:net.tascalate.async.runtime:1.3.0'
-    /* other dependencies */
-}
-```
-The more advanced example with `Async/Await Extras` module + [Tascalate Concurrent](https://github.com/vsilaev/tascalate-concurrent) and `Async/Await SchedulerResolver-s` (discussed below) will be:
-```groovy
-buildscript {
-    repositories {
-        mavenCentral()
-    }
-
-    dependencies {
-        classpath 'net.tascalate.async:net.tascalate.async.tools.gradle:1.3.0'
-        classpath 'net.tascalate.javaflow:net.tascalate.javaflow.tools.gradle:2.8.3'
-        /* other plugins */
-    }
-}
-
-apply plugin: "java"
-/* ORDER IS IMPORTANT: Async/Await before Continuations! */
-apply plugin: "async-await"
-apply plugin: "continuations"
-
-repositories {
-    mavenCentral()
-}
-
-dependencies {
-    implementation 'net.tascalate.async:net.tascalate.async.runtime:1.3.0'
-    
-    /* Async/Await Extras */
-    implementation 'net.tascalate.async:net.tascalate.async.extras:1.3.0'
-    
-    /* Promise<T> implementation */
-    /* Necessary because net.tascalate.async.extras uses it as an */
-    /* 'optional' dependency to avoid concrete version lock-in.   */
-    implementation 'net.tascalate:net.tascalate.concurrent:0.9.10'
-    
-    /* Necessary only for different providers */
-    runtimeOnly 'net.tascalate.async:net.tascalate.async.resolver.provided:1.3.0'
-    /*
-    runtimeOnly 'net.tascalate.async:net.tascalate.async.resolver.propagated:1.3.0'
-    */
-
-    
-    /* other dependencies */
-}
-/* Optional config */
-'async-await' {
-    /* ... */
-}
-
-'continuations' {
-    /* ... */
-}
-```
-
 # Asynchronous Task Methods
 The first type of function the library supports is an asynchronous task. An asynchronous task refers to a method (either an instance method or a class method) that is marked with the `net.tascalate.async.async` annotation and returns either a `CompletionStage<T>` or `void`. When returning `void`, it functions as a "fire-and-forget" task, designed mainly for use in event-handling scenarios within UI frameworks such as JavaFX or Swing. Let us write a simple example:
 ```java
@@ -300,7 +345,7 @@ This way, all internal async operations initiate nearly at the same time and exe
 | C# parity | High | Low | Medium |
 
 # Suspendable methods
-Sometimes it is necessary to await for asynchronous result in some helper method that per se should not be asynchronous. To support this use case Tascalate Async/Await provides `@suspendable` annotation. The original example above hence can be rewritten as following:
+In certain situations, it becomes essential to wait for an asynchronous outcome within a helper method that is not inherently asynchronous. To address this scenario, Tascalate Async/Await offers the `@suspendable` annotation. Consequently, the earlier example can be restructured as shown below:
 ```java
 import static net.tascalate.async.CallСontext.async;
 import static net.tascalate.async.CallСontext.await;
@@ -337,11 +382,11 @@ class MyClass {
     private static final ExecutorService executor = Executors.newFixedThreadPool(4);
 }
 ```
-As you see, suspendable methods are just like regular ones but with special annotation - `@suspendable`. You should follow regular rules about returning results from this methods, moreover - it's an error to call `return async(<value>)` inside these methods. The important thing about `@suspendable` methods is that they may be called only from `@async` methods or from other `@suspendable` methods.
+As you can see, suspendable methods are similar to regular ones but require a special annotation - `@suspendable`. You should adhere to the usual rules for returning results from these methods. Additionally, calling `return async(<value>)` inside these methods is considered an error. The key aspect of `@suspendable` methods is that they can only be invoked from `@async` methods or other `@suspendable` methods.
 
-Performance-wise suspendable methods behaves the same as asynchronous task methods, so the question "which kind should be used" is just a matter of organizing and structuring your code . The recommended approach is to use asynchronous task methods when they are exposed to outside clients and suspendable ones for internal implementation details. However, the final decision is up to library user till s/he holds the rule that suspendable methods may be called only from asynchronous context (`@async` methods or other `@suspendable` methods) as stated above.
+In terms of performance, suspendable methods function the same as asynchronous task methods. As a result, the decision between using one or the other mainly comes down to how you intend to organize your code. A commonly suggested approach is to use asynchronous task methods for interfaces exposed to external clients, while reserving suspendable methods for internal implementation purposes. That said, the choice ultimately lies with the library user, provided they adhere to the rule: suspendable methods are only usable within an asynchronous context (either `@async` methods or other `@suspendable` methods).
 
-Implementation notes: technically suspendable methods are implemented as continuable methods that follow rules defined by [Tascalate JavaFlow](https://github.com/vsilaev/tascalate-javaflow) library, so you may use any continuable annotation that is supported by Tascalate JavaFlow, not only `@suspendable`.
+On the implementation side, suspendable methods are technically built as continuable methods, following the conventions outlined in the [Tascalate JavaFlow](https://github.com/vsilaev/tascalate-javaflow) library. Consequently, you’re not limited to the `@suspendable` annotation but can apply any continuable annotation supported by the Tascalate JavaFlow framework.
 
 # Asynchronous Generator Methods
 ## Overview
@@ -431,17 +476,12 @@ import net.tascalate.async.async;
  An **async generator method** is a method annotated with `@async` that returns `AsyncGenerator<T>`. Inside the method body, create an `AsyncYield<T>` helper by calling `AsyncGenerator.<T>start()`. Any variable name is allowed; choose a consistent name across the codebase such as `async` or a single letter like `g`.
 
 Use the `AsyncYield<T>` variable to yield values of these forms:
-
 1.  `CompletionStage<T>` or a subclass -- a single pending value.
-    
 2.  `T` -- a ready value.
-    
 3.  `net.tascalate.async.Sequence<? extends CompletionStage<? extends T>>` -- a sequence of pending values.
-    
 4.  `AsyncGenerator<T>` -- a nested generator, which is a special case of the sequence option.
     
 End the method with `return async.yield()`. Treat `return async.yield()` as a single, atomic syntax construct -- do **not** assign the result of `async.yield()` to a variable for later reuse while this leads to unexpected behavior. Instead, call `async.yield()` directly at the point where you want to yield and immediately return its result.
-
 ```java
 // Correct
 return async.yield();
@@ -486,7 +526,7 @@ It's critical to admit that `SuspendableIterator` is an _iterator‑like_ API, n
 
 The alternative and the original version have the same performance traits. Simply pick the style you like better.
 
-Both *consumer* styles discussed above allow attaching an asynchronous pipeline to each returned pending value before awaiting it. If you do not need that flexibility, use the concise iterator form, `AsyncGenerator<T>.valuesIterator()`, that mirrors ECMAScript and C# async iterators:
+Both *consumer* styles discussed above allow attaching an asynchronous pipeline to each returned pending value before awaiting it. Additionally, errors can be managed while awaiting individual pending tasks, as will be demonstrated later, thereby allowing for sophisticated error handling and recovery strategies. If you do not need that flexibility, use the concise iterator form, `AsyncGenerator<T>.valuesIterator()`, that mirrors ECMAScript and C# async iterators:
 ```java
 @async CompletionStage<Long> consumeGenerator() {  
     /* SuspendableIterator<String> */
@@ -568,13 +608,11 @@ static  @async <T> AsyncGenerator<T> concat(Iterable<? extends AsyncGenerator<? 
 However, implementing ZIP-like operators (i.e. combining results of several generators) efficiently is pretty tricky. For instance, imagine this scenario: we have a number of independent generators, each capable of providing a weather forecast when queried, and our goal is to create a generator that delivers the first forecast available. The naïve implementation is as follows:
 ```java
 record WeatherForecast() {...}
-    
+
 @async AsyncGenerator<WeatherForecast> nextForecastA() {...}
-    
 @async AsyncGenerator<WeatherForecast> nextForecastB() {...}
-    
 @async AsyncGenerator<WeatherForecast> nextForecastC() {...}
-    
+
 @async AsyncGenerator<WeatherForecast> nextForecast() {
     var async = AsyncGenerator.<WeatherForecast>start();
     try (var ga = nextForecastA();
@@ -619,7 +657,7 @@ Also, the code looks pretty good: we are  selecting the first ready result with 
          var gc = nextForecastC().concurrent()) {
             
          while (true) {
-             var  pendingItem = ConcurrentGenerator.any( ga.take(), gb.take(), gc.take() );
+             var  pendingItem = ConcurrentGenerator.any( true, ga.take(), gb.take(), gc.take() );
              WeatherForecast item;
              try {
                  item = await( pendingItem );
@@ -656,11 +694,55 @@ public  abstract  static  class Result<T> {
 ```
 The API highlights that the value returned by `take` can either be a genuine value holder or a marker object signifying a completed generator. To differentiate between these scenarios, we can use `isValue` for inspection. When `ConcurrentGenerator.Result<T>` reflects a value holder, the contained `value()` can be accessed via the appropriate method. However, invoking this method on the termination marker object results in an exception. Furthermore, the result can be transformed into a `java.util.Stream` comprising 0 or 1 elements or utilized with a sentinel fallback using the `orElse` method. 
 
-Afterwards we combine 3 returned promises into a single `CompletionStage<WeatherForecast>` via the call to `ConcurrentGenerator.any(<stages>)`, await the result in the asynchronous generator and yield it to the consumer. Notice, that while awaiting the result we can get `java.util.NoSuchElementException` when all of the generators are iterated over.
+Afterwards we combine 3 returned promises into a single `CompletionStage<WeatherForecast>` via the call to `ConcurrentGenerator.any(cancelRemaining, <stages>)`, await the result in the asynchronous generator and yield it to the consumer. Notice, that while awaiting the result we can get `java.util.NoSuchElementException` when all of the generators are iterated over.
+
+A key aspect to emphasize is that the code provided above cancels the pending item we are awaiting at every step (first parameter to `ConcurrentGenerator.any(...)` is `true`. In other words, the first available item from any of generators is selected while the remaining ones get canceled. This requires each individual generator, such as `nextForecastB`, to handle cancellation exceptions for each yielded item, as demonstrated below:
+```java
+@async AsyncGenerator<WeatherForecast> nextForecastB() {
+    var  async = AsyncGenerator.<WeatherForecast>start();
+    try {
+        for (int  i = 0; i < 9; i++) {
+            try {
+                async.yield( someExternalAsyncServiceProducingWeatherForecast() );
+            } catch (CancellationException ex) {
+                System.out.println("Skip item in Generator B");
+            }
+        }
+    } finally {
+        System.out.println("<< GEN B IS OVER ");
+    }
+    return  async.yield();
+}
+```
+Of course, zipping can be done not just by taking the first item available from each generator, but also by gathering a collection of items from all the generators' steps as a single frame:
+```java
+@async AsyncGenerator<List<WeatherForecast>> nextForecastAll() {
+    var async = AsyncGenerator.<List<WeatherForecast>>start();
+    try (var ga = nextForecastA().concurrent();
+         var gb = nextForecastB().concurrent();
+         var gc = nextForecastC().concurrent()) {
+        while (true) {
+            var  pendingItem = ConcurrentGenerator.all(ga.take(), gb.take(), gc.take());
+            try {
+                var  item = await( pendingItem );
+                async.yield(item);
+            } catch (NoSuchElementException ex) {
+                System.out.println("Over!!!");
+                // All generators are over
+                break;
+            }
+        }
+    } finally {
+        System.out.println("<< GEN :MERGED: IS OVER ");
+    }
+    return  async.yield();
+}
+```
+As an extension to `all`, a more intriguing alternative is utilizing `ConcurrentGenerator.combine`, which facilitates the transformation of a generic `List` into a specialized application-dependent object. Refer to the library's source code for further insights.
 
 # Scheduler & SchedulerResolver - where is my code executed?
 ## Introducing schedulers
-When executing asynchronous code with `CompletionStage` / `CompletableFuture` it's critical to know where the code is resumed once the corresponding completion stage is settled. With regular `CompletionStage` API the answer is pretty straightforward: the code will be resumed with the `Executor` supplied as an additional parameter to the API method like below:
+When working with asynchronous code using `CompletionStage` or `CompletableFuture`, it's essential to consider where the execution continues once the corresponding stage is completed. In the standard `CompletionStage` API, the answer is clear: the code will proceed on the `Executor` specified as an additional parameter in the API method, as demonstrated below:
 ```java
 import java.util.concurrent.CompletionStage;
 import java.util.concurrent.ExecutorService;
@@ -671,30 +753,27 @@ CompletionStage<String> myCompletionStage = ... ; // Start asynchronous operatio
 ExecutorService myExecutor = Executors.newFixedThreadPool(4);
 myCompletionStage.thenAcceptAsync(System.out::println, myExecutor);
 ``` 
-In the example above the code to print result to the console will run on the thread provided by `myExecutor`.
+In the example above, the code responsible for printing the result to the console will execute on the thread supplied by `myExecutor`.
 
-However, for Tascalate Async / Await there is no way to specify where the code will be resumed once the corresponding `await(future)` operation is complete. Instead of the passing `Executor` explicitly, the library uses fully declarative pluggable mechanism to  specify asynchronous executor to run with.
+In contrast to traditional practices, Tascalate Async/Await doesn’t allow you to directly define where the code execution should continue when the associated `await(future)` operation concludes. Rather than explicitly providing an `Executor`, the library employs a fully declarative and pluggable system to designate the asynchronous executor to be utilized. 
 
-First we must introduce the `Scheduler` interface:
+To begin, let's take a look at the `Scheduler` interface:
 ```java
 package net.tascalate.async;
 
 public interface Scheduler {
-
    ...    
     abstract public CompletionStage<?> schedule(Runnable runnable);
-        
+    
     default Runnable contextualize(Runnable resumeContinuation) {
         return resumeContinuation;
     }
    ...
 }
 ```
-The `Schedulre` API has 2 responsibilities:
-1. Execute supplied runnable command, most probably asynchronously (thought, this is implementation-dependent)
-2. Capture execution context of the currently running thread before suspension so it can later be restored when the code is resumed after `await(future)`. The `execution context` is typically defined as a set of thread local variables - either via explicit usage of the `ThreadLocal` or via some API wrapping `ThreadLocal`-s (like [RequestContextHolder](https://docs.spring.io/spring-framework/docs/current/javadoc-api/org/springframework/web/context/request/RequestContextHolder.html) in Spring) 
-
-There are several factory methods in `Scheduler` interface that create concrete `Scheduler` implementation using the `ExecutorService` supplied and optional `contextualizer` - a function that captures current thread execution context and creates a wrapper for the runnable to re-apply context on the new thread.
+The `Scheduler` API serves two responsibilities: 
+1. To execute a provided runnable task, which is generally done asynchronously -- but the actual behavior may vary depending on the implementation. 
+2. To preserve the execution context of the active thread before it is suspended, allowing the context to be reinstated later when the code resumes execution following an `await(future)` call. The `execution context` usually encompasses a collection of thread-local variables—either managed directly via `ThreadLocal` or indirectly through APIs that utilize `ThreadLocal`, such as [RequestContextHolder](https://docs.spring.io/spring-framework/docs/current/javadoc-api/org/springframework/web/context/request/RequestContextHolder.html) in Spring. The `Scheduler` interface includes several factory methods that let you create specific `Scheduler` implementations by using a provided `ExecutorService` and, optionally, a `contextualizer`. This contextualizer is a function designed to capture the thread's current execution context and generate a runnable wrapper that re-applies this context within the new thread.
 ```
 package net.tascalate.async;
 ...
@@ -705,9 +784,7 @@ import java.util.function.Function;
 
 public interface Scheduler {
     ...
-
     public static Scheduler nonInterruptible(Executor executor);
-    
     public static Scheduler nonInterruptible(
         Executor executor, 
         Function<? super Runnable, ? extends Runnable> contextualizer);     
@@ -717,17 +794,14 @@ public interface Scheduler {
     public static Scheduler interruptible(
         ExecutorService executor, 
         Function<? super Runnable, ? extends Runnable> contextualizer);
-
    ...
 }
 ```
-
 So the sequence to create `Scheduler` is:
 ```java
 import java.util.concurrent.CompletionStage;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
-
 import java.util.function.Function;
 
 import net.tascalate.async.Scheduler 
@@ -737,11 +811,10 @@ ExecutorService myExecutor = Executors.newFixedThreadPool(4);
 Scheduler myScheduler = Scheduler.interruptible(myExecutor, 
                                                 Function.identity() /* or actual contextualizer */);
 ```
+The attentive reader might observe a distinction between `interruptible` and `non-interruptible` schedulers; however, let us set that aside for now. Instead, let’s focus on exploring how the scheduler we’ve created can be applied to asynchronous methods.
 
-The careful reader may notice that there is a divide between `interruptible` vs `non-interruptible` schedulers, but let us left this out of the scope for a while. Instead, let's discuss how to apply the scheduler created to the asynchronous methods.
-
- ## Explicit (method-scoped) schedulers
- The most explicit and straightforward way to specify asynchronous `Scheduler` is to pass it explicitly to the  asynchronous method as an annotated parameter:
+## Explicit (method-scoped) schedulers
+The most explicit and straightforward way to specify a `Scheduler` is to pass it explicitly to the asynchronous method as an annotated parameter:
 ```java
 import static net.tascalate.async.CallСontext.async;
 import static net.tascalate.async.CallСontext.await;
@@ -783,16 +856,16 @@ public class MyClass {
     }
 }
 ```
-The scenario is simple: add parameter of the type `Scheduler` annotated with `@SchedulerProvider` annotation to the each asynchronous method where this scheduler is used and pass it explicitly. Note that it's an error to have more than one parameter annotated with `@SchedulerProvider` - only one is allowed. Also, passing non-annotated `Scheduler` will have no effect -- it's treated just like regular parameter and do not used for asynchronous execution.
+The concept is straightforward: include a `Scheduler` parameter in each asynchronous method where it's utilized, ensuring the parameter is annotated with `@SchedulerProvider`, and pass it explicitly. Keep in mind that it's incorrect to have more than one parameter with the `@SchedulerProvider` annotation - only one is permissible. Additionally, providing an unannotated `Scheduler` won't have any special effect -- it will be treated as a standard parameter and not used for asynchronous execution. 
 
-You may notice that `currentScheduler` parameter from the `mergeStrings` method is passed directly to the `decorateStrings` method. This is mandatory if you want to share the same scheduler across several asynchronous methods. By default schedulers are not inherited for nested calls.
+It's worth noting that the `currentScheduler` parameter in the `mergeStrings` method is directly passed to the `decorateStrings` method. This step is essential when you want to use the same scheduler across multiple asynchronous methods. By default, schedulers are not automatically propagated to nested calls. 
 
-Notice that in both methods above `currentScheduler` is not used with `await(...)` operator - it's used implicitly behinds the scenes in the generated code. This has one important implication: you can use only one scheduler per asynchronous method, there is no way to use different schedulers for different `await(...)` operations within the same method. If you ever need to then please re-factor your code to use separate asynchronous methods where individual schedulers may be defined per-method.
+Also, observe that in both of the above methods, the `currentScheduler` parameter isn’t directly used with the `await(...)` operator. Instead, it's implicitly handled behind the scenes within the generated code. This leads to one crucial limitation: only one scheduler can be tied to any given asynchronous method, meaning it's not possible to assign distinct schedulers to different `await(...)` operations within the same method. If such a distinction is necessary, it's advisable to refactor your code to separate asynchronous methods, so each method can define its own specific scheduler.
 
-## SchedulerResolver introduction -- propagating scheduler to nested calls
-As it was mentioned right above "by default schedulers are not inherited for nested calls". This is a good point to introduce pluggable scheduler providers mechanism and alleviate this limitation.
+## Introducing SchedulerResolver – Propagating Schedulers to Nested Calls 
+As highlighted earlier, "schedulers are not automatically propagated to nested calls" This creates an excellent opportunity to discuss the pluggable scheduler providers mechanism, which helps to address this limitation effectively. 
 
-To use pluggable schedule provider you need to add corresponding Maven dependency and introduce new artifact on the project class-path / module-path. For example:
+To enable a pluggable scheduler provider, you must include the relevant Maven dependency and ensure the new artifact is added to your project's class-path or module-path. For instance:
 ```xml
 <dependency>
     <groupId>net.tascalate.async</groupId>
@@ -801,7 +874,7 @@ To use pluggable schedule provider you need to add corresponding Maven dependenc
     <scope>runtime</scope>
 </dependency>
 ```
-Now let us rewrite the example above to automatically propagate scheduler of the outer asynchronous method to the inner one:
+Let's rewrite the previous example so that the scheduler of the outer asynchronous method is automatically passed to the inner one:
 ```java
 import static net.tascalate.async.CallСontext.async;
 import static net.tascalate.async.CallСontext.await;
@@ -845,12 +918,14 @@ public class MyClass {
     }
 }
 ```
-You may see that the code was simplified, however no new specific code for the "propagating provider" was introduced. If you run this code you will see that `CallContext.scheduler()` reports the very same scheduler for both inner and outer methods. Btw, `CallContext.scheduler()` may be used with any combination of the scheduler providers and reports currently used `Scheduler` for all asynchronous, suspendable and generators methods.
+The code was simplified but no dedicated "propagating provider" was added. As a result, when you run it, `CallContext.scheduler()` returns the same `Scheduler` instance for both the outer and inner methods.
 
-## More useful SchedulerResolver - per-class/per-instance schedulers
-The next and probably the most useful one `Scheduler` provider is a "provided" provider variant (no pun). The idea is that a `Scheduler` may be specified per class or per class instances as a filed  (an instance one or a static one) or as a getter-like method (no argument method with a `Scheduler` return type).
+As an extra takeaway, `CallContext.scheduler()` may be used with any combination of the scheduler providers and reports currently used `Scheduler` for all asynchronous, suspendable and generators methods.
 
-To use this provider you first need to add a new runtime dependency:
+## More useful SchedulerResolver — per-class and per-instance schedulers
+The next provider variant lets you associate a `Scheduler` with a specific class. The resolver locates a `Scheduler` declared on the target type either as a field (static or instance) or as a no-argument method that returns `Scheduler`. When present, that `Scheduler` is used for asynchronous task and generator methods invoked on that class or class instance.
+
+To use this provider you need to add a new *runtime* dependency:
 ```xml
 <dependency>
     <groupId>net.tascalate.async</groupId>
@@ -911,22 +986,21 @@ public class MyClass {
     }
 }
 ```
+The  `Scheduler`  is provided as an instance field for all  `@async`  instance methods in the  `MyClass`  class. You can initialize this variable in the constructor or at any time before invoking an  `@async`  method. In  Spring  or CDI  environments, the  `scheduler`  field may be injected by the container via the corresponding annotation (`@Autowired`  or  `@Inject`).
 
-The `Scheduler` is provided as an instance field for all of `@async` instance methods of the class `MyClass`. You can initialize this variable in the constructor (as above) or at any time before invoking the `@async` method. In Spring / CDI environment the `scheduler` field might be injected by the container via corresponding annotation (`@Autowired` or `@Injected`). 
+Please note that re-assigning the field during the execution of an  `@async`  method has no effect on methods currently in progress; only  newly invoked  methods will reflect the change. However, special consideration is required: in the example above, if you redefine the  `scheduler`  field after calling  `mergeStrings`  but before calling  `decorateStrings`, the methods will use different schedulers. Additionally, the library performs no internal  synchronization, so it is the user's responsibility to synchronize access to such fields.  Therefore the most robust and safe approach is to treat provider field as read-only.
 
-Please notice that when you are re-assigning the field during execution of the `@async` method it has no effect on the methods these are in progress -- only freshly invoked ones will see the change. However, special consideration should be taken on account: in the example above if you re-define the `scheduler` field after `mergeStrings` invocation but before `decorateStrings` invocation then methods will use different schedulers. Also, no special synchronization is performed by the library itself, and it's library's user responsibility to synchronize access to such fields.
+As mentioned, you can use a getter-like method annotated with  `@SchedulerProvider`  to supply the scheduler. Use this option when you need different schedulers based on different  object states, but ensure you provide all necessary state synchronization.
 
-As it was mentioned, you can use a getter-like method annotated with `@SchedulerProvider ` to supply scheduler. Use this option when you need different schedulers for the different object states, but, again, provide all necessary state synchronization on your own.
+It is an error to provide a  `Scheduler`  via both a field and a method, or to have more than one field or getter-like method annotated with  `@SchedulerProvider`.
 
-It's an error to provide a `Scheduler` with both a field and a method, or to have more than one filed or more than one getter-like method annotated with `@SchedulerProvider `.
+As previously mentioned, both  instance  and  static (class)  fields or methods can provide a  `Scheduler`. However, the following rules apply:
+1.  Instance-level providers  supply a  `Scheduler`  only to instance-level  `@async`  methods.
+2.  Class-level providers  supply a  `Scheduler`  to static  `@async`  methods and, by default, to instance `@async` methods  **unless**  a separate instance-level provider is defined.
+3.  Defining more than one class-level provider (via static fields, static getter-like methods, or a combination thereof) results in an  error. However, defining both an instance-level and a class-level provider within the same class is  fully supported.
+4.  For instance-level  `@async`  methods, the  instance-level provider  takes precedence over the class-level provider.
 
-It was mentioned that you can use both instance and static (class) field / method to provide a `Scheduler`. However, consider the following rules:
-1. Instance-level provider supplies a `Scheduler` only to `@async` instance methods.
-2. Class-level provider supplies a `Scheduler` to static `@async` methods AND to instance methods UNLESS there is a separate instance-level provider.
-3. It's an error to have more than one class-level provider in the same class via static field(s) / static getter-like method(s) / the combination of thereof (same as with instance-level providers); however it's a fully supported scenario when you have both instance-level provider AND class-level provider.
-4. Instance level provider will take precedence over the class-level provider for the `@async` instance methods.
-
-Last but not least is a visibility of the `Scheduler` provider (field / getter-like method) inherited from the superclass. It follows the same visibility rules as for the regular fields / methods inheritance: public and protected are always visible; package private are visible when both classes are in the same package; and private members are not visible. Take this on account when runtime will report you about ambiguity of the `Scheduler` provider - most probably, your subclass inherits ones from the superclasses chain.
+Lastly, the visibility of a  `Scheduler` provider (field or getter-like method) inherited from a superclass follows standard inheritance rules: `public` and `protected` members are always visible; `package-private` members are visible only if both classes are in the same package; and `private` members are not visible. Keep this in mind if the runtime reports an ambiguity regarding the `Scheduler` provider, as your subclass likely inherits providers from its superclass hierarchy.
 
 ## Scoped SchedulerResolver -- overriding schedulers, providing own schedulers in DI environment 
 TBD

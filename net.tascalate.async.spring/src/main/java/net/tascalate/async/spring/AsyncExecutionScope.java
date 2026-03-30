@@ -24,7 +24,10 @@
  */
 package net.tascalate.async.spring;
 
+import java.util.HashMap;
+import java.util.HashSet;
 import java.util.Map;
+import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 
 import org.springframework.beans.factory.ObjectFactory;
@@ -32,46 +35,6 @@ import org.springframework.beans.factory.config.Scope;
 import org.springframework.core.NamedThreadLocal;
 
 public class AsyncExecutionScope implements Scope {
-
-    private final ThreadLocal<Map<String, ScopedObject>> threadScope = new NamedThreadLocal<>("AsyncExecutionScope");
-
-    @Override
-    public Object get(String name, ObjectFactory<?> objectFactory) {
-        Map<String, ScopedObject> frame = threadScope.get();
-        ScopedObject object = frame.computeIfAbsent(name, __ -> new ScopedObject());
-        return object.get(objectFactory);
-    }
-    
-
-    @Override
-    public Object resolveContextualObject(String key) {
-        return null;
-    }
-
-    @Override
-    public  Object remove(String name) {
-        Map<String, ScopedObject> frame = threadScope.get();
-        if (null != frame) {
-            ScopedObject object = frame.remove(name);
-            return null != object ? object.get() : null;
-        } else {
-            return null;
-        }
-    }
-
-    @Override
-    public void registerDestructionCallback(String name, Runnable callback) {
-        Map<String, ScopedObject> frame = threadScope.get();
-        if (null != frame) {
-            ScopedObject object = frame.computeIfAbsent(name, __ -> new ScopedObject());
-            object.registerDestructionCallback(callback);
-        }
-    }
-
-    @Override
-    public String getConversationId() {
-        return Thread.currentThread().getName();
-    }
     
     static class ScopedObject {
         private Object instance;
@@ -104,39 +67,144 @@ public class AsyncExecutionScope implements Scope {
         }
     }
     
-    boolean hasFrame() {
-        return threadScope.get() != null;
-    }
-    
-    Map<String, ScopedObject> createOrGetFrame() {
-        Map<String, ScopedObject> frame = threadScope.get();
-        if (null == frame) {
-            Map<String, ScopedObject> newFrame = new ConcurrentHashMap<>();
-            threadScope.set(newFrame);
-            return newFrame;
-        } else {
-            // No scope added
-            return null;
+    static class Frame {
+        private final Map<String, ScopedObject> scopedObjects = new ConcurrentHashMap<>();
+        
+        Object getExisting(String name) {
+            ScopedObject object = scopedObjects.get(name);
+            return null == object ? null : object.get();
+        }
+        
+        Object get(String name, ObjectFactory<?> objectFactory) {
+            ScopedObject object = scopedObjects.computeIfAbsent(name, __ -> new ScopedObject());
+            return object.get(objectFactory);
+        }
+        
+        Object remove(String name) {
+            ScopedObject object = scopedObjects.remove(name);
+            return null != object ? object.get() : null;
+        }
+
+        void registerDestructionCallback(String name, Runnable callback) {
+            ScopedObject object = scopedObjects.computeIfAbsent(name, __ -> new ScopedObject());
+            object.registerDestructionCallback(callback);
+        }
+        
+        void destroy() {
+            Map<String, AsyncExecutionScope.ScopedObject> copy = new HashMap<>(scopedObjects);
+            scopedObjects.clear();
+            copy.values()
+                .stream()
+                .forEach(ScopedObject::destroy);
+        }
+        
+        Set<String> ownedKeys() {
+            return new HashSet<>(scopedObjects.keySet());
         }
     }
     
-    <T> T withFrame(boolean enforceNew, NewFrameCall<T> call) throws Throwable {
-        if (enforceNew) {
-            return withNewFrame(call);
+    static class NestedFrame extends Frame {
+        private final Frame parentFrame;
+        private final Set<String> parentKeys;
+        
+        NestedFrame(Frame parentFrame) {
+            this.parentFrame = parentFrame;
+            // Save parent keys on creation
+            // This way any new scoped objects in parent 
+            // will be ignored -- otherwise get(name, factory) result is unstable
+            this.parentKeys = new HashSet<>(parentFrame.ownedKeys());
+        }
+        
+        Object getExisting(String name) {
+            Object object = super.getExisting(name);
+            return null == object && parentKeys.contains(name) ? parentFrame.getExisting(name) : object;
+        }
+        
+        Object get(String name, ObjectFactory<?> objectFactory) {
+            Object result = parentKeys.contains(name) ? parentFrame.getExisting(name) : null;
+            if (null != result) {
+                return result;
+            } else {
+                return super.get(name, objectFactory);
+            }
+        }
+        
+        Set<String> ownedKeys() {
+            Set<String> result = super.ownedKeys();
+            result.addAll(parentKeys);
+            return result;
+        }
+    }
+    
+    private static final Frame INVALID_FRAME = new Frame();
+
+    private final ThreadLocal<Frame> threadScope = new NamedThreadLocal<>("AsyncExecutionScope");
+
+    @Override
+    public Object get(String name, ObjectFactory<?> objectFactory) {
+        Frame frame = threadScope.get();
+        if (!isValidFrame(frame)) {
+            throw new IllegalStateException("No valid async call scope available for the current thread");
+        }
+        return frame.get(name, objectFactory);
+    }
+    
+
+    @Override
+    public Object resolveContextualObject(String key) {
+        return null;
+    }
+
+    @Override
+    public  Object remove(String name) {
+        Frame frame = threadScope.get();
+        if (isValidFrame(frame)) {
+            return frame.remove(name);
+        } else {
+            return null;
+        }
+    }
+
+    @Override
+    public void registerDestructionCallback(String name, Runnable callback) {
+        Frame frame = threadScope.get();
+        if (isValidFrame(frame)) {
+            frame.registerDestructionCallback(name, callback);
+        } else {
+            // TODO Or Error?
+        }
+    }
+
+    @Override
+    public String getConversationId() {
+        return Thread.currentThread().getName();
+    }
+
+    
+    boolean hasFrame() {
+        return isValidFrame(threadScope.get());
+    }
+    
+    private static boolean isValidFrame(Frame frame) {
+        return frame != null && frame != INVALID_FRAME;
+    }
+    
+    <T> T withFrame(boolean createNewFrame, boolean inheritOldFrame, NewFrameCall<T> call) throws Throwable {
+        if (createNewFrame) {
+            return withNewFrame(call, inheritOldFrame);
         } else {
             return withNewOrExistingFrame(call);
         }
     }
     
-    <T> T withNewOrExistingFrame(NewFrameCall<T> call) throws Throwable {
-        Map<String, ScopedObject> frame = threadScope.get();
-        if (null == frame) {
-            Map<String, ScopedObject> newFrame = new ConcurrentHashMap<>();
-            threadScope.set(newFrame);
+    <T> T withoutFrame(NewFrameCall<T> call) throws Throwable {
+        Frame previous = threadScope.get();
+        if (isValidFrame(previous)) {
+            threadScope.set(INVALID_FRAME);
             try {
-                return call.apply(frame);
+                return call.apply(null);
             } finally {
-                threadScope.remove();
+                resetThreadScope(previous);
             }
         } else {
             // No scope added
@@ -144,39 +212,55 @@ public class AsyncExecutionScope implements Scope {
         }
     }
     
-    <T> T withNewFrame(NewFrameCall<T> call) throws Throwable {
-        Map<String, ScopedObject> frame = new ConcurrentHashMap<>();
-        Map<String, ScopedObject> previous = threadScope.get(); 
-        threadScope.set(frame);
-        try {
-            return call.apply(frame);
-        } finally {
-            if (null == previous) {
-                threadScope.remove();
-            } else {
-                threadScope.set(previous);
+    private <T> T withNewOrExistingFrame(NewFrameCall<T> call) throws Throwable {
+        Frame previous = threadScope.get();
+        if (!isValidFrame(previous)) {
+            Frame newFrame = new Frame();
+            threadScope.set(newFrame);
+            try {
+                return call.apply(newFrame);
+            } finally {
+                resetThreadScope(previous);
             }
+        } else {
+            // No scope added
+            return call.apply(null);
+        }
+    }
+    
+    private <T> T withNewFrame(NewFrameCall<T> call, boolean inheritOldFrame) throws Throwable {
+        Frame previous = threadScope.get();
+        Frame newFrame = inheritOldFrame && isValidFrame(previous) ? new NestedFrame(previous) : new Frame();
+        threadScope.set(newFrame);
+        try {
+            return call.apply(newFrame);
+        } finally {
+            resetThreadScope(previous);
         }
     }
     
     public Runnable contextualize(Runnable code) {
-        Map<String, ScopedObject> frame = threadScope.get();
+        Frame frame = threadScope.get();
         if (null == frame) {
             return code;
         } else {
             return () -> {
-                Map<String, ScopedObject> previous = threadScope.get();
+                Frame previous = threadScope.get();
                 threadScope.set(frame);
                 try {
                     code.run();
                 } finally {
-                    if (null == previous) {
-                        threadScope.remove();
-                    } else {
-                        threadScope.set(previous);
-                    }
+                    resetThreadScope(previous);
                 }
             };
+        }
+    }
+    
+    void resetThreadScope(Frame previous) {
+        if (null == previous) {
+            threadScope.remove();
+        } else {
+            threadScope.set(previous);
         }
     }
     
@@ -188,7 +272,7 @@ public class AsyncExecutionScope implements Scope {
     
     @FunctionalInterface
     static interface NewFrameCall<T> {
-        T apply(Map<String, ScopedObject> frame) throws Throwable;
+        T apply(Frame frame) throws Throwable;
     }
 
 }

@@ -46,9 +46,8 @@ abstract public class AbstractAsyncMethod implements Runnable {
     private final Scheduler scheduler;
     private final AtomicReference<State> state = new AtomicReference<>(State.INITIAL);
     private final AtomicLong blockerVersion = new AtomicLong(0);
-    
-    private volatile CompletionStage<?> originalAwait;
-    private volatile CompletableFuture<?> terminateMethod;
+
+    private volatile PhaseCancellation<?> phaseCancellation;
     
     protected AbstractAsyncMethod(Scheduler scheduler) {
         this.future = new ResultPromise<>();
@@ -92,9 +91,10 @@ abstract public class AbstractAsyncMethod implements Runnable {
     }
     
     final protected String toString(String implementationName, String className, String methodSignature) {
+        PhaseCancellation<?> currentPhaseCancellation = phaseCancellation;
         return String.format("%s[origin-class=%s, origin-method=%s, state=%s, scheduler=%s, blocker-version=%s, awaiting-on=%s]", 
             implementationName, className, methodSignature,
-            state, scheduler, blockerVersion, originalAwait
+            state, scheduler, blockerVersion, currentPhaseCancellation == null ? null : currentPhaseCancellation.awaitingOn()
         );
     }
     
@@ -145,11 +145,11 @@ abstract public class AbstractAsyncMethod implements Runnable {
     
     private boolean registerResumeTarget(CompletionStage<?> resumePromise, long expectedBlockerVersion) {
         if (blockerVersion.compareAndSet(expectedBlockerVersion, expectedBlockerVersion + 1)) {
+           PhaseCancellation<?> resumePhaseCancellation = new PhaseCancellation<>(resumePromise, false);
             // Save references for outer promise cancellation
-            this.terminateMethod = null;
-            this.originalAwait   = resumePromise;
+            this.phaseCancellation = resumePhaseCancellation;
             // Re-check for race with main future cancellation
-            cancelAwaitIfNecessary(null, resumePromise);
+            cancelAwaitIfNecessary(resumePhaseCancellation);
 
             return true;
         } else {
@@ -159,40 +159,57 @@ abstract public class AbstractAsyncMethod implements Runnable {
     
     final <V> CompletionStage<V> registerAwaitTarget(CompletionStage<V> originalAwait) {
         blockerVersion.incrementAndGet();
-    	CompletableFuture<V> terminateMethod = new CompletableFuture<>();
-        CompletionStage<V> guardedAwait = terminateMethod.applyToEither(originalAwait, Function.identity());
-        
+        PhaseCancellation<V> awaitPhaseCancellation = new PhaseCancellation<>(originalAwait, true);
         // Save references for outer promise cancellation
-        this.terminateMethod = terminateMethod;
-        this.originalAwait   = originalAwait;
+        this.phaseCancellation = awaitPhaseCancellation;
         // Re-check for race with main future cancellation
-        cancelAwaitIfNecessary(terminateMethod, originalAwait);
-        return guardedAwait;
+        cancelAwaitIfNecessary(awaitPhaseCancellation);
+        return awaitPhaseCancellation.createGuardedAwait();
     }
 
-    private void cancelAwaitIfNecessary(CompletableFuture<?> terminateMethod, CompletionStage<?> originalAwait) {
+    private void cancelAwaitIfNecessary(PhaseCancellation<?> phaseCancellation) {
         if (future.isCancelled()) {
-            cancelAwaitUnconditionally(terminateMethod, originalAwait);
+            cancelAwaitUnconditionally(phaseCancellation);
         }
     }
     
-    private void cancelAwaitUnconditionally(CompletableFuture<?> terminateMethod, CompletionStage<?> originalAwait) {
-        this.terminateMethod = null;
-        // First terminate method to avoid exceptions in method
-        if (null != terminateMethod) {
-            terminateMethod.completeExceptionally(CloseSignal.INSTANCE);
-        }
+    final void cancelAwaitUnconditionally(PhaseCancellation<?> phaseCancellation) {
         // No longer need reference
-        this.originalAwait = null;
-        // Then cancel promise we are waiting on
-        if (null != originalAwait) {
-            CompletionStageHelper.cancelCompletionStage(originalAwait, true);
-        }
+        this.phaseCancellation = null;
+        phaseCancellation.proceed();
     }
-    
-    
-    final void cancelAwaitUnconditionally() {
-        cancelAwaitUnconditionally(terminateMethod, originalAwait);
+
+    static final class PhaseCancellation<V> {
+        private final CompletionStage<V> originalAwait;
+        private final CompletableFuture<V> terminateMethod;
+        
+        PhaseCancellation(CompletionStage<V> originalAwait, boolean terminateMethod) {
+            this.originalAwait = originalAwait;
+            this.terminateMethod = terminateMethod ? new CompletableFuture<>() : null;
+        }
+        
+        void proceed() {
+            // First terminate method to avoid exceptions in method
+            if (null != terminateMethod) {
+                terminateMethod.completeExceptionally(CloseSignal.INSTANCE);
+            }
+            // Then cancel promise we are waiting on
+            if (null != originalAwait) {
+                CompletionStageHelper.cancelCompletionStage(originalAwait, true);
+            }            
+        }
+        
+        CompletionStage<V> createGuardedAwait() {
+            if (null == terminateMethod) {
+                throw new IllegalStateException("Unnable to create guarded await for the phase without method termination");
+            } else {
+                return terminateMethod.applyToEither(originalAwait, Function.identity());
+            }
+        }
+        
+        CompletionStage<V> awaitingOn() {
+            return originalAwait;
+        }
     }
     
     final class ResultPromise<T> extends RestrictedCompletableFuture<T> implements AsyncResult<T> {
@@ -209,7 +226,7 @@ abstract public class AbstractAsyncMethod implements Runnable {
             if (!doCancel) {
                 return false;
             }
-            cancelAwaitUnconditionally();
+            cancelAwaitUnconditionally(phaseCancellation);
             return super.cancel(mayInterruptIfRunning);
         }
     }

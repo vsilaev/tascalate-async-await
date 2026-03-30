@@ -36,12 +36,16 @@ import java.lang.annotation.Target;
 @Target({ElementType.TYPE, ElementType.METHOD})
 @Retention(RetentionPolicy.RUNTIME)
 public @interface AsyncCallBoundary {
-    enum Kind {
-        CREATE_NEW,
-        JOIN_OR_CREATE,
-        JOIN_REQUIRED 
+    enum Propagation {
+        REQUIRED,
+        REQUIRES_NEW,
+        SUPPORTS,
+        NOT_SUPPORTED,
+        MANDATORY,
+        NEVER,
+        NESTED
     }
     
-    public Kind value() default Kind.JOIN_OR_CREATE;
+    public Propagation value() default Propagation.REQUIRED;
 }
 

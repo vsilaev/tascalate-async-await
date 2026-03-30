@@ -24,8 +24,6 @@
  */
 package net.tascalate.async.spring;
 
-import java.util.HashMap;
-import java.util.Map;
 import java.util.concurrent.CompletionStage;
 
 import org.aspectj.lang.ProceedingJoinPoint;
@@ -64,73 +62,86 @@ class AsyncCallBoundaryInterceptor {
     
     @Around("asyncTasksMethodsWithBoundary(asyncCallBoundary)")
     CompletionStage<?> invokeAsyncTask(ProceedingJoinPoint joinPoint, AsyncCallBoundary asyncCallBoundary) throws Throwable {
-        AsyncCallBoundary.Kind kind = asyncCallBoundary.value();
-        switch (kind) {
-            case CREATE_NEW:
-            case JOIN_OR_CREATE:                
-                return AsyncExecutionScope.instance().withFrame(kind == AsyncCallBoundary.Kind.CREATE_NEW, newFrame -> {
-                    CompletionStage<?> result = (CompletionStage<?>)joinPoint.proceed();
-                    if (null == result) {
-                        MethodSignature signature = (MethodSignature) joinPoint.getSignature();
-                        throw new IllegalStateException("Method with async call boundary returned null result " + signature);
-                    } else {
-                        if (null != newFrame) {
-                            result.whenComplete((r, e) -> destroyFrame(newFrame));
-                        }
-                        return result;
+        AsyncCallBoundary.Propagation propagation = asyncCallBoundary.value();
+        switch (propagation) {
+            case REQUIRES_NEW:
+            case REQUIRED:                
+            case NESTED:    
+                boolean createNewFrame  = propagation == AsyncCallBoundary.Propagation.REQUIRES_NEW;
+                boolean inheritOldFrame = propagation == AsyncCallBoundary.Propagation.NESTED;
+                return AsyncExecutionScope.instance().withFrame(createNewFrame, inheritOldFrame, newFrame -> {
+                    CompletionStage<?> result = nonNullResult(CompletionStage.class, joinPoint);
+                    if (null != newFrame) {
+                        result.whenComplete((r, e) -> newFrame.destroy());
                     }
+                    return result;
                 });
-            case JOIN_REQUIRED:
-                if (AsyncExecutionScope.instance().hasFrame()) {
-                    return (CompletionStage<?>)joinPoint.proceed();
-                } else {
-                    MethodSignature signature = (MethodSignature) joinPoint.getSignature();
-                    throw new IllegalStateException("No async call boundary exists when invoking method " + signature);
-                }
+            case SUPPORTS:
+                return nonNullResult(CompletionStage.class, joinPoint);
+            case NOT_SUPPORTED:
+                return AsyncExecutionScope.instance().withoutFrame(__ -> nonNullResult(CompletionStage.class, joinPoint));                
+            case MANDATORY:
+                return AsyncExecutionScope.instance().hasFrame() ? 
+                       nonNullResult(CompletionStage.class, joinPoint) : noAsyncCallBoundary(joinPoint);
+            case NEVER:
+                return !AsyncExecutionScope.instance().hasFrame() ?
+                        nonNullResult(CompletionStage.class, joinPoint) : hasAsyncCallBoundary(joinPoint); 
         }
-        MethodSignature signature = (MethodSignature) joinPoint.getSignature();
-        throw new IllegalArgumentException("Unknown async call boundary kind for method " + signature + ": " + asyncCallBoundary);
+        return unknownAsyncCallBoundaryPropagation(joinPoint, asyncCallBoundary);
     }
     
     @Around("asyncGeneratorMethodsWithBoundary(asyncCallBoundary)")
     AsyncGenerator<?> invokeAsyncGenerator(ProceedingJoinPoint joinPoint, AsyncCallBoundary asyncCallBoundary) throws Throwable {
-        AsyncCallBoundary.Kind kind = asyncCallBoundary.value();
-        switch (kind) {
-            case CREATE_NEW:
-            case JOIN_OR_CREATE:                
-                return AsyncExecutionScope.instance().withFrame(asyncCallBoundary.value() == AsyncCallBoundary.Kind.CREATE_NEW, newFrame -> {
-                    AsyncGenerator<?> result = (AsyncGenerator<?>)joinPoint.proceed();
-                    if (null == result) {
-                        MethodSignature signature = (MethodSignature) joinPoint.getSignature();
-                        throw new IllegalStateException("Method with async call boundary returned null result " + signature);
-                    } else {
-                        if (null != newFrame) {
-                            result.onCompletion(e -> destroyFrame(newFrame));
-                        }
-                        return result;
+        AsyncCallBoundary.Propagation propagation = asyncCallBoundary.value();
+        switch (propagation) {
+            case REQUIRES_NEW:
+            case REQUIRED:               
+            case NESTED:    
+                boolean createNewFrame  = propagation == AsyncCallBoundary.Propagation.REQUIRES_NEW;
+                boolean inheritOldFrame = propagation == AsyncCallBoundary.Propagation.NESTED;
+                return AsyncExecutionScope.instance().withFrame(createNewFrame, inheritOldFrame, newFrame -> {
+                    AsyncGenerator<?> result = nonNullResult(AsyncGenerator.class, joinPoint);
+                    if (null != newFrame) {
+                        result.onCompletion(e -> newFrame.destroy());
                     }
+                    return result;
                 });
-            case JOIN_REQUIRED:
-                if (AsyncExecutionScope.instance().hasFrame()) {
-                    return (AsyncGenerator<?>)joinPoint.proceed();
-                } else {
-                    MethodSignature signature = (MethodSignature) joinPoint.getSignature();
-                    throw new IllegalStateException("No async call boundary exists when invoking method " + signature);
-                }
+            case SUPPORTS:
+                return nonNullResult(AsyncGenerator.class, joinPoint);
+            case NOT_SUPPORTED:
+                return AsyncExecutionScope.instance().withoutFrame(__ -> nonNullResult(AsyncGenerator.class, joinPoint));
+            case MANDATORY:
+                return AsyncExecutionScope.instance().hasFrame() ? 
+                       nonNullResult(AsyncGenerator.class, joinPoint) : noAsyncCallBoundary(joinPoint);
+            case NEVER:
+                return !AsyncExecutionScope.instance().hasFrame() ?
+                        nonNullResult(AsyncGenerator.class, joinPoint) : hasAsyncCallBoundary(joinPoint); 
         }
-        MethodSignature signature = (MethodSignature) joinPoint.getSignature();
-        throw new IllegalArgumentException("Unknown async call boundary kind for method " + signature + ": " + asyncCallBoundary);
+        return unknownAsyncCallBoundaryPropagation(joinPoint, asyncCallBoundary);
     }
     
-    void destroyFrame(Map<String, AsyncExecutionScope.ScopedObject> frame) {
-        Map<String, AsyncExecutionScope.ScopedObject> copy = new HashMap<>(frame);
-        frame.clear();
-        for (AsyncExecutionScope.ScopedObject scopedObject : copy.values()) {
-            try {
-                scopedObject.destroy();
-            } finally {
-                
-            }
+    private static <T> T nonNullResult(Class<T> resultType, ProceedingJoinPoint joinPoint) throws Throwable {
+        T result = resultType.cast(joinPoint.proceed());
+        if (null != result) {
+            return result;
+        } else {
+            MethodSignature signature = (MethodSignature) joinPoint.getSignature();
+            throw new IllegalStateException("Method with async call boundary returned null result " + signature);
         }
+    }
+
+    private static <T> T noAsyncCallBoundary(ProceedingJoinPoint joinPoint) {
+        MethodSignature signature = (MethodSignature) joinPoint.getSignature();
+        throw new IllegalStateException("No async call boundary exists when invoking method " + signature);
+    }
+    
+    private static <T> T hasAsyncCallBoundary(ProceedingJoinPoint joinPoint) {
+        MethodSignature signature = (MethodSignature) joinPoint.getSignature();
+        throw new IllegalStateException("Async call boundary exists (IT SHOULD NOT) when invoking method " + signature);
+    }
+    
+    private static <T> T unknownAsyncCallBoundaryPropagation(ProceedingJoinPoint joinPoint, AsyncCallBoundary asyncCallBoundary) {
+        MethodSignature signature = (MethodSignature) joinPoint.getSignature();
+        throw new IllegalArgumentException("Unknown async call boundary propagation for method " + signature + ": " + asyncCallBoundary);
     }
 }

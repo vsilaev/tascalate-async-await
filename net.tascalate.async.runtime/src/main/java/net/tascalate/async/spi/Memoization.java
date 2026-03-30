@@ -34,35 +34,35 @@ public final class Memoization {
         
     }
     
-    public static <K, V> Function<K, V> weakHard(Function<? super K, ? extends V> producer) {
+    public static <K, V> Function<K, V> weakKeysHardValues(Function<? super K, ? extends V> producer) {
         return memoize(ReferenceType.WEAK, ReferenceType.HARD, producer);
     }
     
-    public static <K, V> Function<K, V> weakSoft(Function<? super K, ? extends V> producer) {
+    public static <K, V> Function<K, V> weakKeysSoftValues(Function<? super K, ? extends V> producer) {
         return memoize(ReferenceType.WEAK, ReferenceType.SOFT, producer);
     }
     
-    public static <K, V> Function<K, V> weakWeak(Function<? super K, ? extends V> producer) {
+    public static <K, V> Function<K, V> weakKeysWeakValues(Function<? super K, ? extends V> producer) {
         return memoize(ReferenceType.WEAK, ReferenceType.WEAK, producer);
     }
     
-    public static <K, V> Function<K, V> softHard(Function<? super K, ? extends V> producer) {
+    public static <K, V> Function<K, V> softKeysHardValues(Function<? super K, ? extends V> producer) {
         return memoize(ReferenceType.SOFT, ReferenceType.HARD, producer);
     }
     
-    public static <K, V> Function<K, V> softSoft(Function<? super K, ? extends V> producer) {
+    public static <K, V> Function<K, V> softKeysSoftValues(Function<? super K, ? extends V> producer) {
         return memoize(ReferenceType.SOFT, ReferenceType.SOFT, producer);
     }
 
-    public static <K, V> Function<K, V> softWeak(Function<? super K, ? extends V> producer) {
+    public static <K, V> Function<K, V> softKeysWeakValues(Function<? super K, ? extends V> producer) {
         return memoize(ReferenceType.SOFT, ReferenceType.WEAK, producer);
     }
     
-    public static <K, V> Function<K, V> hardSoft(Function<? super K, ? extends V> producer) {
+    public static <K, V> Function<K, V> hardKeysSoftValues(Function<? super K, ? extends V> producer) {
         return memoize(ReferenceType.HARD, ReferenceType.SOFT, producer);
     }
     
-    public static <K, V> Function<K, V> hardWeak(Function<? super K, ? extends V> producer) {
+    public static <K, V> Function<K, V> hardKeysWeakValues(Function<? super K, ? extends V> producer) {
         return memoize(ReferenceType.HARD, ReferenceType.WEAK, producer);
     }
     

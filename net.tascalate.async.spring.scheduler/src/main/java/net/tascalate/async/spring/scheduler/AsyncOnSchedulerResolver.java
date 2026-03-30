@@ -42,7 +42,7 @@ public class AsyncOnSchedulerResolver extends PerMethodSchedulerResolver.BySingl
     
     protected AsyncOnSchedulerResolver(ApplicationContext ctx, ClassLookupByAnnotation<AsyncOn> classLookup, MethodLookupByAnnotation<AsyncOn> methodLookup) {
         super(classLookup, methodLookup);
-        schedulerBeanByQualifier = Memoization.weakHard(qualifier -> getQualifiedBean(ctx, Scheduler.class, qualifier));
+        schedulerBeanByQualifier = Memoization.weakKeysHardValues(qualifier -> getQualifiedBean(ctx, Scheduler.class, qualifier));
     }
 
     @Override

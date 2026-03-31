@@ -24,6 +24,7 @@
  */
 package net.tascalate.async.spring.webservlet;
 
+import java.util.Set;
 import java.util.function.Function;
 
 import org.springframework.boot.autoconfigure.condition.ConditionalOnWebApplication;
@@ -37,6 +38,7 @@ import org.springframework.web.context.request.RequestContextHolder;
 
 import net.tascalate.async.Scheduler;
 import net.tascalate.async.resolver.scoped.SchedulerScope;
+import net.tascalate.async.spring.AsyncContextItem;
 import net.tascalate.async.spring.AsyncExecutionScope;
 import net.tascalate.async.spring.DefaultAsyncAwaitContextualizer;
 
@@ -44,7 +46,7 @@ import net.tascalate.async.spring.DefaultAsyncAwaitContextualizer;
 @DefaultAsyncAwaitContextualizer
 @Component("<<default-async-await-contextualizer>>")
 @ConditionalOnWebApplication(type = Type.SERVLET)
-public class AsyncAwaitContextualizer implements Function<Runnable, Runnable> {
+class AsyncAwaitContextualizer implements Function<Runnable, Runnable> {
 
     @Override
     public Runnable apply(Runnable rawCode) {
@@ -70,6 +72,49 @@ public class AsyncAwaitContextualizer implements Function<Runnable, Runnable> {
         
         return SpringSecurityContextualizer.INSTANCE.contextualize(codeWithContextVars);
 
+    }
+    
+    static Function<Runnable, Runnable> propagate(Set<AsyncContextItem> items) {
+        if (null == items || items.isEmpty()) {
+            return Function.identity();
+        }
+        return code -> {
+            Runnable xcode = code;
+            if (items.contains(AsyncContextItem.ASYNC_SCOPE)) {
+                xcode = AsyncExecutionScope.instance().contextualize(xcode);
+            }
+            if (items.contains(AsyncContextItem.SCHEDULER)) {
+                Runnable delegate = xcode;
+                Scheduler scheduler = SchedulerScope.DEFAULTS.currentScheduler();
+                xcode = () -> SchedulerScope.DEFAULTS.runWith(scheduler, delegate);
+            }
+            if (items.contains(AsyncContextItem.REQUEST)) {
+                ContextVar<?>.Snapshot currentRequestAttributes = REQUEST_ATTRIBUTES.snapshot();
+                if (!currentRequestAttributes.empty()) {
+                    Runnable delegate = xcode; 
+                    xcode = () -> {
+                        try (ContextVar<?>.Modification changeRequestAttributes = currentRequestAttributes.apply()) {
+                            delegate.run();
+                        }
+                    };
+                }
+            }
+            if (items.contains(AsyncContextItem.MISC_CONTEXT)) {
+                ContextVar<?>.Snapshot currentLocaleContext = LOCALE_CONTEXT.snapshot();
+                if (!currentLocaleContext.empty()) {
+                    Runnable delegate = xcode; 
+                    xcode = () -> {
+                        try (ContextVar<?>.Modification changeLocaleContext = currentLocaleContext.apply()) {
+                            delegate.run();
+                        }
+                    };
+                }
+            }
+            if (items.contains(AsyncContextItem.SECURITY_CONTEXT)) {
+                xcode = SpringSecurityContextualizer.INSTANCE.contextualize(xcode);
+            }
+            return xcode;
+        };
     }
     
     private static final ContextVar<RequestAttributes> REQUEST_ATTRIBUTES = new ContextVar<>(

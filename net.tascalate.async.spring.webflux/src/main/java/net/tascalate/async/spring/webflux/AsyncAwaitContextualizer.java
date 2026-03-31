@@ -24,6 +24,7 @@
  */
 package net.tascalate.async.spring.webflux;
 
+import java.util.Set;
 import java.util.function.Function;
 
 import org.springframework.boot.autoconfigure.condition.ConditionalOnWebApplication;
@@ -31,6 +32,7 @@ import org.springframework.boot.autoconfigure.condition.ConditionalOnWebApplicat
 import org.springframework.context.annotation.Lazy;
 import org.springframework.stereotype.Component;
 
+import net.tascalate.async.spring.AsyncContextItem;
 import net.tascalate.async.spring.AsyncExecutionScope;
 import net.tascalate.async.spring.DefaultAsyncAwaitContextualizer;
 
@@ -53,17 +55,49 @@ class AsyncAwaitContextualizer implements Function<Runnable, Runnable> {
             return code;
         } 
         
-        return new Runnable() {
-            @Override
-            public void run() {
-                WebFluxData previous = WebFluxData.update(current);
-                try {
-                    code.run();
-                } finally {
-                    WebFluxData.restore(previous);
-                }
+        return () -> {
+            WebFluxData previous = WebFluxData.update(current);
+            try {
+                code.run();
+            } finally {
+                WebFluxData.restore(previous);
             }
         }; 
+    }
+    
+    static Function<Runnable, Runnable> propagate(Set<AsyncContextItem> items) {
+        if (null == items || items.isEmpty()) {
+            return Function.identity();
+        }
+        return code -> {
+            Runnable xcode;
+            if (items.contains(AsyncContextItem.ASYNC_SCOPE)) {
+                xcode = AsyncExecutionScope.instance().contextualize(code);
+            } else {
+                xcode = code;
+            }
+            
+            WebFluxData current = WebFluxData.get();
+            if (null == current) {
+                return xcode;
+            } 
+            
+            boolean needScheduler = items.contains(AsyncContextItem.SCHEDULER);
+            boolean needExchange  = items.contains(AsyncContextItem.REQUEST);
+            boolean needContext   = items.contains(AsyncContextItem.SECURITY_CONTEXT) || items.contains(AsyncContextItem.MISC_CONTEXT);
+            Runnable delegate = xcode;
+            
+            return () -> {
+                WebFluxData previous = WebFluxData.update(needContext   ? current.context() : null,
+                                                          needExchange  ? current.serverWebExchange() : null,
+                                                          needScheduler ? current.asyncAwaitScheduler() : null);
+                try {
+                    delegate.run();
+                } finally {
+                    WebFluxData.restore(previous);
+                }                
+            };
+        };
     }
 
 }

@@ -35,7 +35,7 @@ public final class AsyncAwaitContext {
         
     }
     
-    public static Function<Runnable, Runnable> propagateAll(Set<AsyncContextItem> items) {
+    public static Function<Runnable, Runnable> propagateAll() {
         return propagate(EnumSet.allOf(AsyncContextItem.class));
     }
     

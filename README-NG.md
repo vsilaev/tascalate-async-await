@@ -1,3 +1,4 @@
+
 [![Maven Central](https://img.shields.io/maven-central/v/net.tascalate.async/net.tascalate.async.parent.svg)](https://search.maven.org/artifact/net.tascalate.async/net.tascalate.async.parent/1.3.0/pom) [![GitHub release](https://img.shields.io/github/release/vsilaev/tascalate-async-await.svg)](https://github.com/vsilaev/tascalate-async-await/releases/tag/1.3.0) [![license](https://img.shields.io/github/license/vsilaev/tascalate-async-await.svg)](https://github.com/vsilaev/tascalate-async-await/blob/master/LICENSE)
 
 ![Tascalate Logo](https://raw.githubusercontent.com/vsilaev/tascalate-async-await/refs/heads/master/logo_wide_dark.svg#gh-dark-mode-only)
@@ -1003,7 +1004,34 @@ As previously mentioned, both  instance  and  static (class)  fields or methods 
 Lastly, the visibility of a  `Scheduler` provider (field or getter-like method) inherited from a superclass follows standard inheritance rules: `public` and `protected` members are always visible; `package-private` members are visible only if both classes are in the same package; and `private` members are not visible. Keep this in mind if the runtime reports an ambiguity regarding the `Scheduler` provider, as your subclass likely inherits providers from its superclass hierarchy.
 
 ## Scoped SchedulerResolver -- overriding schedulers, providing own schedulers in DI environment 
-TBD
+Up to this point, we have introduced two externally added `SchedulerResolver`s. A curious reader might naturally wonder: a) which one has higher precedence? and b) how do the previous examples function without explicitly specifying a `SchedulerResolver`? 
+
+The explanation lies in the fact that `SchedulerResolver`s form a prioritized chain, which includes certain built-in defaults. Below is a snippet from the `SchedulerResolver` API source code: 
+```java 
+public interface SchedulerResolver { 
+    int priority(); 
+    Scheduler resolve(Object owner, MethodHandles.Lookup ownerClassLookup, MethodDefinition methodDef); 
+}
+``` 
+As shown, each `SchedulerResolver` is assigned a priority (lowest numbers indicate later execution in the chain). The chain is structured as follows, incorporating fallback providers: 
+1. `Scheduler.sameThreadContextless()` --  this `SchedulerResolver` has the lowest priority and acts as the fallback when no other `ScheduleProvider` is configured. This explains how all prior examples work without a custom `SchedulerResolver` being explicitly added. 
+2. The `Scheduler` installed via `Scheduler.installDefaultScheduler(scheduler)` -- this option is applicable for a single-time installation per application. When added, it supersedes the `SchedulerResolver` from step [1], but it is still open to being replaced by any custom `ScheduleProvider`. 
+3. The `Scheduler` defined in `SchedulerScope.DEFAULTS` (supplied by the artifact `net.tascalate.async.resolver.scoped`), with a priority level of 10. 
+4. The `SchedulerResolver` provided from the `net.tascalate.async.resolver.propagated` module, carrying a priority value of 100. 
+5. The `Scheduler` set up via `SchedulerScope.DEFAULTS_OVERRIDE`, having a priority of 200, thereby allowing it to override a propagated `SchedulerResolver`. 
+6. The `SchedulerResolver` explored earlier within `net.tascalate.async.resolver.provided`, corresponding to per-class or per-instance implementations, with a priority score of 500. 
+7. Finally, the `Scheduler` specified with `SchedulerScope.PROVIDER_OVERRIDE` (available from the artifact `net.tascalate.async.resolver.scoped`) takes the highest precedence, with a priority level of 1000.
+
+As you can observe, the chain of resolvers offers significant flexibility, but also introduces complexity. To maintain manageability in your application, it's best to limit yourself to 2-4 `SchedulerProvider`s at most. 
+
+All `SchedulerProvider`s located in `net.tascalate.async.resolver.scoped` follow a consistent pattern. In particular, these providers are designed for use within some variation of *around-advice,* as demonstrated in the example below: 
+```java
+SchedulerScope.DEFAULTS.runWith(/* Scheduler */ theScheduler, /* Runnable */ codeToExecute);
+``` 
+
+This technique can be implemented via bytecode modification or with an AOP library such as AspectJ. Notably, the Tascalate Async/Await integration for Spring employs this exact strategy using web request filters. 
+
+**IMPLEMENATION DETAILS**: `SchedulerResolver`s are constructed using the Java Service API, adhering to the guidelines specified by the [ServiceLoader](https://docs.oracle.com/javase/8/docs/api/java/util/ServiceLoader.html). If you’re comfortable with your understanding of Tascalate Async/Await up to this point, you can effortlessly create a custom `SchedulerResolver` tailored to meet your application’s needs.
 
 # Interruptions/cancelation of @async methods & exception handling
 TBD

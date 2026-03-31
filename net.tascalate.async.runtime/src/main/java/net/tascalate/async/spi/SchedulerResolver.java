@@ -33,12 +33,7 @@ public interface SchedulerResolver {
     
     int priority();
     
-    @Deprecated
-    Scheduler resolve(Object owner, MethodHandles.Lookup ownerClassLookup);
-    
-    default Scheduler resolve(Object owner, MethodHandles.Lookup ownerClassLookup, MethodDefinition methodDef) {
-        return resolve(owner, ownerClassLookup);
-    }
+    Scheduler resolve(Object owner, MethodHandles.Lookup ownerClassLookup, MethodDefinition methodDef);
     
     public static Scheduler callContextScheduler() {
         return InternalCallContext.scheduler(false);

@@ -382,7 +382,7 @@ class MyClass {
     private static final ExecutorService executor = Executors.newFixedThreadPool(4);
 }
 ```
-As you can see, suspendable methods are similar to regular ones but require a special annotation - `@suspendable`. You should adhere to the usual rules for returning results from these methods. Additionally, calling `return async(<value>)` inside these methods is considered an error. The key aspect of `@suspendable` methods is that they can only be invoked from `@async` methods or other `@suspendable` methods.
+As you can see, suspendable methods are similar to regular ones but require a special annotation - `@suspendable`. You should adhere to the usual rules for returning results from these methods. Additionally, calling `return async(<value>)` inside these methods is considered an error. 
 
 In terms of performance, suspendable methods function the same as asynchronous task methods. As a result, the decision between using one or the other mainly comes down to how you intend to organize your code. A commonly suggested approach is to use asynchronous task methods for interfaces exposed to external clients, while reserving suspendable methods for internal implementation purposes. That said, the choice ultimately lies with the library user, provided they adhere to the rule: suspendable methods are only usable within an asynchronous context (either `@async` methods or other `@suspendable` methods).
 

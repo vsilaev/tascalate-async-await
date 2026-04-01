@@ -27,11 +27,13 @@ package net.tascalate.async.spring;
 import org.springframework.boot.ApplicationArguments;
 import org.springframework.boot.ApplicationRunner;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnNotWebApplication;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.stereotype.Component;
 
 import net.tascalate.async.Scheduler;
 
 @Component
+@ConditionalOnProperty(name = "async-await.scheduler.install-default-scheduler", havingValue = "true", matchIfMissing = true)
 @ConditionalOnNotWebApplication
 class ApplicationStartup implements ApplicationRunner {
     

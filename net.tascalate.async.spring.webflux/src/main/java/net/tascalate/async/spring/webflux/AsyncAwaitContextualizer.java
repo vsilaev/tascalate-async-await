@@ -32,7 +32,7 @@ import org.springframework.boot.autoconfigure.condition.ConditionalOnWebApplicat
 import org.springframework.context.annotation.Lazy;
 import org.springframework.stereotype.Component;
 
-import net.tascalate.async.spring.AsyncContextItem;
+import net.tascalate.async.spring.AsyncAwaitContextItem;
 import net.tascalate.async.spring.AsyncExecutionScope;
 import net.tascalate.async.spring.DefaultAsyncAwaitContextualizer;
 
@@ -65,13 +65,13 @@ class AsyncAwaitContextualizer implements Function<Runnable, Runnable> {
         }; 
     }
     
-    static Function<Runnable, Runnable> propagate(Set<AsyncContextItem> items) {
+    static Function<Runnable, Runnable> propagate(Set<AsyncAwaitContextItem> items) {
         if (null == items || items.isEmpty()) {
             return Function.identity();
         }
         return code -> {
             Runnable xcode;
-            if (items.contains(AsyncContextItem.ASYNC_SCOPE)) {
+            if (items.contains(AsyncAwaitContextItem.ASYNC_SCOPE)) {
                 xcode = AsyncExecutionScope.instance().contextualize(code);
             } else {
                 xcode = code;
@@ -82,9 +82,9 @@ class AsyncAwaitContextualizer implements Function<Runnable, Runnable> {
                 return xcode;
             } 
             
-            boolean needScheduler = items.contains(AsyncContextItem.SCHEDULER);
-            boolean needExchange  = items.contains(AsyncContextItem.REQUEST);
-            boolean needContext   = items.contains(AsyncContextItem.SECURITY_CONTEXT) || items.contains(AsyncContextItem.MISC_CONTEXT);
+            boolean needScheduler = items.contains(AsyncAwaitContextItem.SCHEDULER);
+            boolean needExchange  = items.contains(AsyncAwaitContextItem.REQUEST);
+            boolean needContext   = items.contains(AsyncAwaitContextItem.SECURITY_CONTEXT) || items.contains(AsyncAwaitContextItem.MISC_CONTEXT);
             Runnable delegate = xcode;
             
             return () -> {

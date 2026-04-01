@@ -38,7 +38,7 @@ class ContextVar<T> {
         this.eraser = eraser;
     }
     
-    private static final ContextVar<Object>.Snapshot EMPTY_SNAPSHOT;
+    static final ContextVar<Object>.Snapshot EMPTY_SNAPSHOT;
     static {
         ContextVar<Object> NOTHING = new ContextVar<>(null, null, null);
         ContextVar<Object>.Modification UNMODIFIED = NOTHING.new Modification(null) {

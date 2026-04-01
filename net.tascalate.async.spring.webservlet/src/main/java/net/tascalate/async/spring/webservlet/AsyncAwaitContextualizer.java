@@ -38,7 +38,7 @@ import org.springframework.web.context.request.RequestContextHolder;
 
 import net.tascalate.async.Scheduler;
 import net.tascalate.async.resolver.scoped.SchedulerScope;
-import net.tascalate.async.spring.AsyncContextItem;
+import net.tascalate.async.spring.AsyncAwaitContextItem;
 import net.tascalate.async.spring.AsyncExecutionScope;
 import net.tascalate.async.spring.DefaultAsyncAwaitContextualizer;
 
@@ -49,74 +49,93 @@ import net.tascalate.async.spring.DefaultAsyncAwaitContextualizer;
 class AsyncAwaitContextualizer implements Function<Runnable, Runnable> {
 
     @Override
-    public Runnable apply(Runnable rawCode) {
-        Runnable codeWithScope = AsyncExecutionScope.instance().contextualize(rawCode);
+    public Runnable apply(Runnable code) {
+        Runnable xcode = code;
+
+        xcode = AsyncExecutionScope.instance().contextualize(xcode);
         
         Scheduler scheduler = SchedulerScope.DEFAULTS.currentScheduler();
-        Runnable code = () -> SchedulerScope.DEFAULTS.runWith(scheduler, codeWithScope);
-        
-        ContextVar<?>.Snapshot currentRequestAttributes = REQUEST_ATTRIBUTES.snapshot();
-        ContextVar<?>.Snapshot currentLocaleContext = LOCALE_CONTEXT.snapshot();
-        
-        Runnable codeWithContextVars;
-        if (currentRequestAttributes.empty() && currentLocaleContext.empty()) {
-            codeWithContextVars = code;
-        } else {
-            codeWithContextVars = () -> {
-                try (ContextVar<?>.Modification changeRequestAttributes = currentRequestAttributes.apply();
-                     ContextVar<?>.Modification changeLocaleContext = currentLocaleContext.apply()) {
-                    code.run();
-                }
-            };
+        if (null != scheduler) {
+            Runnable delegate = xcode;
+            xcode = () -> SchedulerScope.DEFAULTS.runWith(scheduler, delegate);
         }
         
-        return SpringSecurityContextualizer.INSTANCE.contextualize(codeWithContextVars);
-
+        xcode = propagate(xcode, REQUEST_ATTRIBUTES, LOCALE_CONTEXT);
+        xcode = SpringSecurityContextualizer.INSTANCE.contextualize(xcode);
+        
+        return xcode;
     }
     
-    static Function<Runnable, Runnable> propagate(Set<AsyncContextItem> items) {
+    static Function<Runnable, Runnable> propagate(Set<AsyncAwaitContextItem> items) {
         if (null == items || items.isEmpty()) {
             return Function.identity();
         }
         return code -> {
             Runnable xcode = code;
-            if (items.contains(AsyncContextItem.ASYNC_SCOPE)) {
+            if (items.contains(AsyncAwaitContextItem.ASYNC_SCOPE)) {
                 xcode = AsyncExecutionScope.instance().contextualize(xcode);
             }
-            if (items.contains(AsyncContextItem.SCHEDULER)) {
-                Runnable delegate = xcode;
+            
+            if (items.contains(AsyncAwaitContextItem.SCHEDULER)) {
                 Scheduler scheduler = SchedulerScope.DEFAULTS.currentScheduler();
-                xcode = () -> SchedulerScope.DEFAULTS.runWith(scheduler, delegate);
-            }
-            if (items.contains(AsyncContextItem.REQUEST)) {
-                ContextVar<?>.Snapshot currentRequestAttributes = REQUEST_ATTRIBUTES.snapshot();
-                if (!currentRequestAttributes.empty()) {
-                    Runnable delegate = xcode; 
-                    xcode = () -> {
-                        try (ContextVar<?>.Modification changeRequestAttributes = currentRequestAttributes.apply()) {
-                            delegate.run();
-                        }
-                    };
+                if (null != scheduler) {
+                    Runnable delegate = xcode;
+                    xcode = () -> SchedulerScope.DEFAULTS.runWith(scheduler, delegate);
                 }
             }
-            if (items.contains(AsyncContextItem.MISC_CONTEXT)) {
-                ContextVar<?>.Snapshot currentLocaleContext = LOCALE_CONTEXT.snapshot();
-                if (!currentLocaleContext.empty()) {
-                    Runnable delegate = xcode; 
-                    xcode = () -> {
-                        try (ContextVar<?>.Modification changeLocaleContext = currentLocaleContext.apply()) {
-                            delegate.run();
-                        }
-                    };
-                }
-            }
-            if (items.contains(AsyncContextItem.SECURITY_CONTEXT)) {
+            
+            xcode = propagate(xcode, items.contains(AsyncAwaitContextItem.REQUEST)      ? REQUEST_ATTRIBUTES : null,
+                                     items.contains(AsyncAwaitContextItem.MISC_CONTEXT) ? LOCALE_CONTEXT : null);
+            
+            if (items.contains(AsyncAwaitContextItem.SECURITY_CONTEXT)) {
                 xcode = SpringSecurityContextualizer.INSTANCE.contextualize(xcode);
             }
+            
             return xcode;
         };
     }
     
+    private static Runnable propagate(Runnable code, ContextVar<?> ctxVarA, ContextVar<?> ctxVarB) {
+        if (null == ctxVarA) {
+            return propagate(code, ctxVarB);
+        } else if (null == ctxVarB) {
+            return propagate(code, ctxVarA);
+        }
+        ContextVar<?>.Snapshot snapshotA = ctxVarA.snapshot();
+        if (snapshotA.empty()) {
+            return propagate(code, ctxVarB);
+        } else {
+            ContextVar<?>.Snapshot snapshotB = ctxVarB.snapshot();
+            if (snapshotB.empty()) {
+                return () -> {
+                    try (ContextVar<?>.Modification modification = snapshotA.apply()) {
+                        code.run();
+                    }
+                };
+            } else {
+                return () -> {
+                    try (ContextVar<?>.Modification modificationA = snapshotA.apply();
+                         ContextVar<?>.Modification modificationB = snapshotB.apply()) {
+                        code.run();
+                    }                
+                };
+            }
+        }
+    }
+    
+    private static Runnable propagate(Runnable code, ContextVar<?> ctxVar) {
+        ContextVar<?>.Snapshot snapshot = ctxVar == null ? ContextVar.EMPTY_SNAPSHOT : ctxVar.snapshot();
+        if (snapshot.empty()) {
+            return code;
+        } else {
+            return () -> {
+                try (ContextVar<?>.Modification modification = snapshot.apply()) {
+                    code.run();
+                }
+            };
+        }
+    }
+
     private static final ContextVar<RequestAttributes> REQUEST_ATTRIBUTES = new ContextVar<>(
         RequestContextHolder::getRequestAttributes, 
         RequestContextHolder::setRequestAttributes, 

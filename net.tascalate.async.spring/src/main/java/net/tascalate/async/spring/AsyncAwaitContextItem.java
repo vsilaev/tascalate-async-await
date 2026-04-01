@@ -24,6 +24,6 @@
  */
 package net.tascalate.async.spring;
 
-public enum AsyncContextItem {
+public enum AsyncAwaitContextItem {
     SCHEDULER, ASYNC_SCOPE, SECURITY_CONTEXT, REQUEST, MISC_CONTEXT;
 }

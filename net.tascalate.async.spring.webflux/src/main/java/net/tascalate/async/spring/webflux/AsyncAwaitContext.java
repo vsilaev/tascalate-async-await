@@ -28,7 +28,10 @@ import java.util.EnumSet;
 import java.util.Set;
 import java.util.function.Function;
 
-import net.tascalate.async.spring.AsyncContextItem;
+import org.springframework.web.server.ServerWebExchange;
+
+import net.tascalate.async.spring.AsyncAwaitContextItem;
+import reactor.util.context.Context;
 
 public final class AsyncAwaitContext {
     private AsyncAwaitContext() {
@@ -36,10 +39,19 @@ public final class AsyncAwaitContext {
     }
     
     public static Function<Runnable, Runnable> propagateAll() {
-        return propagate(EnumSet.allOf(AsyncContextItem.class));
+        return propagate(EnumSet.allOf(AsyncAwaitContextItem.class));
     }
     
-    public static Function<Runnable, Runnable> propagate(Set<AsyncContextItem> items) {
+    public static Function<Runnable, Runnable> propagate(Set<AsyncAwaitContextItem> items) {
         return AsyncAwaitContextualizer.propagate(items);
     }
+    
+    public static ServerWebExchange currentServerWebExchange() {
+        return WebFluxData.safeGet().serverWebExchange();
+    }
+    
+    public static Context currentReactiveContext() {
+        return WebFluxData.safeGet().context();
+    }
+
 }

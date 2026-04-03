@@ -52,7 +52,7 @@ dependencies {
     /* Async/Await Extras + Tascalate Concurrent */
     /*
     implementation 'net.tascalate.async:net.tascalate.async.extras:1.3.0'
-    implementation 'net.tascalate:net.tascalate.concurrent:0.9.11'
+    implementation 'net.tascalate:net.tascalate.concurrent:0.9.12'
     */
     
     /* Necessary only for different providers */
@@ -123,7 +123,7 @@ dependencies {
     /* Promise<T> implementation */
     /* Necessary because net.tascalate.async.extras uses it as an */
     /* 'optional' dependency to avoid concrete version lock-in.   */
-    implementation 'net.tascalate:net.tascalate.concurrent:0.9.11'
+    implementation 'net.tascalate:net.tascalate.concurrent:0.9.12'
     
     /* Necessary only for different providers */
     runtimeOnly 'net.tascalate.async:net.tascalate.async.resolver.provided:1.3.0'

@@ -24,6 +24,7 @@
  */
 package net.tascalate.async;
 
+//@Deprecated
 public class YieldReply<T> {
     final public T value;
     final public Object param;

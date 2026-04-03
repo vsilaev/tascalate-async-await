@@ -188,7 +188,7 @@ class LazyGenerator<T> implements AsyncGenerator<T> {
             
             @Override
             void releaseLock(CompletableFuture<AsyncYield.Reply<T>> lock, Object param) {
-                lock.complete(new AsyncYield.Reply<>(result, param));
+                lock.complete(new AsyncYield.Reply<>(result, param == NO_PARAM ? null : param));
             }
         }
         

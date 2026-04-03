@@ -67,17 +67,17 @@ public class CallContext {
     }
 
     @Deprecated
-    public static <T> YieldReply<T> yield(T readyValue) throws InvalidCallContextException {
+    public static <T> AsyncYield.Reply<T> yield(T readyValue) throws InvalidCallContextException {
         return methodCallMustBeReplaced();
     }
 
     @Deprecated
-    public static <T> YieldReply<T> yield(CompletionStage<T> pendingValue) throws CancellationException, InvalidCallContextException {
+    public static <T> AsyncYield.Reply<T> yield(CompletionStage<T> pendingValue) throws CancellationException, InvalidCallContextException {
         return methodCallMustBeReplaced();
     }
 
     @Deprecated
-    public static <T> YieldReply<T> yield(Sequence<? extends CompletionStage<T>> values) throws CancellationException, InvalidCallContextException {
+    public static <T> AsyncYield.Reply<T> yield(Sequence<? extends CompletionStage<T>> values) throws CancellationException, InvalidCallContextException {
         return methodCallMustBeReplaced();
     }
 

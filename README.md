@@ -486,7 +486,7 @@ End the method with `return async.yield()`. Treat `return async.yield()` as a si
 // Correct
 return async.yield();
 
-// Incorrect — do not do this
+// Incorrect -- do not do this
 var someVar = async.yield();
 return someVar;
 ```
@@ -773,7 +773,7 @@ public interface Scheduler {
 ```
 The `Scheduler` API serves two responsibilities: 
 1. To execute a provided runnable task, which is generally done asynchronously -- but the actual behavior may vary depending on the implementation. 
-2. To preserve the execution context of the active thread before it is suspended, allowing the context to be reinstated later when the code resumes execution following an `await(future)` call. The `execution context` usually encompasses a collection of thread-local variables—either managed directly via `ThreadLocal` or indirectly through APIs that utilize `ThreadLocal`, such as [RequestContextHolder](https://docs.spring.io/spring-framework/docs/current/javadoc-api/org/springframework/web/context/request/RequestContextHolder.html) in Spring. The `Scheduler` interface includes several factory methods that let you create specific `Scheduler` implementations by using a provided `ExecutorService` and, optionally, a `contextualizer`. This contextualizer is a function designed to capture the thread's current execution context and generate a runnable wrapper that re-applies this context within the new thread.
+2. To preserve the execution context of the active thread before it is suspended, allowing the context to be reinstated later when the code resumes execution following an `await(future)` call. The `execution context` usually encompasses a collection of thread-local variables--either managed directly via `ThreadLocal` or indirectly through APIs that utilize `ThreadLocal`, such as [RequestContextHolder](https://docs.spring.io/spring-framework/docs/current/javadoc-api/org/springframework/web/context/request/RequestContextHolder.html) in Spring. The `Scheduler` interface includes several factory methods that let you create specific `Scheduler` implementations by using a provided `ExecutorService` and, optionally, a `contextualizer`. This contextualizer is a function designed to capture the thread's current execution context and generate a runnable wrapper that re-applies this context within the new thread.
 ```
 package net.tascalate.async;
 ...
@@ -922,7 +922,7 @@ The code was simplified but no dedicated "propagating provider" was added. As a 
 
 As an extra takeaway, `CallContext.scheduler()` may be used with any combination of the scheduler providers and reports currently used `Scheduler` for all asynchronous, suspendable and generators methods.
 
-## More useful SchedulerResolver — per-class and per-instance schedulers
+## More useful SchedulerResolver -- per-class and per-instance schedulers
 The next provider variant lets you associate a `Scheduler` with a specific class. The resolver locates a `Scheduler` declared on the target type either as a field (static or instance) or as a no-argument method that returns `Scheduler`. When present, that `Scheduler` is used for asynchronous task and generator methods invoked on that class or class instance.
 
 To use this provider you need to add a new *runtime* dependency:
@@ -1023,9 +1023,9 @@ As shown, each `SchedulerResolver` is assigned a priority (lowest numbers indica
 8. Finally, the explicit `Scheduler` method parameter, marked with `@SchedulerProvider` annotation, is applied when it is not null.
 
 Armed with this chain, the library invokes the `resolve(...)` method on each resolver in turn (from highest priority to the lowest) to obtain a `Scheduler`, stopping as soon as the first non-null outcome is encountered. Each `SchedulerResolver` makes use of the supplied parameters to determine the appropriate scheduler. These parameters include: 
-1. `owner` — the instance responsible for the asynchronous task or generator method. It will always be `null` for static methods. 
-2. `ownerClassLookup` — the PRIVATE class lookup for the class that declares the asynchronous task or generator method.
-3. `methodDef` — the metadata for the asynchronous task or generator method, containing details such as its name, parameter types, and return type.
+1. `owner` -- the instance responsible for the asynchronous task or generator method. It will always be `null` for static methods. 
+2. `ownerClassLookup` -- the PRIVATE class lookup for the class that declares the asynchronous task or generator method.
+3. `methodDef` -- the metadata for the asynchronous task or generator method, containing details such as its name, parameter types, and return type.
 
 As you can observe, the chain of resolvers offers significant flexibility, but also introduces complexity. To maintain manageability in your application, it's best to limit yourself to 2-4 `SchedulerResolver`-s at most. 
 

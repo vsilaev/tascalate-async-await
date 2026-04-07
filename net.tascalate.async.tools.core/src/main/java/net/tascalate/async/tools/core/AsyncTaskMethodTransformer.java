@@ -24,15 +24,13 @@
  */
 package net.tascalate.async.tools.core;
 
-import static net.tascalate.async.tools.core.BytecodeIntrospection.createOuterClassMethodArgFieldName;
-import static net.tascalate.async.tools.core.BytecodeIntrospection.isLoadOpcode;
-import static net.tascalate.async.tools.core.BytecodeIntrospection.methodsOf;
-import static net.tascalate.async.tools.core.BytecodeIntrospection.visibleTypeAnnotationsOf;
-import static net.tascalate.async.tools.core.BytecodeIntrospection.invisibleTypeAnnotationsOf;
+import static net.tascalate.async.tools.core.AnnotationIntrospection.visibleTypeAnnotationsOf;
+import static net.tascalate.async.tools.core.AnnotationIntrospection.invisibleTypeAnnotationsOf;
 import static net.tascalate.asmx.Opcodes.*;
 
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.HashMap;
 import java.util.IdentityHashMap;
 import java.util.Iterator;
 import java.util.List;
@@ -63,11 +61,8 @@ class AsyncTaskMethodTransformer extends AbstractAsyncMethodTransformer {
     private final static Type ASYNC_TASK_METHOD_TYPE  = Type.getObjectType("net/tascalate/async/core/AsyncTaskMethod");
     private final static Type COMPLETABLE_FUTURE_TYPE = Type.getObjectType("java/util/concurrent/CompletableFuture");
     
-    AsyncTaskMethodTransformer(ClassNode               classNode,
-                               MethodNode              originalAsyncMethodNode,
-                               Map<String, MethodNode> accessMethods,
-                               Helper                  helper) {
-        super(classNode, originalAsyncMethodNode, accessMethods, helper);
+    AsyncTaskMethodTransformer(ClassNode  classNode, MethodNode originalAsyncMethodNode, AsyncAwaitClassState classState) {
+        super(classNode, originalAsyncMethodNode, classState);
     }
     
     @Override
@@ -82,7 +77,7 @@ class AsyncTaskMethodTransformer extends AbstractAsyncMethodTransformer {
     
     @Override
     protected MethodNode addAnonymousClassRunMethod(ClassNode asyncRunnableClass, FieldNode outerClassField) {
-        List<MethodNode> ownerMethods = methodsOf(classNode);
+        List<MethodNode> ownerMethods = classNode.methods;
         
         boolean isStatic = (originalAsyncMethod.access & Opcodes.ACC_STATIC) != 0;
         int thisShiftNecessary = isStatic ? 1 : 0;
@@ -93,7 +88,7 @@ class AsyncTaskMethodTransformer extends AbstractAsyncMethodTransformer {
         }
 
         MethodNode result = (MethodNode)asyncRunnableClass.visitMethod(
-            ACC_PROTECTED, "doRun", "()V", null, new String[]{"java/lang/Throwable"}
+            ACC_FINAL + ACC_PROTECTED + (originalAsyncMethod.access & ACC_STRICT), "doRun", "()V", null, new String[]{"java/lang/Throwable"}
         );
 
         result.visitAnnotation(SUSPENDABLE_ANNOTATION_TYPE.getDescriptor(), true);
@@ -135,16 +130,13 @@ class AsyncTaskMethodTransformer extends AbstractAsyncMethodTransformer {
 
         InsnList newInstructions = new InsnList();
         newInstructions.add(methodStart);
-        LabelNode fakeLable = new LabelNode();
-        newInstructions.add(new JumpInsnNode(GOTO, fakeLable));
-        newInstructions.add(fakeLable);
 
         Type returnType = Type.getReturnType(originalAsyncMethod.desc);
         boolean hasResult = !Type.VOID_TYPE.equals(returnType);
         
         // Instructions
         int argumentsLength = Arrays.stream(originalArgTypes).mapToInt(a -> a.getSize()).sum();
-        
+        Map<Integer, Integer> oldToNewVarIndexes = new HashMap<>();
         for (AbstractInsnNode insn = originalAsyncMethod.instructions.getFirst(); null != insn; insn = insn.getNext()) {
             if (insn instanceof VarInsnNode) {
                 VarInsnNode vin = (VarInsnNode) insn;
@@ -192,7 +184,9 @@ class AsyncTaskMethodTransformer extends AbstractAsyncMethodTransformer {
                         continue;
                     } else {
                         // decrease local variable indexes
-                        newInstructions.add(new VarInsnNode(vin.getOpcode(), vin.var - argumentsLength + thisShiftNecessary));
+                        int newIndex = vin.var - argumentsLength + thisShiftNecessary;
+                        oldToNewVarIndexes.put(vin.var, newIndex);
+                        newInstructions.add(new VarInsnNode(vin.getOpcode(), newIndex));
                         continue;
                     }
                 }
@@ -212,7 +206,9 @@ class AsyncTaskMethodTransformer extends AbstractAsyncMethodTransformer {
                     newInstructions.add(new InsnNode(SWAP));
                     newInstructions.add(new FieldInsnNode(PUTFIELD, asyncRunnableClass.name, argName, argDesc));                    
                 } else {
-                    newInstructions.add(new IincInsnNode(iins.var - argumentsLength + thisShiftNecessary, iins.incr));
+                    int newIndex = iins.var - argumentsLength + thisShiftNecessary;
+                    oldToNewVarIndexes.put(iins.var, newIndex);
+                    newInstructions.add(new IincInsnNode(newIndex, iins.incr));
                 }
                 continue;
                 
@@ -392,8 +388,12 @@ class AsyncTaskMethodTransformer extends AbstractAsyncMethodTransformer {
             newInstructions.add(new InsnNode(POP));
         }
         newInstructions.add(new InsnNode(RETURN));
-
         result.instructions = newInstructions;
+        
+        result.localVariables = copyRealVarsToRunMethod(asyncRunnableClass, oldToNewVarIndexes, labelsMap, methodStart, methodEnd);
+        result.invisibleLocalVariableAnnotations = copyRealVarsAnnotations(originalAsyncMethod.invisibleLocalVariableAnnotations, oldToNewVarIndexes, labelsMap);
+        result.visibleLocalVariableAnnotations = copyRealVarsAnnotations(originalAsyncMethod.visibleLocalVariableAnnotations, oldToNewVarIndexes, labelsMap);
+        
         // Maxs
         // 2 for exception handling & asyncResult replacement
         result.maxLocals = Math.max(originalAsyncMethod.maxLocals - argumentsLength + thisShiftNecessary, 2);

@@ -24,20 +24,20 @@
  */
 package net.tascalate.async.tools.core;
 
-import static net.tascalate.async.tools.core.BytecodeIntrospection.isAsyncMethod;
-import static net.tascalate.async.tools.core.BytecodeIntrospection.methodsOf;
-
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.PrintWriter;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
+import org.apache.commons.javaflow.spi.FastByteArrayOutputStream;
 import org.apache.commons.javaflow.spi.ResourceLoader;
 
 import org.slf4j.Logger;
@@ -75,10 +75,6 @@ public class AsyncAwaitClassFileGenerator {
     // New generated classes
     private final List<ClassNode> newClasses = new ArrayList<ClassNode>();
 
-    // Original method's "method name + method desc" -> Access method's
-    // MethodNode
-    private final Map<String, MethodNode> accessMethods = new HashMap<>();
-    private final Map<String, ClassNode> superclasses = new HashMap<>();
     private final ClassHierarchy classHierarchy;
     private final boolean verify;
     private final boolean trace;
@@ -92,15 +88,15 @@ public class AsyncAwaitClassFileGenerator {
         this.verify = verify;
         this.trace = trace;
     }
-    
-    public byte[] transform(byte[] classfileBuffer) {
+
+    public byte[] transform(byte[] classfileBuffer, Map<String, List<String>> nestMemberRequest) {
         // Read
         ClassReader classReader = new ClassReader(classfileBuffer);
         ClassNode classNode = new ClassNode();
         classReader.accept(classNode, ClassReader.SKIP_FRAMES);
 
         // Transform
-        if (!transform(classNode)) {
+        if (!transform(classNode, nestMemberRequest)) {
             // no modification, delegate further
             return null;
         }
@@ -136,7 +132,6 @@ public class AsyncAwaitClassFileGenerator {
     }
 
     public void reset() {
-        accessMethods.clear();
         newClasses.clear();
     }
     
@@ -151,38 +146,27 @@ public class AsyncAwaitClassFileGenerator {
         return result;
     }
 
-    protected boolean transform(ClassNode classNode) {
+    protected boolean transform(ClassNode classNode, Map<String, List<String>> nestMemberRequest) {
         boolean transformed = false;
         
-        AbstractAsyncMethodTransformer.Helper helper = new AbstractAsyncMethodTransformer.Helper() {
-            @Override
-            public ClassNode resolveClass(String cn) {
-                return superclasses.computeIfAbsent(cn, className -> {
-                    try (InputStream in = classHierarchy.loader().getResourceAsStream(className + ".class")) {
-                        ClassReader classReader = new ClassReader(in);
-                        ClassNode classNode = new ClassNode();
-                        classReader.accept(classNode, ClassReader.SKIP_FRAMES);
-                        return classNode;
-                    } catch (IOException ex) {
-                        throw new RuntimeException(ex);
-                    }
-                });
-            }            
-            
-            @Override
-            public boolean isSubClass(String maybeSubclass, String gmaybeParentClass) {
-                return classHierarchy.isSubClass(maybeSubclass, gmaybeParentClass);
-            }
-        };
+        List<MethodNode> originalMethods = new ArrayList<MethodNode>(classNode.methods == null ? Collections.emptyList() : classNode.methods);
         
-        for (MethodNode methodNode : new ArrayList<MethodNode>(methodsOf(classNode))) {
-            if (isAsyncMethod(methodNode)) {
+        Map<String, ClassNode> superclasses = new HashMap<>();
+        
+        AsyncAwaitClassState classState = new AsyncAwaitClassState(
+            classNode, classHierarchy::isSubClass, 
+            cn -> superclasses.computeIfAbsent(cn, this::resolveClass), 
+            nestMemberRequest);
+        
+        // Iterate over original methods, while new may be added
+        for (MethodNode methodNode : originalMethods) {
+            if (classState.isAsyncMethod(methodNode)) {
                 Type returnType = Type.getReturnType(methodNode.desc);
                 AbstractAsyncMethodTransformer transformer = null;
                 if (ASYNC_TASK_RETURN_TYPES.contains(returnType)) {
-                    transformer = new AsyncTaskMethodTransformer(classNode, methodNode, accessMethods, helper);
+                    transformer = new AsyncTaskMethodTransformer(classNode, methodNode, classState);
                 } else if (ASYNC_GENERATOR_TYPE.equals(returnType)) {
-                    transformer = new AsyncGeneratorMethodTransformer(classNode, methodNode, accessMethods, helper);
+                    transformer = new AsyncGeneratorMethodTransformer(classNode, methodNode, classState);
                 } else {
                     // throw ex?
                 }
@@ -195,7 +179,50 @@ public class AsyncAwaitClassFileGenerator {
                 }
             }
         }
+        
+        if (classState.supportsNestMemeber()) {
+            List<String> selfRequested = nestMemberRequest.remove(classNode.name);
+            if (null != selfRequested && !selfRequested.isEmpty()) {
+                List<String> existing = classNode.nestMembers;
+                Set<String> merged = null == existing ? new HashSet<>() : new HashSet<>(existing);
+                if (merged.containsAll(selfRequested)) {
+                    // Ok
+                } else {
+                    if (log.isDebugEnabled()) {
+                        log.error("Satisfied nest request " + classNode.name + " for" + selfRequested);
+                    }
+                    merged.addAll(selfRequested);
+                    classNode.nestMembers = new ArrayList<>(merged);
+                    transformed = true;
+                }
+            }
+        }
+        
         return transformed;
+    }
+    
+    public ClassNode resolveClass(String className) {
+        try (InputStream in = classHierarchy.loader().getResourceAsStream(className + ".class")) {
+            ClassReader classReader = new ClassReader(in);
+            ClassNode classNodeFound = new ClassNode();
+            classReader.accept(classNodeFound, ClassReader.SKIP_FRAMES);
+            return classNodeFound;
+        } catch (IOException ex) {
+            throw new RuntimeException(ex);
+        }
+    }
+    
+    public byte[] readClassBytes(String className) throws IOException {
+        try (InputStream in = classHierarchy.loader().getResourceAsStream(className + ".class")) {
+            @SuppressWarnings("resource")
+            FastByteArrayOutputStream buffer = new FastByteArrayOutputStream();
+            int count;
+            byte[] data = new byte[4096];
+            while ((count = in.read(data, 0, data.length)) != -1) {
+                buffer.write(data, 0, count);
+            }
+            return buffer.toByteArray();
+        }
     }
 
 }

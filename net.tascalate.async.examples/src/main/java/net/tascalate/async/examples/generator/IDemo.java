@@ -40,4 +40,11 @@ public interface IDemo {
               .collect(Collectors.joining("|"));
         return CallContext.async(result);
     }
+    
+    static interface INested {
+        CompletionStage<String> run3();
+        default @async CompletionStage<String> run2() {
+            return CallContext.async("Nested2");
+        }
+    }
 }

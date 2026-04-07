@@ -84,7 +84,7 @@ public class AsyncClassesInstrumentationAgent extends AbstractLambdaAwareInstrum
     @Override
     protected Collection<ClassFileTransformer> createTransformers(boolean canRetransform) {
         if (canRetransform) {
-            ClassFileTransformer transformer = new AsyncClassBytecodeTransformer(continuationsTransformer, instrumentation);
+            ClassFileTransformer transformer = new AsyncClassBytecodeTransformer(continuationsTransformer, instrumentation, getJdkVersion());
             return Collections.singleton(transformer);
         } else {
             return Collections.emptySet();

@@ -28,7 +28,7 @@ import java.util.concurrent.CompletionStage;
 
 public final class AsyncYield<T> {
     
-    public static class Reply<T> extends YieldReply<T> {
+    public final static class Reply<T> extends YieldReply<T> {
         
         public Reply(T value, Object param) {
             super(value, param);

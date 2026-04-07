@@ -24,12 +24,18 @@
  */
 package net.tascalate.async.agent;
 
+import java.io.IOException;
+import java.lang.instrument.ClassDefinition;
 import java.lang.instrument.ClassFileTransformer;
 import java.lang.instrument.IllegalClassFormatException;
 import java.lang.instrument.Instrumentation;
+import java.lang.instrument.UnmodifiableClassException;
 import java.security.ProtectionDomain;
+import java.util.Arrays;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
 
 import org.apache.commons.javaflow.spi.ClasspathResourceLoader;
 import org.apache.commons.javaflow.spi.ExtendedClasspathResourceLoader;
@@ -37,6 +43,8 @@ import org.apache.commons.javaflow.spi.InstrumentationUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import net.tascalate.asmx.Opcodes;
+import net.tascalate.asmx.tree.ClassNode;
 import net.tascalate.async.tools.core.AsyncAwaitClassFileGenerator;
 import net.tascalate.instrument.emitter.spi.ClassEmitter;
 import net.tascalate.instrument.emitter.spi.PortableClassFileTransformer;
@@ -47,10 +55,17 @@ public class AsyncClassBytecodeTransformer extends PortableClassFileTransformer 
     
     private final ClassLoader systemClassLoader = ClassLoader.getSystemClassLoader();
     private final ClassFileTransformer postProcessor;
+    
+    private final Map<String, List<String>> pendingNestingRequests = new ConcurrentHashMap<>();
+    
+    private final Instrumentation instrumentation;
+    private final int jdkVersion;
 
-    protected AsyncClassBytecodeTransformer(ClassFileTransformer postProcessor, Instrumentation instrumentation) {
+    protected AsyncClassBytecodeTransformer(ClassFileTransformer postProcessor, Instrumentation instrumentation, int jdkVersion) {
         super(instrumentation);
         this.postProcessor = postProcessor;
+        this.instrumentation = instrumentation;
+        this.jdkVersion = jdkVersion;
     }
 
     @Override
@@ -74,11 +89,51 @@ public class AsyncClassBytecodeTransformer extends PortableClassFileTransformer 
         AsyncAwaitClassFileGenerator generator = new AsyncAwaitClassFileGenerator(
             new ClasspathResourceLoader(classLoader)
         );
+        
+        // Pre-load nest members
+        // Otherwise generated anonymous local classes of nested classes 
+        // will not get into the nestedMembers of the most outer class
+        if (jdkVersion >= 11 && className != null && instrumentation.isRedefineClassesSupported()) {
+            ClassNode cn = null;
+            try {
+                cn = generator.resolveClass(className);
+            } catch (RuntimeException ex) {
+                if (log.isDebugEnabled()) {
+                    log.debug("No resource yet for class " + className);
+                }
+            }
+            if (isNestPreprocessingCandidate(cn)) {
+                for (String c : cn.nestMembers) {
+                    try { 
+                        if (c.equals(className)) {
+                            continue;
+                        }
+                        byte[] originalBytes = generator.readClassBytes(c);
+                        byte[] modifiedNestedBytes = transform(emitterFactory, module, originalClassLoader, c, null, protectionDomain, originalBytes);
+                        if (null != modifiedNestedBytes) {
+                            Class<?> nestedClass = Class.forName(c.replace('/', '.'), false, originalClassLoader);
+                            if (instrumentation.isModifiableClass(nestedClass)) {
+                                log.debug("Re-instrumenting nest memeber " + c);
+                                instrumentation.redefineClasses(new ClassDefinition(nestedClass, modifiedNestedBytes));
+                                log.info("Preloaded nest memeber " + c);
+                            } else {
+                                log.debug("Skip nest memeber preload (unmodifiable) " + c);
+                            }
+                        }
+                    } catch (ClassNotFoundException     | 
+                            UnmodifiableClassException  | 
+                            IllegalClassFormatException | 
+                            IOException ex) {
+                        log.error("Error preloading nest memeber " + c, ex);
+                    }
+                };
+            }
+        }
               
         byte[] finalResult;
         Map<String, byte[]> extraClasses;
         try {
-            byte[] transformed = generator.transform(classfileBuffer);
+            byte[] transformed = generator.transform(classfileBuffer, pendingNestingRequests);
             if (null == transformed) {
                 return postProcess(module, classLoader, className, classBeingRedefined, protectionDomain, classfileBuffer);
             }
@@ -88,6 +143,9 @@ public class AsyncClassBytecodeTransformer extends PortableClassFileTransformer 
 
             // Define new classes and then redefine inner classes
             finalResult = postProcess(module, classLoader, className, classBeingRedefined, protectionDomain, transformed);
+            if (null == finalResult) {
+                finalResult = transformed;
+            }
         } catch (IllegalClassFormatException | Error | RuntimeException ex) {
             log.error("Error transforming class " + className, ex);
             throw ex;
@@ -105,6 +163,12 @@ public class AsyncClassBytecodeTransformer extends PortableClassFileTransformer 
         return finalResult;
     
     }
+    
+    private static boolean isNestPreprocessingCandidate(ClassNode cn) {
+        return null != cn && (cn.version & 0x0000FFFF) >= Opcodes.V11 &&
+               null != cn.nestMembers && !cn.nestMembers.isEmpty() && 
+               (cn.nestHostClass == null || cn.name.equals(cn.nestHostClass));
+    }
 
     protected byte[] postProcess(Object           module,
                                  ClassLoader      classLoader, 
@@ -118,7 +182,11 @@ public class AsyncClassBytecodeTransformer extends PortableClassFileTransformer 
             return null;
         }
         // Apply continuable annotations
-        return callTransformer(postProcessor, module, classLoader, className, classBeingRedefined, protectionDomain, classfileBuffer);
+        byte[] result = callTransformer(postProcessor, module, classLoader, className, classBeingRedefined, protectionDomain, classfileBuffer);
+        if (Arrays.equals(result, classfileBuffer)) {
+            return null;
+        }
+        return result;
     }
 
     protected void defineGeneratedClasses(ClassEmitterFactory emitterFactory,
@@ -137,9 +205,10 @@ public class AsyncClassBytecodeTransformer extends PortableClassFileTransformer 
             throw ex;            
         }
         
-        // Nested via memento of the resolved emitter 
+        // Nested via memento of the resolved emitter
+        /*
         ClassEmitterFactory nestedEmitterFactory = __ -> emitter;
-
+        */
         for (Map.Entry<String, byte[]> e : generatedClasses.entrySet()) {
             byte[] bytes;
             String newClassName = e.getKey();
@@ -147,7 +216,10 @@ public class AsyncClassBytecodeTransformer extends PortableClassFileTransformer 
                 if (log.isDebugEnabled()) {
                     log.debug("TRANSOFRMING: " + newClassName);
                 }
-                bytes = transform(nestedEmitterFactory, module, classLoader, e.getKey(), null, protectionDomain, e.getValue());
+                bytes = postProcess(module, classLoader, newClassName, null, protectionDomain, e.getValue());
+                /*
+                bytes = transform(nestedEmitterFactory, module, classLoader, newClassName, null, protectionDomain, e.getValue());
+                 */
                 e.setValue(bytes);
                 if (log.isDebugEnabled()) {
                     log.debug("TRANSOFRMED: " + newClassName);

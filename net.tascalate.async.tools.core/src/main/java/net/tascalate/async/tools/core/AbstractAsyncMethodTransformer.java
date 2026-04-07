@@ -24,29 +24,24 @@
  */
 package net.tascalate.async.tools.core;
 
-import static net.tascalate.async.tools.core.BytecodeIntrospection.createAccessMethodName;
-import static net.tascalate.async.tools.core.BytecodeIntrospection.createInnerClassName;
-import static net.tascalate.async.tools.core.BytecodeIntrospection.createOuterClassMethodArgFieldName;
-import static net.tascalate.async.tools.core.BytecodeIntrospection.getField;
-import static net.tascalate.async.tools.core.BytecodeIntrospection.getMethod;
-import static net.tascalate.async.tools.core.BytecodeIntrospection.getMethodSignature;
-import static net.tascalate.async.tools.core.BytecodeIntrospection.innerClassesOf;
-import static net.tascalate.async.tools.core.BytecodeIntrospection.invisibleAnnotationsOf;
-import static net.tascalate.async.tools.core.BytecodeIntrospection.invisibleParameterAnnotationsOf;
-import static net.tascalate.async.tools.core.BytecodeIntrospection.invisibleTypeAnnotationsOf;
-import static net.tascalate.async.tools.core.BytecodeIntrospection.methodsOf;
-import static net.tascalate.async.tools.core.BytecodeIntrospection.visibleAnnotationsOf;
-import static net.tascalate.async.tools.core.BytecodeIntrospection.visibleParameterAnnotationsOf;
-import static net.tascalate.async.tools.core.BytecodeIntrospection.visibleTypeAnnotationsOf;
+import static net.tascalate.async.tools.core.AnnotationIntrospection.invisibleAnnotationsOf;
+import static net.tascalate.async.tools.core.AnnotationIntrospection.invisibleParameterAnnotationsOf;
+import static net.tascalate.async.tools.core.AnnotationIntrospection.invisibleTypeAnnotationsOf;
+import static net.tascalate.async.tools.core.AnnotationIntrospection.visibleAnnotationsOf;
+import static net.tascalate.async.tools.core.AnnotationIntrospection.visibleParameterAnnotationsOf;
+import static net.tascalate.async.tools.core.AnnotationIntrospection.visibleTypeAnnotationsOf;
 import static net.tascalate.asmx.Opcodes.*;
 
 import java.lang.invoke.MethodHandles;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collections;
+import java.util.HashSet;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Set;
 import java.util.stream.Collectors;
 
 import org.slf4j.Logger;
@@ -63,6 +58,9 @@ import net.tascalate.asmx.tree.FieldInsnNode;
 import net.tascalate.asmx.tree.FieldNode;
 import net.tascalate.asmx.tree.InnerClassNode;
 import net.tascalate.asmx.tree.InvokeDynamicInsnNode;
+import net.tascalate.asmx.tree.LabelNode;
+import net.tascalate.asmx.tree.LocalVariableAnnotationNode;
+import net.tascalate.asmx.tree.LocalVariableNode;
 import net.tascalate.asmx.tree.MethodInsnNode;
 import net.tascalate.asmx.tree.MethodNode;
 import net.tascalate.asmx.tree.TypeAnnotationNode;
@@ -70,53 +68,37 @@ import net.tascalate.asmx.tree.TypeAnnotationNode;
 abstract public class AbstractAsyncMethodTransformer {
     protected final static Logger log = LoggerFactory.getLogger(AsyncAwaitClassFileGenerator.class);
 
-    private final static String ASYNC_ANNOTATION_DESCRIPTOR = "Lnet/tascalate/async/async;";
+    static final String ASYNC_ANNOTATION_DESCRIPTOR = Type.getObjectType("net/tascalate/async/async").getDescriptor();
     
     protected final static String CALL_CONTEXT_NAME = "net/tascalate/async/CallContext";
     
     protected final static Type SUSPENDABLE_ANNOTATION_TYPE = Type.getObjectType("net/tascalate/async/suspendable");
     protected final static Type COMPLETION_STAGE_TYPE       = Type.getObjectType("java/util/concurrent/CompletionStage");
-    protected final static Type METHOD_HANDLES_TYPE         = Type.getType(MethodHandles.class);
-    protected final static Type METHOD_HANDLES_LOOKUP_TYPE  = Type.getType(MethodHandles.Lookup.class);
     protected final static Type OBJECT_TYPE                 = Type.getType(Object.class);
-    protected final static Type STRING_TYPE                 = Type.getType(String.class);
-    protected final static Type CLASS_TYPE                  = Type.getType(Class.class);    
     protected final static Type ASYNC_METHOD_EXECUTOR_TYPE  = Type.getObjectType("net/tascalate/async/core/AsyncMethodExecutor");
-    protected final static Type TASCALATE_PROMISE_TYPE      = Type.getObjectType("net/tascalate/concurrent/Promise");
-    protected final static Type TASCALATE_PROMISES_TYPE     = Type.getObjectType("net/tascalate/concurrent/Promises");
-    protected final static Type ABSTRACT_ASYNC_METHOD_TYPE  = Type.getObjectType("net/tascalate/async/core/AbstractAsyncMethod");
-
     protected final static Type SCHEDULER_TYPE              = Type.getObjectType("net/tascalate/async/Scheduler");
 
-    private final static Type METHOD_DEFINITION_TYPE  = Type.getObjectType("net/tascalate/async/spi/MethodDefinition");
-    private final static Type SCHEDULER_PROVIDER_TYPE = Type.getObjectType("net/tascalate/async/SchedulerProvider");
+    private final static Type STRING_TYPE                 = Type.getType(String.class);
+    private final static Type CLASS_TYPE                  = Type.getType(Class.class);    
+    private final static Type METHOD_HANDLES_TYPE         = Type.getType(MethodHandles.class);
+    private final static Type METHOD_HANDLES_LOOKUP_TYPE  = Type.getType(MethodHandles.Lookup.class);
+    private final static Type METHOD_DEFINITION_TYPE      = Type.getObjectType("net/tascalate/async/spi/MethodDefinition");
+    private final static Type SCHEDULER_PROVIDER_TYPE     = Type.getObjectType("net/tascalate/async/SchedulerProvider");
+    private final static Type ABSTRACT_ASYNC_METHOD_TYPE  = Type.getObjectType("net/tascalate/async/core/AbstractAsyncMethod");
+    private final static Type TASCALATE_PROMISE_TYPE      = Type.getObjectType("net/tascalate/concurrent/Promise");
+    private final static Type TASCALATE_PROMISES_TYPE     = Type.getObjectType("net/tascalate/concurrent/Promises");
     
+
+    private final AsyncAwaitClassState classState;
 
     protected final ClassNode classNode;
     protected final MethodNode originalAsyncMethod;
-
-    // Original method's "method name + method desc" -> Access method's
-    // MethodNode
-    protected final Map<String, MethodNode> accessMethods;
     
-    protected final Helper helper;
-    
-    static interface Helper {
-        boolean isSubClass(String maybeSubclass,  String gmaybeParentClass);
-        ClassNode resolveClass(String className);
-    }
-    
-    protected AbstractAsyncMethodTransformer(ClassNode               classNode, 
-                                             MethodNode              originalAsyncMethod,
-                                             Map<String, MethodNode> accessMethods,
-                                             Helper                  helper) {
-        
+    protected AbstractAsyncMethodTransformer(ClassNode classNode, MethodNode originalAsyncMethod, AsyncAwaitClassState classState) {
         this.classNode = classNode;
         this.originalAsyncMethod = originalAsyncMethod;
-        this.accessMethods = accessMethods;
-        this.helper = helper;
+        this.classState = classState;
     }
-
     
     abstract protected ClassNode transform();
     
@@ -126,23 +108,49 @@ abstract public class AbstractAsyncMethodTransformer {
                       originalAsyncMethod.desc);
         }
         //removeAsyncAnnotation(originalAsyncMethod);
-
-        // Create InnerClassNode for anoymous class
-        String asyncTaskClassName = createInnerClassName(classNode);
-        innerClassesOf(classNode).add(new InnerClassNode(asyncTaskClassName, null, null, (originalAsyncMethod.access & ACC_STATIC)));
-
-        // Create accessor methods
-        createAccessMethodsForAsyncMethod();
-
+        int classVersion = (classNode.version & 0x0000FFFF);
+        boolean createAccessMethods = classVersion < V11 || !classState.supportsNestMemeber(); 
+        if (createAccessMethods) {
+            // Create accessor methods
+            createAccessMethodsForAsyncMethod();            
+        } else {
+            createAccessMethodsForAsyncMethodLambdas();
+        }
+        // Create InnerClassNode for anonymous class
+        String asyncTaskClassName = classState.generateAndRegisterInnerClassName();
+        classNode.innerClasses.add(new InnerClassNode(asyncTaskClassName, null, null, ACC_FINAL));
+        
         // Create ClassNode for anonymous class
         ClassNode asyncTaskClassNode = createAnonymousClass(asyncTaskClassName, superClassType);
+        if (classVersion > V21) {
+            // Otherwise Spring fails
+            asyncTaskClassNode.innerClasses = Collections.singletonList(new InnerClassNode(asyncTaskClassName, null, null, ACC_FINAL));
+        }
+        
+        if (!createAccessMethods) {
+            if (classNode.nestHostClass == null) {
+                asyncTaskClassNode.nestHostClass = classNode.name;
+                if (classNode.nestMembers != null) {
+                    List<String> nestMembers = new ArrayList<>(classNode.nestMembers);
+                    nestMembers.add(asyncTaskClassName);
+                    classNode.nestMembers = nestMembers;
+                } else {
+                    classNode.nestMembers = new ArrayList<>(Collections.singletonList(asyncTaskClassName));
+                }
+                if (log.isDebugEnabled()) {
+                    log.debug(asyncTaskClassName + " DIRECT NEST HOST IS " + asyncTaskClassNode.nestHostClass);
+                }
+            } else {
+                if (log.isDebugEnabled()) {
+                    log.debug(asyncTaskClassName + " SKIP INDIRECT NEST HOST of " + classNode.nestHostClass);
+                }
+                classState.needNestMemeber(classNode.nestHostClass, asyncTaskClassName);
+                asyncTaskClassNode.nestHostClass = classNode.nestHostClass;
+            }
+        }
 
         // Replace original method
-
-        List<MethodNode> methods = methodsOf(classNode);
-        methods.remove(originalAsyncMethod);
-        
-        createReplacementAsyncMethod(asyncTaskClassName);
+        classState.putMethod((MethodNode)createReplacementAsyncMethod(asyncTaskClassName), false /* Added via visitor */);
         
         //System.out.println(BytecodeTraceUtil.toString(classNode));
         return asyncTaskClassNode;
@@ -150,14 +158,13 @@ abstract public class AbstractAsyncMethodTransformer {
     
     abstract protected MethodVisitor createReplacementAsyncMethod(String asyncTaskClassName);
     abstract protected MethodVisitor addAnonymousClassRunMethod(ClassNode asyncRunnableClass, FieldNode outerClassField);
-
     
-    protected ClassNode createAnonymousClass(String asyncTaskClassName, Type superClassType) {
+    private ClassNode createAnonymousClass(String asyncTaskClassName, Type superClassType) {
         boolean isStatic = (originalAsyncMethod.access & Opcodes.ACC_STATIC) != 0;
 
         ClassNode asyncRunnableClass = new ClassNode();
 
-        asyncRunnableClass.visit(classNode.version, ACC_FINAL + ACC_SUPER, asyncTaskClassName, null, superClassType.getInternalName(), null);
+        asyncRunnableClass.visit(classNode.version, ACC_FINAL + ACC_SUPER + ACC_SYNTHETIC, asyncTaskClassName, null, superClassType.getInternalName(), null);
         asyncRunnableClass.visitSource(classNode.sourceFile, null);
         asyncRunnableClass.visitOuterClass(classNode.name, originalAsyncMethod.name, originalAsyncMethod.desc);
 
@@ -201,7 +208,7 @@ abstract public class AbstractAsyncMethodTransformer {
         return asyncRunnableClass;
     }
     
-    protected MethodVisitor addAnonymousClassConstructor(ClassNode asyncRunnableClass, Type superClassType, FieldNode outerClassField) {
+    private MethodVisitor addAnonymousClassConstructor(ClassNode asyncRunnableClass, Type superClassType, FieldNode outerClassField) {
         boolean isStatic = (originalAsyncMethod.access & Opcodes.ACC_STATIC) != 0;
         // Original methods arguments
         Type[] originalArgTypes = Type.getArgumentTypes(originalAsyncMethod.desc);
@@ -252,7 +259,7 @@ abstract public class AbstractAsyncMethodTransformer {
         return result;        
     }
 
-    protected MethodVisitor addAnonymousClassToStringMethod(ClassNode asyncRunnableClass, Type runnableBaseClass) {
+    private MethodVisitor addAnonymousClassToStringMethod(ClassNode asyncRunnableClass, Type runnableBaseClass) {
         MethodVisitor result = asyncRunnableClass.visitMethod(
             ACC_PUBLIC, "toString", Type.getMethodDescriptor(STRING_TYPE), null, null
         );
@@ -269,7 +276,7 @@ abstract public class AbstractAsyncMethodTransformer {
         return result;
     }
     
-    protected MethodVisitor addAnonymousClassMetadata(ClassNode asyncRunnableClass) {
+    private MethodVisitor addAnonymousClassMetadata(ClassNode asyncRunnableClass) {
         asyncRunnableClass.visitField(Opcodes.ACC_STATIC | Opcodes.ACC_FINAL,
                                       "__METHOD_DEFINITION",
                                       METHOD_DEFINITION_TYPE.getDescriptor(), // descriptor
@@ -343,30 +350,6 @@ abstract public class AbstractAsyncMethodTransformer {
         return result;
     }
     
-    protected Object[] findOwnerInvokeDynamic(AbstractInsnNode instruction, List<MethodNode> ownerMethods) {
-        if (instruction instanceof InvokeDynamicInsnNode) {
-            InvokeDynamicInsnNode n = (InvokeDynamicInsnNode) instruction;
-            Handle bsm = n.bsm;
-            if ("java/lang/invoke/LambdaMetafactory".equals(bsm.getOwner()) && "metafactory".equals(bsm.getName())) {
-                Handle method = Arrays
-                    .stream(n.bsmArgs)
-                    .filter(Handle.class::isInstance)
-                    .map(Handle.class::cast)
-                    .filter(h -> h.getOwner().equals(classNode.name) /*&& h.getName().startsWith("lambda$")*/)
-                    .findFirst()
-                    .orElse(null);
-                
-                if (null != method) {
-                    MethodNode targetMethodNode = getMethod(method.getName(), method.getDesc(), ownerMethods);
-                    if (null != targetMethodNode && (targetMethodNode.access & (/*ACC_STATIC + ACC_PRIVATE +*/ ACC_SYNTHETIC)) == /*ACC_STATIC + ACC_PRIVATE + */ACC_SYNTHETIC) {
-                        return new Object[] {method, targetMethodNode};
-                    }
-                }
-            }
-        }
-        return null;
-    }
-    
     protected MethodVisitor createReplacementAsyncMethod(String asyncTaskClassName, Type runnableBaseClass, String runnableFieldName, Type runnableFieldType) {
         boolean isStatic = (originalAsyncMethod.access & Opcodes.ACC_STATIC) != 0;
         int thisArgShift = isStatic ? 0 : 1;
@@ -376,8 +359,11 @@ abstract public class AbstractAsyncMethodTransformer {
         MethodVisitor result = classNode.visitMethod( 
             originalAsyncMethod.access, originalAsyncMethod.name, 
             originalAsyncMethod.desc, originalAsyncMethod.signature, 
-            null
+            originalAsyncMethod.exceptions == null ? null : originalAsyncMethod.exceptions.toArray(new String[originalAsyncMethod.exceptions.size()])
         );
+        if (null != originalAsyncMethod.attrs) {
+            originalAsyncMethod.attrs.forEach(result::visitAttribute);
+        }
         
         //replacementAsyncMethodNode.invisibleAnnotations = copyAnnotations(invisibleAnnotationsOf(originalAsyncMethod));
         //Remove @async annotation
@@ -494,7 +480,31 @@ abstract public class AbstractAsyncMethodTransformer {
         result.visitEnd();
         return result;
     }
-    
+
+    protected Object[] findOwnerInvokeDynamic(AbstractInsnNode instruction, List<MethodNode> ownerMethods) {
+        if (instruction instanceof InvokeDynamicInsnNode) {
+            InvokeDynamicInsnNode n = (InvokeDynamicInsnNode) instruction;
+            Handle bsm = n.bsm;
+            if ("java/lang/invoke/LambdaMetafactory".equals(bsm.getOwner()) && "metafactory".equals(bsm.getName())) {
+                Handle method = Arrays
+                    .stream(n.bsmArgs)
+                    .filter(Handle.class::isInstance)
+                    .map(Handle.class::cast)
+                    .filter(h -> h.getOwner().equals(classNode.name) /*&& h.getName().startsWith("lambda$")*/)
+                    .findFirst()
+                    .orElse(null);
+                
+                if (null != method) {
+                    MethodNode targetMethodNode = classState.getMethod(method.getName(), method.getDesc());
+                    if (null != targetMethodNode && (targetMethodNode.access & (/*ACC_STATIC + ACC_PRIVATE +*/ ACC_SYNTHETIC)) == /*ACC_STATIC + ACC_PRIVATE + */ACC_SYNTHETIC) {
+                        return new Object[] {method, targetMethodNode};
+                    }
+                }
+            }
+        }
+        return null;
+    }
+
     protected void copyParameterAnnotations(MethodVisitor target, List<AnnotationNode>[] annotationsByIdx, boolean visible) {
         if (null == annotationsByIdx) {
             return;
@@ -508,7 +518,75 @@ abstract public class AbstractAsyncMethodTransformer {
         }
     }
     
-    protected int schedulerProviderParamIdx(MethodNode methodNode) {
+    protected static List<TypeAnnotationNode> copyTypeAnnotations(List<TypeAnnotationNode> originalAnnotations) {
+        if (null == originalAnnotations || originalAnnotations.isEmpty()) {
+            return null;
+        }
+        return originalAnnotations
+            .stream()
+            .map(t -> new TypeAnnotationNode(t.typeRef, t.typePath, t.desc))
+            .collect(Collectors.toCollection(ArrayList::new));
+    }
+    
+    protected List<LocalVariableNode> copyRealVarsToRunMethod(ClassNode asyncRunnableClass, Map<Integer, Integer> oldToNewVarIndexes, 
+                                                              Map<LabelNode, LabelNode> labelsMap, LabelNode start, LabelNode end) {
+        List<LocalVariableNode> allCloned = new ArrayList<>();
+        LocalVariableNode self = new LocalVariableNode("this", Type.getObjectType(asyncRunnableClass.name).getDescriptor(), null, start, end, 0);
+        allCloned.add(self);
+
+        if (originalAsyncMethod.localVariables != null && !originalAsyncMethod.localVariables.isEmpty()) {
+            for (LocalVariableNode original : originalAsyncMethod.localVariables) {
+                Integer newIndex = oldToNewVarIndexes.get(original.index);
+                if (null == newIndex) {
+                    continue;
+                }
+                LocalVariableNode cloned = new LocalVariableNode(
+                    original.name, original.desc, original.signature,
+                    labelsMap.get(original.start), labelsMap.get(original.end),
+                    newIndex
+                );
+                allCloned.add(cloned);
+            }
+        }
+        
+
+        return allCloned;
+    }
+    
+    protected static List<LocalVariableAnnotationNode> copyRealVarsAnnotations(List<LocalVariableAnnotationNode> annotations, Map<Integer, Integer> oldToNewVarIndexes, 
+                                                                               Map<LabelNode, LabelNode> labelsMap) {
+        if (null == annotations || annotations.isEmpty()) {
+            return null;
+        }
+        
+        List<LocalVariableAnnotationNode> result = new ArrayList<>();
+        
+        List<LabelNode> newStartLabels = new ArrayList<>();
+        List<LabelNode> newEndLabels = new ArrayList<>();
+        List<Integer> newIndicies = new ArrayList<>();
+        for (LocalVariableAnnotationNode original : annotations) {
+            for (Integer originalIndex : original.index) {
+                Integer newIndex = oldToNewVarIndexes.get(originalIndex);
+                if (null == newIndex) {
+                    continue;
+                }
+                LabelNode newStartLabel = labelsMap.get(original.start.get(originalIndex));
+                LabelNode newEndLabel = labelsMap.get(original.start.get(originalIndex));
+                newStartLabels.add(newStartLabel);
+                newEndLabels.add(newEndLabel);
+                newIndicies.add(newIndex);
+            }
+            LocalVariableAnnotationNode cloned = new LocalVariableAnnotationNode(
+                original.typeRef, original.typePath, 
+                newStartLabels.toArray(new LabelNode[newStartLabels.size()]), newEndLabels.toArray(new LabelNode[newEndLabels.size()]), 
+                newIndicies.stream().mapToInt(Integer::intValue).toArray(), original.desc);
+            cloned.values = original.values;
+            result.add(cloned);
+        }
+        return result;
+    }
+    
+    private int schedulerProviderParamIdx(MethodNode methodNode) {
         int result = -1;
         List<AnnotationNode>[] annotationBatches = visibleParameterAnnotationsOf(methodNode); 
         if (null == annotationBatches) {
@@ -531,37 +609,32 @@ abstract public class AbstractAsyncMethodTransformer {
         return result;
     }
     
-    protected static List<TypeAnnotationNode> copyTypeAnnotations(List<TypeAnnotationNode> originalAnnotations) {
-        if (null == originalAnnotations || originalAnnotations.isEmpty()) {
-            return null;
-        }
-        return originalAnnotations
-            .stream()
-            .map(t -> new TypeAnnotationNode(t.typeRef, t.typePath, t.desc))
-            .collect(Collectors.toCollection(ArrayList::new));
-    }
-    
-    protected void createAccessMethodsForAsyncMethod() {
-        List<MethodNode> methods = methodsOf(classNode);
+    private void createAccessMethodsForAsyncMethod() {
+        List<MethodNode> methods = classNode.methods;
+        Set<String> processedMethods = new HashSet<>();
+        Set<String> processedFields = new HashSet<>();
         for (Iterator<?> i = originalAsyncMethod.instructions.iterator(); i.hasNext();) {
             AbstractInsnNode instruction = (AbstractInsnNode) i.next();
             if (instruction instanceof MethodInsnNode) {
-                MethodInsnNode methodInstructionNode = (MethodInsnNode) instruction;
-                boolean isOwnMethod = methodInstructionNode.owner.equals(classNode.name);
-                int mopcode = methodInstructionNode.getOpcode();
+                MethodInsnNode min = (MethodInsnNode) instruction;
+                
+                String key = min.owner + '#' + min.name + '#' + min.desc;
+                if (!processedMethods.add(key)) {
+                    continue;
+                }
+                
+                boolean isOwnMethod = min.owner.equals(classNode.name);
+                int mopcode = min.getOpcode();
                 if (
                     (mopcode == INVOKEVIRTUAL || mopcode == INVOKESPECIAL || mopcode == INVOKESTATIC) && 
-                    (isOwnMethod || helper.isSubClass(classNode.name, methodInstructionNode.owner))) {
+                    (isOwnMethod || classState.isSubClassOf(min.owner))) {
                     
                     String actualClassName;
                     // Even it's reported as an own method in insn, it may be declared in superclass
-                    MethodNode targetMethodNode = isOwnMethod ? 
-                        getMethod(methodInstructionNode.name, methodInstructionNode.desc, methods)
-                        :
-                        null;
+                    MethodNode targetMethodNode = isOwnMethod ? classState.getMethod(min.name, min.desc) : null;
                     
                     if (null == targetMethodNode) {
-                        targetMethodNode = findClassMethod(classNode.superName, methodInstructionNode);
+                        targetMethodNode = findSuperclassMethod(classNode.superName, min);
                         actualClassName = targetMethodNode != null ? targetMethodNode.signature : null; // Some superclass
                         isOwnMethod = false;
                     } else {
@@ -571,31 +644,34 @@ abstract public class AbstractAsyncMethodTransformer {
 
                     boolean samePackageAccessible = 
                         // Note that INVOKESPECIAL IS NOT ACCESSIBLE OTSIDE CLASS ITSELF AT ALL
-                        (mopcode == INVOKEVIRTUAL || mopcode == INVOKESTATIC || (mopcode == INVOKESPECIAL && "<init>".equals(methodInstructionNode.name))) &&
+                        (mopcode == INVOKEVIRTUAL || mopcode == INVOKESTATIC || (mopcode == INVOKESPECIAL && "<init>".equals(min.name))) &&
                         null != targetMethodNode &&
                         (targetMethodNode.access & ACC_PRIVATE) == 0 &&
                         ((targetMethodNode.access & ACC_PUBLIC) != 0 || samePackage(classNode.name, actualClassName));        
                     
                     if (!samePackageAccessible) {
                         if (log.isTraceEnabled()) {
-                            log.trace("Found private call " + BytecodeTraceUtil.toString(methodInstructionNode));
+                            log.trace("Found private call " + BytecodeTraceUtil.toString(min));
                         }
                         // TODO Add special handling for private constructor calls
-                        createAccessMethod(methodInstructionNode, methods);
+                        createAccessMethod(min);
                     }
                 }
             }
             if (instruction instanceof FieldInsnNode) {
-                FieldInsnNode fieldInstructionNode = (FieldInsnNode) instruction;
-                boolean isOwnField = fieldInstructionNode.owner.equals(classNode.name);
-                if (isOwnField || helper.isSubClass(classNode.name, fieldInstructionNode.owner)) {
+                FieldInsnNode fin = (FieldInsnNode) instruction;
+                
+                String key = fin.owner + '#' + fin.name + "#" + fin.desc;
+                if (!processedFields.add(key)) {
+                    continue;
+                }
+                
+                boolean isOwnField = fin.owner.equals(classNode.name);
+                if (isOwnField || classState.isSubClassOf(fin.owner)) {
                     String actualClassName;
-                    FieldNode targetFieldNode = isOwnField ? 
-                        getField(classNode, fieldInstructionNode.name, fieldInstructionNode.desc)
-                        :
-                        null;
+                    FieldNode targetFieldNode = isOwnField ? classState.getField(fin.name, fin.desc) : null;
                     if (null == targetFieldNode) {
-                        targetFieldNode = findClassField(classNode.superName, fieldInstructionNode);
+                        targetFieldNode = findSuperclassField(classNode.superName, fin);
                         actualClassName = null != targetFieldNode ? targetFieldNode.signature : null;
                         isOwnField = false;
                     } else {
@@ -609,17 +685,18 @@ abstract public class AbstractAsyncMethodTransformer {
                     
                     if (!samePackageAccessible) {
                         if (log.isTraceEnabled()) {
-                            log.trace("Found private field access " + BytecodeTraceUtil.toString(fieldInstructionNode));
+                            log.trace("Found private field access " + BytecodeTraceUtil.toString(fin));
                         }
-                        if (fieldInstructionNode.getOpcode() == GETSTATIC || 
-                            fieldInstructionNode.getOpcode() == GETFIELD) {
+                        
+                        if (fin.getOpcode() == GETSTATIC || 
+                            fin.getOpcode() == GETFIELD) {
                             
-                            createAccessGetter(fieldInstructionNode, methods);
+                            createAccessGetter(fin);
                             
-                        } else if (fieldInstructionNode.getOpcode() == PUTSTATIC || 
-                                   fieldInstructionNode.getOpcode() == PUTFIELD) {
+                        } else if (fin.getOpcode() == PUTSTATIC || 
+                                   fin.getOpcode() == PUTFIELD) {
                             
-                            createAccessSetter(fieldInstructionNode, methods);
+                            createAccessSetter(fin);
                         }
                     }
                 }
@@ -627,18 +704,26 @@ abstract public class AbstractAsyncMethodTransformer {
             if (instruction instanceof InvokeDynamicInsnNode) {
                 Object[] result = findOwnerInvokeDynamic(instruction, methods);
                 if (null != result) {
-                    createAccessLambda((InvokeDynamicInsnNode)instruction, (Handle)result[0], true, methods);
+                    createAccessLambda((InvokeDynamicInsnNode)instruction, (Handle)result[0], true);
                 }
             }            
         }
     }
     
+    private void createAccessMethodsForAsyncMethodLambdas() {
+        List<MethodNode> methods = classNode.methods;
+        for (Iterator<?> i = originalAsyncMethod.instructions.iterator(); i.hasNext();) {
+            AbstractInsnNode instruction = (AbstractInsnNode) i.next();
+            if (instruction instanceof InvokeDynamicInsnNode) {
+                Object[] result = findOwnerInvokeDynamic(instruction, methods);
+                if (null != result) {
+                    createAccessLambda((InvokeDynamicInsnNode)instruction, (Handle)result[0], true);
+                }
+            }            
+        }
+    }
     
-    protected MethodNode createAccessLambda(InvokeDynamicInsnNode dynNode,
-                                            Handle                h,
-                                            boolean               isStatic,
-                                            List<MethodNode>      methods) {
-        
+    private MethodNode createAccessLambda(InvokeDynamicInsnNode dynNode, Handle h, boolean isStatic) {
         MethodNode accessMethodNode = 
                 getAccessMethod(h.getOwner(), h.getName(), h.getDesc(), "L");
             
@@ -646,7 +731,7 @@ abstract public class AbstractAsyncMethodTransformer {
             return accessMethodNode;
         }
 
-        String name = createAccessMethodName(methods);
+        String name = classState.createAccessMethodName();
         Type[] originalArgTypes = Type.getArgumentTypes(dynNode.desc);
         // Need to check why is it so!
         /*
@@ -682,11 +767,10 @@ abstract public class AbstractAsyncMethodTransformer {
 
         // Register mapping
         registerAccessMethod(h.getOwner(), h.getName(), h.getDesc(), "L", accessMethodNode);
-        methods.add(accessMethodNode);
         return accessMethodNode;
     }
     
-    protected MethodNode createAccessMethod(MethodInsnNode targetMethodNode, List<MethodNode> methods) {
+    private MethodNode createAccessMethod(MethodInsnNode targetMethodNode) {
         
         MethodNode accessMethodNode = 
             getAccessMethod(targetMethodNode.owner, targetMethodNode.name, targetMethodNode.desc, "M");
@@ -695,7 +779,7 @@ abstract public class AbstractAsyncMethodTransformer {
             return accessMethodNode;
         }
 
-        String name = createAccessMethodName(methods);
+        String name = classState.createAccessMethodName();
         Type[] originalArgTypes = Type.getArgumentTypes(targetMethodNode.desc);
         Type[] argTypes = 
             targetMethodNode.getOpcode() == INVOKESTATIC ? 
@@ -733,11 +817,10 @@ abstract public class AbstractAsyncMethodTransformer {
 
         // Register mapping
         registerAccessMethod(targetMethodNode.owner, targetMethodNode.name, targetMethodNode.desc, "M", accessMethodNode);
-        methods.add(accessMethodNode);
         return accessMethodNode;
     }
 
-    protected MethodNode createAccessGetter(FieldInsnNode targetFieldNode, List<MethodNode> methods) {
+    private MethodNode createAccessGetter(FieldInsnNode targetFieldNode) {
         
         MethodNode accessMethodNode = 
             getAccessMethod(targetFieldNode.owner, targetFieldNode.name, targetFieldNode.desc, "G");
@@ -746,7 +829,7 @@ abstract public class AbstractAsyncMethodTransformer {
             return accessMethodNode;
         }
 
-        String name = createAccessMethodName(methods);
+        String name = classState.createAccessMethodName();
         Type returnType = Type.getType(targetFieldNode.desc);
         if (targetFieldNode.getOpcode() == GETSTATIC) {
             String desc = Type.getMethodDescriptor(returnType);   
@@ -769,14 +852,12 @@ abstract public class AbstractAsyncMethodTransformer {
             accessMethodNode.visitMaxs(1, 1);
         }
         accessMethodNode.visitEnd();
-
         // Register mapping
         registerAccessMethod(targetFieldNode.owner, targetFieldNode.name, targetFieldNode.desc, "G", accessMethodNode);
-        methods.add(accessMethodNode);
         return accessMethodNode;
     }
 
-    protected MethodNode createAccessSetter(FieldInsnNode targetFieldNode, List<MethodNode> methods) {
+    private MethodNode createAccessSetter(FieldInsnNode targetFieldNode) {
         
         MethodNode accessMethodNode = 
             getAccessMethod(targetFieldNode.owner, targetFieldNode.name, targetFieldNode.desc, "S");
@@ -785,7 +866,7 @@ abstract public class AbstractAsyncMethodTransformer {
             return accessMethodNode;
         }
 
-        String name = createAccessMethodName(methods);
+        String name = classState.createAccessMethodName();
         Type fieldType = Type.getType(targetFieldNode.desc); 
         if (targetFieldNode.getOpcode() == PUTSTATIC) {
             String desc = Type.getMethodDescriptor(Type.VOID_TYPE, fieldType);
@@ -814,55 +895,47 @@ abstract public class AbstractAsyncMethodTransformer {
 
         // Register mapping
         registerAccessMethod(targetFieldNode.owner, targetFieldNode.name, targetFieldNode.desc, "S", accessMethodNode);
-        methods.add(accessMethodNode);
         return accessMethodNode;
     }
     
     private void registerAccessMethod(String owner, String name, String desc, String kind, MethodNode methodNode) {
-        accessMethods.put(owner + name + desc + "-" + kind, methodNode);
+        classState.registerAccessMethod(owner, name, desc, kind, methodNode);
     }
 
     protected MethodNode getAccessMethod(String owner, String name, String desc, String kind) {
-        return accessMethods.get(owner + name + desc + "-" + kind);
+        return classState.getAccessMethod(owner, name, desc, kind);
     }
     
-    protected MethodNode findClassMethod(String className, MethodInsnNode methodInstructionNode) {
-        ClassNode classNode = helper.resolveClass(className);
-        MethodNode result = getMethod(methodInstructionNode.name, methodInstructionNode.desc, methodsOf(classNode));
+    private MethodNode findSuperclassMethod(String className, MethodInsnNode methodInstructionNode) {
+        AsyncAwaitClassState superclassState = classState.superclass(className);
+        MethodNode result = superclassState.getMethod(methodInstructionNode.name, methodInstructionNode.desc);
         if (null != result) {
-            result.signature = classNode.name;
+            result.signature = superclassState.classNode.name;
             return result;
         } else {
-            if (null == classNode.superName) {
+            String superClassName = superclassState.classNode.superName;
+            if (null == superClassName) {
                 return null;
             } else {
-                return findClassMethod(classNode.superName, methodInstructionNode);
+                return findSuperclassMethod(superClassName, methodInstructionNode);
             }
         }
     }
     
-    protected FieldNode findClassField(String className, FieldInsnNode fieldInstructionNode) {
-        ClassNode classNode = helper.resolveClass(className);
-        FieldNode result = getField(classNode, fieldInstructionNode.name, fieldInstructionNode.desc);
+    private FieldNode findSuperclassField(String className, FieldInsnNode fieldInstructionNode) {
+        AsyncAwaitClassState superclassState = classState.superclass(className);
+        FieldNode result = superclassState.getField(fieldInstructionNode.name, fieldInstructionNode.desc);
         if (null != result) {
-            result.signature = classNode.name;
+            result.signature = superclassState.classNode.name;
             return result;
         } else {
-            if (null == classNode.superName) {
+            String superClassName = superclassState.classNode.superName;
+            if (null == superClassName) {
                 return null;
             } else {
-                return findClassField(classNode.superName, fieldInstructionNode);
+                return findSuperclassField(superClassName, fieldInstructionNode);
             }
         }
-    }
-    
-    protected static boolean samePackage(String classA, String classB) {
-        return Objects.equals(packageNameOf(classA), packageNameOf(classB));
-    }
-    
-    private static String packageNameOf(String clazz) {
-        int ind = null == clazz ? -1 : clazz.lastIndexOf('/');
-        return ind > 0 ? clazz.substring(0, ind) : "";
     }
 
     protected static int findOriginalArgumentIndex(Type[] arguments, int var, boolean isStaticMethod) {
@@ -890,9 +963,25 @@ abstract public class AbstractAsyncMethodTransformer {
         result[result.length - 1] = value;
         return result;
     }
+
+    protected static boolean isLoadOpcode(int opcode) {
+        return opcode >= ILOAD && opcode < ISTORE;
+    }
     
+    protected static String createOuterClassMethodArgFieldName(int index) {
+        return "val$" + index;
+    }
+
+    private static boolean samePackage(String classA, String classB) {
+        return Objects.equals(packageNameOf(classA), packageNameOf(classB));
+    }
     
-    static void pushClassLiteral(MethodVisitor mv, Type t) {
+    private static String packageNameOf(String clazz) {
+        int ind = null == clazz ? -1 : clazz.lastIndexOf('/');
+        return ind > 0 ? clazz.substring(0, ind) : "";
+    }
+    
+    private static void pushClassLiteral(MethodVisitor mv, Type t) {
         if (t.getSort() == Type.VOID) {
             mv.visitFieldInsn(GETSTATIC, "java/lang/Void", "TYPE", "Ljava/lang/Class;");
         } else if (t.getSort() == Type.BOOLEAN) {
@@ -916,4 +1005,35 @@ abstract public class AbstractAsyncMethodTransformer {
         }
     }
     
+    private static String getMethodSignature(MethodNode methodNode, boolean outputExceptions) {
+        StringBuilder result = new StringBuilder();
+        int access = methodNode.access;
+        if ((access & ACC_PUBLIC) != 0) result.append("public ");
+        if ((access & ACC_PROTECTED) != 0) result.append("protected ");
+        if ((access & ACC_PRIVATE) != 0) result.append("private ");
+        if ((access & ACC_ABSTRACT) != 0) result.append("abstract ");
+        if ((access & ACC_FINAL) != 0) result.append("final ");
+        if ((access & ACC_STATIC) != 0) result.append("static ");
+        if ((access & ACC_STRICT) != 0) result.append("strictfp ");
+        if ((access & ACC_SYNCHRONIZED) != 0) result.append("synchronized ");
+        result.append(Type.getReturnType(methodNode.desc).getClassName()).append(' ');
+        result.append(methodNode.name);
+        result.append('(');
+        result.append(
+            Arrays.stream( Type.getArgumentTypes(methodNode.desc) )
+                .map(t -> t.getClassName())
+                .collect(Collectors.joining(", "))
+        );
+        result.append(')');
+        if (outputExceptions && null != methodNode.exceptions && !methodNode.exceptions.isEmpty()) {
+            result.append(" throws ");
+            List<String> exceptions = (List<String>)methodNode.exceptions;
+            result.append(
+                exceptions.stream()
+                    .map(v -> v.toString().replace('/', '.'))
+                    .collect(Collectors.joining(", "))
+            );
+        }
+        return result.toString();
+    }
 }

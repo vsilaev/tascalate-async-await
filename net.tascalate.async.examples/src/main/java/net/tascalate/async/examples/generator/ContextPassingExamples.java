@@ -63,17 +63,32 @@ public class ContextPassingExamples {
         Scheduler scheduler = Scheduler.interruptible(ownExecutor, ThreadLocalVar.of(MY_CONTEXT_VAR, YOUR_CONTEXT_VAR).relay()::contextual);
         MY_CONTEXT_VAR.set("CORRECT");
         
-        CompletableFuture<String> f = new ContextPassingExamples().asyncMethod(scheduler, 10);
+        CompletableFuture<String> f = new ContextPassingExamples().asyncMethod(scheduler, 10, "A", "B", "C");
         System.out.println(f.join());
         foreignExecutor.shutdownNow();
         ownExecutor.shutdownNow();
     }
     
-    @async CompletableFuture<String> asyncMethod(@SchedulerProvider Scheduler scheduler, long v) {
+    @async CompletableFuture<String> asyncMethod(@SchedulerProvider Scheduler scheduler, long v, String... abc) {
         IDemo z = new IDemo() {
         };
         String id = await(z.run());
+        
+        ThePackageClass tpc = new ThePackageClass();
+        tpc.check(tpc.value);
+        System.out.println(super.hashCode() + super.toString());
         System.out.println("FROM IDEMO: " + id);
+        
+        IDemo.INested inest = new IDemo.INested() {
+            @Override
+            public CompletionStage<String> run3() {
+                return waitString("Nest3", 100);
+            }
+        };
+        
+        System.out.println(await(inest.run2()));
+        System.out.println(await(inest.run3()));
+        
         System.out.println("Context A:" + MY_CONTEXT_VAR.get() + ", thread " + Thread.currentThread());
         await( waitString("1") );
         System.out.println("Context B:" + MY_CONTEXT_VAR.get() + ", thread " + Thread.currentThread());

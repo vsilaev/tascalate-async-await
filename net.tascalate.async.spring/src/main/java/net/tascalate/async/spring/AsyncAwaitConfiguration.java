@@ -77,7 +77,7 @@ class AsyncAwaitConfiguration {
     @ConditionalOnClass(ProceedingJoinPoint.class)
     static class AsyncCallScopeConfiguration {
         @Bean(name="<<async-await-acync-call-scope-configurer>>")
-        CustomScopeConfigurer customScopeConfigurer() {
+        static CustomScopeConfigurer customScopeConfigurer() {
             CustomScopeConfigurer configurer = new CustomScopeConfigurer();
             configurer.setScopes( Collections.singletonMap("async-call", AsyncExecutionScope.instance()));
             return configurer;

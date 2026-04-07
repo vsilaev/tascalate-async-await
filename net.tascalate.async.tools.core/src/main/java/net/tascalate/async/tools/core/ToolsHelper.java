@@ -30,14 +30,20 @@ import java.io.File;
 import java.io.IOException;
 import java.net.URL;
 import java.net.URLClassLoader;
+import java.nio.file.FileSystems;
+import java.nio.file.FileVisitOption;
 import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.PathMatcher;
+import java.util.Comparator;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.function.Consumer;
+import java.util.function.Predicate;
 
 import org.apache.commons.javaflow.spi.ClasspathResourceLoader;
-import org.apache.commons.javaflow.spi.RecursiveFilesIterator;
 
 public class ToolsHelper {
     public static AsyncAwaitClassFileGenerator createGenerator(List<URL> classPath) {
@@ -68,35 +74,54 @@ public class ToolsHelper {
     }
 
     public static void transformFiles(File inputDirectory, AsyncAwaitClassFileGenerator generator, Consumer<String> debug, Consumer<String> info) 
+            throws IOException {
+        transformFiles(inputDirectory.toPath(), generator, debug, info);
+    }
+    
+    public static void transformFiles(Path inputDirectory, AsyncAwaitClassFileGenerator generator, Consumer<String> debug, Consumer<String> info) 
                                       throws IOException {
+        
         long now = System.currentTimeMillis();
-
-        for (File source : RecursiveFilesIterator.scanClassFiles(inputDirectory)) {
-            if (source.lastModified() <= now) {
-                debug.accept("Applying async/await support: " + source);
-                boolean rewritten = rewriteClassFile(source, generator, source);
-                if (rewritten) {
-                    info.accept("Rewritten async-enabled class file: " + source);
-                }
+        Map<String, List<String>> nestRequests = new ConcurrentHashMap<>();
+        
+        try {
+            Files.walk(inputDirectory, FileVisitOption.FOLLOW_LINKS)
+                 .filter(IS_CLASS_FILE)
+                 .sorted(Comparator.<Path, String>comparing(ToolsHelper::nameWithoudExtension).reversed()) // <-- this will let implement nest correctly, outer is after all inners
+                 .filter(f -> isModifiedBefore(f, now))
+                 .forEach(source -> {
+                     debug.accept("Applying async/await support: " + source);
+                     try {
+                         boolean rewritten = rewriteClassFile(generator, source, source, nestRequests);
+                         if (rewritten) {
+                             info.accept("Rewritten async-enabled class file: " + source);
+                         }
+                     } catch (IOException ex) {
+                         throw new RuntimeException(ex);
+                     }
+                 });
+        } catch (RuntimeException ex) {
+            if (ex.getCause() instanceof IOException) {
+               throw (IOException)(ex.getCause());
+            } else {
+                throw ex;
             }
         }
-        
     }
 
-    private static boolean rewriteClassFile(File source, AsyncAwaitClassFileGenerator generator, File target)
+    private static boolean rewriteClassFile(AsyncAwaitClassFileGenerator generator, Path source, Path target, Map<String, List<String>> nestRequests)
                                             throws IOException {
         
-        byte[] original = toByteArray(source);
-
+        byte[] original = Files.readAllBytes(source);
         try {
-            byte[] transformed = generator.transform(original);
+            byte[] transformed = generator.transform(original, nestRequests);
             if (transformed != original
                 /* Exact equality means not transformed */ || !source.equals(target)) {
-                writeFile(target, transformed != null ? transformed : original);
+                Files.write(target, transformed != null ? transformed : original);
                 if (transformed != original) {
                     Map<String, byte[]> extraClasses = generator.getGeneratedClasses();
                     for (Map.Entry<String, byte[]> e : renameInMemoryResources(extraClasses).entrySet()) {
-                        writeFile(new File(target.getParentFile(), e.getKey()), e.getValue());
+                        Files.write(target.getParent().resolve(e.getKey()), e.getValue());
                     }
                 }
                 return true;
@@ -123,11 +148,22 @@ public class ToolsHelper {
         return resources;
     }
 
-    private static void writeFile(File target, byte[] content) throws IOException {
-        Files.write(target.toPath(), content);
+    private static String nameWithoudExtension(Path f) {
+        String fullName = f.toString();
+        int idx = fullName.lastIndexOf('.');
+        return idx < 0 ? fullName : fullName.substring(0, idx);
     }
-
-    private static byte[] toByteArray(File source) throws IOException {
-        return Files.readAllBytes(source.toPath());
+    
+    private static boolean isModifiedBefore(Path f, long now) {
+        try { 
+            return Files.getLastModifiedTime(f).toMillis() <= now;
+        } catch(IOException ex) {
+            throw new RuntimeException(ex);
+        }
     }
+    
+    private static final PathMatcher CLASS_MATHCER = FileSystems.getDefault().getPathMatcher("glob:*.class");
+    
+    private static final Predicate<Path> IS_CLASS_FILE = f ->
+        Files.exists(f) && !Files.isDirectory(f) && Files.isReadable(f) && CLASS_MATHCER.matches(f.getFileName());
 }

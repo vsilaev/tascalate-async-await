@@ -5,7 +5,7 @@
 	<parent>
 		<groupId>net.tascalate.async</groupId>
 		<artifactId>net.tascalate.async.parent</artifactId>
-		<version>1.4.0</version>
+		<version>1.4.1</version>
 		<relativePath>../</relativePath>
 	</parent>
 
@@ -81,10 +81,18 @@
 		</dependency>
 		<dependency>
 			<groupId>org.aspectj</groupId>
+			<artifactId>aspectjrt</artifactId>
+			<version>1.9.7</version>
+			<optional>true</optional>
+		</dependency>
+<!--
+		<dependency>
+			<groupId>org.aspectj</groupId>
 			<artifactId>aspectjweaver</artifactId>
 			<version>1.5.4</version>
 			<optional>true</optional>
 		</dependency>
+-->
 		<dependency>
 			<groupId>org.slf4j</groupId>
 			<artifactId>slf4j-api</artifactId>
@@ -122,7 +130,47 @@
 					</execution>
 				</executions>
 			</plugin>
-
+			<plugin>
+				<groupId>dev.aspectj</groupId>
+				<artifactId>aspectj-maven-plugin</artifactId>
+				<version>1.14.1</version>
+				<configuration>
+					<complianceLevel>8</complianceLevel> <!-- Match your Java version -->
+					<showWeaveInfo>true</showWeaveInfo>
+					<verbose>true</verbose>
+					<Xlint>ignore</Xlint>
+					<!-- CRITICAL: Instructs ajc to weave binary class files directly -->
+					<forceAjcCompile>true</forceAjcCompile>
+					<weaveDirectories>
+						<weaveDirectory>${project.build.outputDirectory}</weaveDirectory>
+					</weaveDirectories>
+					<!-- CRITICAL: Prevents ajc from attempting to re-compile your java source files -->
+					<sources/> 
+					<testSources/>
+				</configuration>
+				<executions>
+			                <execution>
+						<id>ajc-compile</id>
+						<!-- Binds to process-classes so it runs immediately after java compilation -->
+						<phase>process-classes</phase>
+						<goals>
+							<goal>compile</goal>
+						</goals>
+					</execution>
+					<execution>
+						<id>ajc-compile-test</id>
+						<phase>process-test-classes</phase>
+						<goals>
+							<goal>test-compile</goal>
+						</goals>
+						<configuration>
+							<weaveDirectories>
+								<weaveDirectory>${project.build.testOutputDirectory}</weaveDirectory>
+							</weaveDirectories>
+						</configuration>
+					</execution>
+				</executions>
+			</plugin>
 		</plugins>
 	</build>
 </project>

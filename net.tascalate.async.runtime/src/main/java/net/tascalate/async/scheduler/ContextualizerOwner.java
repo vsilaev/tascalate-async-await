@@ -22,23 +22,10 @@
  * OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
-module net.tascalate.async.spring.webservlet {
-    requires org.slf4j;
+package net.tascalate.async.scheduler;
 
-    requires transitive net.tascalate.async.spring;
-    requires net.tascalate.async.resolver.scoped;
+import java.util.function.Function;
 
-    requires static jakarta.servlet;
-    requires static javax.servlet.api;
-    
-    requires spring.context;
-    requires spring.core;
-    requires spring.web;
-    
-    requires static spring.security.core;
-    
-    requires spring.boot.autoconfigure;
-    requires spring.core;
-    
-    exports net.tascalate.async.spring.webservlet;
+public interface ContextualizerOwner {
+    Function<? super Runnable, ? extends Runnable> contextualizer();
 }

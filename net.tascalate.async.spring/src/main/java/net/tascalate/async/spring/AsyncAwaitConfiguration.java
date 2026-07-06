@@ -31,11 +31,12 @@ import java.util.function.Function;
 
 import org.aspectj.lang.Aspects;
 import org.aspectj.lang.ProceedingJoinPoint;
-import org.springframework.beans.factory.InitializingBean;
+
 import org.springframework.beans.factory.config.CustomScopeConfigurer;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnClass;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
+import org.springframework.context.SmartLifecycle;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.ComponentScan;
 import org.springframework.context.annotation.Configuration;
@@ -49,10 +50,10 @@ import net.tascalate.async.Scheduler;
 import net.tascalate.async.reactor.ReactorAsyncAwaitBridge;
 import reactor.core.publisher.Flux;
 
-@Configuration
+@Configuration()
 @ComponentScan(basePackageClasses = AsyncAwaitConfiguration.class)
 class AsyncAwaitConfiguration {
-    
+
     @DefaultAsyncAwaitExecutor
     @Lazy
     @Bean(name="<<default-async-await-executor>>", destroyMethod = "shutdown")
@@ -60,7 +61,7 @@ class AsyncAwaitConfiguration {
     ExecutorService defaultAsyncAwaitExecutorService(AsyncAwaitExecutorProperties executorProperties) {
         return executorProperties.createExecutorService();
     }
-    
+
     @DefaultAsyncAwaitScheduler
     @Bean(name="<<default-async-await-scheduler>>")
     @ConditionalOnMissingBean(annotation = DefaultAsyncAwaitScheduler.class)
@@ -72,7 +73,7 @@ class AsyncAwaitConfiguration {
         return taskSchedulerFactory.map(tsf -> tsf.create(executor, contextualizer.orElse(null)))
                                    .orElseGet(() -> Scheduler.interruptible(executor, contextualizer.orElse(null)));
     }
-    
+
     @Configuration
     @ConditionalOnProperty(name = "async-await.async-call-scope.enable", havingValue = "true", matchIfMissing = true)
     @ConditionalOnClass(ProceedingJoinPoint.class)
@@ -90,23 +91,27 @@ class AsyncAwaitConfiguration {
         }
 
     }
-    
+
     @Configuration
     @ConditionalOnClass({ReactiveAdapterRegistry.class, Flux.class, ReactorAsyncAwaitBridge.class})
-    static class ReactiveAsyncAwaitConfiguration implements InitializingBean {
-        private final ReactiveAdapterRegistry reactiveAdapterRegistry;
-        
-        ReactiveAsyncAwaitConfiguration(Optional<ReactiveAdapterRegistry> reactiveAdapterRegistry) {
-            this.reactiveAdapterRegistry = reactiveAdapterRegistry.orElse(ReactiveAdapterRegistry.getSharedInstance());
-        }
+    static class ReactiveAsyncAwaitConfiguration {
 
-        @Override
-        public void afterPropertiesSet() throws Exception {
-            reactiveAdapterRegistry.registerReactiveType(
-                ReactiveTypeDescriptor.multiValue(AsyncGenerator.class, () -> AsyncGenerator.emptyOn(CallContext.scheduler())),
-                asyncGenerator -> ReactorAsyncAwaitBridge.createFlux(() -> (AsyncGenerator<?>)asyncGenerator),
-                publisher -> ReactorAsyncAwaitBridge.createGenerator((Flux<?>)publisher, CallContext.scheduler())
-            );
+        @Bean(name = "<<async-await-reactive-types-registar>>")
+        SmartLifecycle asyncAwaitReactiveTypesRegistar(Optional<ReactiveAdapterRegistry> reactiveAdapterRegistry) {
+            ReactiveAdapterRegistry actualReactiveAdapterRegistry =
+                reactiveAdapterRegistry.orElse(ReactiveAdapterRegistry.getSharedInstance());
+
+            return new AbstractSmartLifecycle() {
+                @Override
+                public void start() {
+                    actualReactiveAdapterRegistry.registerReactiveType(
+                        ReactiveTypeDescriptor.multiValue(AsyncGenerator.class, () -> AsyncGenerator.emptyOn(CallContext.scheduler())),
+                        asyncGenerator -> ReactorAsyncAwaitBridge.createFlux(() -> (AsyncGenerator<?>)asyncGenerator),
+                        publisher -> ReactorAsyncAwaitBridge.createGenerator((Flux<?>)publisher, CallContext.scheduler())
+                    );
+                    super.start();
+                }
+            };
         }
     }
 }

@@ -31,11 +31,12 @@ import java.util.concurrent.ExecutorService;
 import java.util.function.Function;
 
 import net.tascalate.async.scheduler.AbstractExecutorScheduler;
-
+import net.tascalate.async.scheduler.ContextualizerOwner;
 import net.tascalate.concurrent.CompletableTask;
 import net.tascalate.concurrent.Promise;
 
-public class TaskScheduler extends AbstractExecutorScheduler<ExecutorService> {
+public class TaskScheduler extends AbstractExecutorScheduler<ExecutorService>
+                           implements ContextualizerOwner {
 
     public TaskScheduler(ExecutorService executor) {
         this(executor, EnumSet.of(Characteristics.INTERRUPTIBLE));

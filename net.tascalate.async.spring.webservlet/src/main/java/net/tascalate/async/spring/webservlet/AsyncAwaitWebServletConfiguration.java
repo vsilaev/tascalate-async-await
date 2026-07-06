@@ -22,23 +22,24 @@
  * OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
-module net.tascalate.async.spring.webservlet {
-    requires org.slf4j;
+package net.tascalate.async.spring.webservlet;
 
-    requires transitive net.tascalate.async.spring;
-    requires net.tascalate.async.resolver.scoped;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnWebApplication;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnWebApplication.Type;
+import org.springframework.context.annotation.Bean;
+import org.springframework.context.annotation.Configuration;
 
-    requires static jakarta.servlet;
-    requires static javax.servlet.api;
+import net.tascalate.async.spring.DefaultAsyncAwaitContextualizer;
+
+@Configuration
+@ConditionalOnWebApplication(type = Type.SERVLET)
+class AsyncAwaitWebServletConfiguration {
     
-    requires spring.context;
-    requires spring.core;
-    requires spring.web;
-    
-    requires static spring.security.core;
-    
-    requires spring.boot.autoconfigure;
-    requires spring.core;
-    
-    exports net.tascalate.async.spring.webservlet;
+    @DefaultAsyncAwaitContextualizer
+    @Bean(name = "<<default-async-await-contextualizer>>")
+    @ConditionalOnMissingBean(annotation = DefaultAsyncAwaitContextualizer.class)
+    AsyncAwaitContextualizer asyncAwaitContextualizer() {
+        return new AsyncAwaitContextualizer();
+    }
 }

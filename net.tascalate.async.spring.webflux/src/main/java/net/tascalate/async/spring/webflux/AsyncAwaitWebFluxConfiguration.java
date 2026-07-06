@@ -22,23 +22,32 @@
  * OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
-module net.tascalate.async.spring.webservlet {
-    requires org.slf4j;
+package net.tascalate.async.spring.webflux;
 
-    requires transitive net.tascalate.async.spring;
-    requires net.tascalate.async.resolver.scoped;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnWebApplication;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnWebApplication.Type;
+import org.springframework.context.annotation.Bean;
+import org.springframework.context.annotation.Configuration;
 
-    requires static jakarta.servlet;
-    requires static javax.servlet.api;
+import net.tascalate.async.Scheduler;
+import net.tascalate.async.spring.DefaultAsyncAwaitContextualizer;
+import net.tascalate.async.spring.DefaultAsyncAwaitScheduler;
+
+@Configuration
+@ConditionalOnWebApplication(type = Type.REACTIVE)
+class AsyncAwaitWebFluxConfiguration {
     
-    requires spring.context;
-    requires spring.core;
-    requires spring.web;
+    @DefaultAsyncAwaitContextualizer
+    @Bean(name = "<<default-async-await-contextualizer>>")
+    @ConditionalOnMissingBean(annotation = DefaultAsyncAwaitContextualizer.class)
+    AsyncAwaitContextualizer asyncAwaitContextualizer() {
+        return new AsyncAwaitContextualizer();
+    }
     
-    requires static spring.security.core;
-    
-    requires spring.boot.autoconfigure;
-    requires spring.core;
-    
-    exports net.tascalate.async.spring.webservlet;
+    @Bean(name = "<<async-await-flux-web-filter>>")
+    @ConditionalOnWebApplication(type = Type.REACTIVE)
+    AsyncAwaitWebFilter asyncAwaitWebFilter(@DefaultAsyncAwaitScheduler Scheduler scheduler) {
+        return new AsyncAwaitWebFilter(scheduler);
+    }
 }

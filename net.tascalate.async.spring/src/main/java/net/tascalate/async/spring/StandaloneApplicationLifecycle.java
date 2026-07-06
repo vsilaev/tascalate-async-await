@@ -22,23 +22,29 @@
  * OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
-module net.tascalate.async.spring.webservlet {
-    requires org.slf4j;
+package net.tascalate.async.spring;
 
-    requires transitive net.tascalate.async.spring;
-    requires net.tascalate.async.resolver.scoped;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnNotWebApplication;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
+import org.springframework.stereotype.Component;
 
-    requires static jakarta.servlet;
-    requires static javax.servlet.api;
+import net.tascalate.async.Scheduler;
+
+@Component
+@ConditionalOnProperty(name = "async-await.scheduler.install-default-scheduler", havingValue = "true", matchIfMissing = true)
+@ConditionalOnNotWebApplication
+class StandaloneApplicationLifecycle extends AbstractSmartLifecycle {
     
-    requires spring.context;
-    requires spring.core;
-    requires spring.web;
-    
-    requires static spring.security.core;
-    
-    requires spring.boot.autoconfigure;
-    requires spring.core;
-    
-    exports net.tascalate.async.spring.webservlet;
+    private final Scheduler defaultAsyncAwaitScheduler;
+
+    StandaloneApplicationLifecycle(@DefaultAsyncAwaitScheduler Scheduler scheduler) {
+        defaultAsyncAwaitScheduler = scheduler;
+        // It's very tempting to install the scheduler right here
+    }
+
+    @Override
+    public void start() {
+        Scheduler.installDefaultScheduler(defaultAsyncAwaitScheduler);
+        super.start();
+    }
 }

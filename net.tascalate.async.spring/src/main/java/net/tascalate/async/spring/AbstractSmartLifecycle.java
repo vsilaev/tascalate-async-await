@@ -24,28 +24,46 @@
  */
 package net.tascalate.async.spring;
 
-import org.springframework.boot.ApplicationArguments;
-import org.springframework.boot.ApplicationRunner;
-import org.springframework.boot.autoconfigure.condition.ConditionalOnNotWebApplication;
-import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
-import org.springframework.stereotype.Component;
+import org.springframework.context.SmartLifecycle;
 
-import net.tascalate.async.Scheduler;
-
-@Component
-@ConditionalOnProperty(name = "async-await.scheduler.install-default-scheduler", havingValue = "true", matchIfMissing = true)
-@ConditionalOnNotWebApplication
-class ApplicationStartup implements ApplicationRunner {
+public abstract class AbstractSmartLifecycle implements SmartLifecycle {
+    protected volatile boolean running = false;
     
-    private final Scheduler defaultAsyncAwaitScheduler;
-
-    ApplicationStartup(@DefaultAsyncAwaitScheduler Scheduler scheduler) {
-        defaultAsyncAwaitScheduler = scheduler;
-        // It's very tempting to install the scheduler right here
+    protected AbstractSmartLifecycle() {
+        
+    }
+    
+    @Override
+    public boolean isAutoStartup() {
+        return true;
+    }
+    
+    @Override
+    public void start() {
+        running = true;
+    }
+    
+    @Override
+    public void stop(Runnable callback) {
+        stop();
+        if (null != callback) {
+            callback.run();
+        }
+    }
+    
+    @Override
+    public void stop() {
+        running = false;
+    }
+    
+    @Override
+    public boolean isRunning() {
+        return this.running;
     }
 
     @Override
-    public void run(ApplicationArguments args) throws Exception {
-        Scheduler.installDefaultScheduler(defaultAsyncAwaitScheduler);
+    public int getPhase() {
+        // High priority / early phase so it starts before other components
+        return Integer.MIN_VALUE; 
     }
 }

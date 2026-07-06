@@ -40,6 +40,10 @@ public abstract class AbstractScheduler implements Scheduler {
         this.contextualizer  = contextualizer;
     }
     
+    public Function<? super Runnable, ? extends Runnable> contextualizer() {
+        return contextualizer;
+    }
+    
     @Override
     public Set<Characteristics> characteristics() {
         return characteristics;

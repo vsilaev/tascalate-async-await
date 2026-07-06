@@ -27,12 +27,8 @@ package net.tascalate.async.spring.webservlet;
 import java.util.Set;
 import java.util.function.Function;
 
-import org.springframework.boot.autoconfigure.condition.ConditionalOnWebApplication;
-import org.springframework.boot.autoconfigure.condition.ConditionalOnWebApplication.Type;
-import org.springframework.context.annotation.Lazy;
 import org.springframework.context.i18n.LocaleContext;
 import org.springframework.context.i18n.LocaleContextHolder;
-import org.springframework.stereotype.Component;
 import org.springframework.web.context.request.RequestAttributes;
 import org.springframework.web.context.request.RequestContextHolder;
 
@@ -40,12 +36,7 @@ import net.tascalate.async.Scheduler;
 import net.tascalate.async.resolver.scoped.SchedulerScope;
 import net.tascalate.async.spring.AsyncAwaitContextItem;
 import net.tascalate.async.spring.AsyncExecutionScope;
-import net.tascalate.async.spring.DefaultAsyncAwaitContextualizer;
 
-@Lazy
-@DefaultAsyncAwaitContextualizer
-@Component("<<default-async-await-contextualizer>>")
-@ConditionalOnWebApplication(type = Type.SERVLET)
 class AsyncAwaitContextualizer implements Function<Runnable, Runnable> {
 
     @Override

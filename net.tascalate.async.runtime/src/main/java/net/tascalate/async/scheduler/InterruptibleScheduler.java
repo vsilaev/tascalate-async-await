@@ -34,7 +34,8 @@ import java.util.function.Function;
 import net.tascalate.async.core.CompletionStageHelper;
 import net.tascalate.async.core.RestrictedCompletableFuture;
 
-public class InterruptibleScheduler extends AbstractExecutorScheduler<ExecutorService> {
+public class InterruptibleScheduler extends AbstractExecutorScheduler<ExecutorService>
+                                    implements ContextualizerOwner {
     
     public InterruptibleScheduler(ExecutorService executor) {
         this(executor, EnumSet.of(Characteristics.INTERRUPTIBLE), null);

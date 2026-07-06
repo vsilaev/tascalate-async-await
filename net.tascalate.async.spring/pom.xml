@@ -51,7 +51,7 @@
 		<dependency>
 			<groupId>io.projectreactor</groupId>
 			<artifactId>reactor-core</artifactId>
-			<version>3.1.14.RELEASE</version>
+			<version>3.3.0.RELEASE</version>
 			<optional>true</optional>
 		</dependency>
 		<dependency>

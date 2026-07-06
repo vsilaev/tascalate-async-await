@@ -27,19 +27,9 @@ package net.tascalate.async.spring.webflux;
 import java.util.Set;
 import java.util.function.Function;
 
-import org.springframework.boot.autoconfigure.condition.ConditionalOnWebApplication;
-import org.springframework.boot.autoconfigure.condition.ConditionalOnWebApplication.Type;
-import org.springframework.context.annotation.Lazy;
-import org.springframework.stereotype.Component;
-
 import net.tascalate.async.spring.AsyncAwaitContextItem;
 import net.tascalate.async.spring.AsyncExecutionScope;
-import net.tascalate.async.spring.DefaultAsyncAwaitContextualizer;
 
-@Lazy
-@DefaultAsyncAwaitContextualizer
-@Component("<<default-async-await-contextualizer>>")
-@ConditionalOnWebApplication(type = Type.REACTIVE)
 class AsyncAwaitContextualizer implements Function<Runnable, Runnable> {
 
     @Override

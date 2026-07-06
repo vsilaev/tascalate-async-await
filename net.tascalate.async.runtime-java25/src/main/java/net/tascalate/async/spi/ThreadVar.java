@@ -25,7 +25,6 @@
 package net.tascalate.async.spi;
 
 import java.util.concurrent.Callable;
-import java.util.function.Function;
 import java.util.function.Supplier;
 
 public final class ThreadVar<T> {
@@ -63,36 +62,16 @@ public final class ThreadVar<T> {
         return ScopedValue.where(scopedValue, newValue).call(supplier::get);
     }
     
-    public <V> V callWith(T newValue, Callable<V> callable) throws Throwable {
+    public <V> V callWith(T newValue, Callable<V> callable) throws Exception {
         return ScopedValue.where(scopedValue, newValue).call(callable::call);
     }
     
-    public <V> V callWith(T oldValue, T newValue, Callable<V> callable) throws Throwable {
+    public <V> V callWith(T oldValue, T newValue, Callable<V> callable) throws Exception {
         return ScopedValue.where(scopedValue, newValue).call(callable::call);
     }
     
-    public <R> R applyWith(T newValue, ThrowableFunction<T, R> fn) throws Throwable {
-        return ScopedValue.where(scopedValue, newValue).call(
-            () -> fn.apply(newValue == sentinel ? null : newValue)
-        );
-    }
-    
-    public <R> R applyWith(T oldValue, T newValue, ThrowableFunction<T, R> fn) throws Throwable {
-        return ScopedValue.where(scopedValue, newValue).call(
-            () -> fn.apply(newValue == sentinel ? null : newValue)
-        );
-    }
-
     @Override
     public String toString() {
         return getClass().getName() + '[' + name + ']';
-    }
-    
-    @FunctionalInterface
-    public static interface ThrowableFunction<T, R> {
-        R apply(T param) throws Throwable;
-        static <T,R> ThrowableFunction<T, R> of(Function<T, R> fn) {
-            return fn::apply;
-        }
     }
 }

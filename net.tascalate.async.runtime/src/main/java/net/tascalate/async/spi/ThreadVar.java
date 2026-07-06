@@ -25,7 +25,6 @@
 package net.tascalate.async.spi;
 
 import java.util.concurrent.Callable;
-import java.util.function.Function;
 import java.util.function.Supplier;
 
 public final class ThreadVar<T> {
@@ -69,27 +68,14 @@ public final class ThreadVar<T> {
         }
     }
     
-    public <V> V callWith(T newValue, Callable<V> callable) throws Throwable {
+    public <V> V callWith(T newValue, Callable<V> callable) throws Exception {
         return callWith(value(), newValue, callable);
     }
     
-    public <V> V callWith(T oldValue, T newValue, Callable<V> callable) throws Throwable {
+    public <V> V callWith(T oldValue, T newValue, Callable<V> callable) throws Exception {
         threadLocal.set(newValue);
         try {
             return callable.call();
-        } finally {
-            reset(oldValue);
-        }
-    }
-    
-    public <R> R applyWith(T newValue, ThrowableFunction<T, R> fn) throws Throwable {
-        return applyWith(value(), newValue, fn);
-    }
-    
-    public <R> R applyWith(T oldValue, T newValue, ThrowableFunction<T, R> fn) throws Throwable {
-        threadLocal.set(newValue);
-        try {
-            return fn.apply(newValue == sentinel ? null : newValue);
         } finally {
             reset(oldValue);
         }
@@ -108,11 +94,4 @@ public final class ThreadVar<T> {
         return getClass().getName() + '[' + name + ']';
     }
     
-    @FunctionalInterface
-    public static interface ThrowableFunction<T, R> {
-        R apply(T param) throws Throwable;
-        static <T,R> ThrowableFunction<T, R> of(Function<T, R> fn) {
-            return fn::apply;
-        }
-    }
 }

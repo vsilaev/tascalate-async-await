@@ -44,7 +44,7 @@ public enum SchedulerScope {
         return threadVar.supplyWith(ctxExecutor, code);
     }
     
-    public <V> V callWith(Scheduler ctxExecutor, Callable<V> code) throws Throwable {
+    public <V> V callWith(Scheduler ctxExecutor, Callable<V> code) throws Exception {
         return threadVar.callWith(ctxExecutor, code);
     }
 

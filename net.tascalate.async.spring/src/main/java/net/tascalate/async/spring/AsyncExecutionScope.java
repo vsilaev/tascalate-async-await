@@ -24,6 +24,7 @@
  */
 package net.tascalate.async.spring;
 
+import java.lang.reflect.UndeclaredThrowableException;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
@@ -34,6 +35,7 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionStage;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicReference;
+import java.util.function.Function;
 import java.util.stream.Collectors;
 
 import org.springframework.beans.factory.ObjectFactory;
@@ -262,7 +264,7 @@ public class AsyncExecutionScope implements Scope {
         return frame != null && frame != INVALID_FRAME;
     }
     
-    <R> R withFrame(boolean createNewFrame, boolean inheritOldFrame, ThreadVar.ThrowableFunction<Frame, R> call) throws Throwable {
+    <R> R withFrame(boolean createNewFrame, boolean inheritOldFrame, ThrowableFunction<Frame, R> call) throws Throwable {
         if (createNewFrame) {
             return withNewFrame(call, inheritOldFrame);
         } else {
@@ -270,7 +272,7 @@ public class AsyncExecutionScope implements Scope {
         }
     }
     
-    <R> R withoutFrame(ThreadVar.ThrowableFunction<Frame, R> call) throws Throwable {
+    <R> R withoutFrame(ThrowableFunction<Frame, R> call) throws Throwable {
         Frame previous = threadVar.value();
         if (isValidFrame(previous)) {
             return callWithScope(previous, INVALID_FRAME, call);
@@ -280,7 +282,7 @@ public class AsyncExecutionScope implements Scope {
         }
     }
     
-    private <R> R withNewOrExistingFrame(ThreadVar.ThrowableFunction<Frame, R> call) throws Throwable {
+    private <R> R withNewOrExistingFrame(ThrowableFunction<Frame, R> call) throws Throwable {
         Frame previous = threadVar.value();
         if (!isValidFrame(previous)) {
             return callWithScope(previous, new Frame(), call);
@@ -290,7 +292,7 @@ public class AsyncExecutionScope implements Scope {
         }
     }
     
-    private <T> T withNewFrame(ThreadVar.ThrowableFunction<Frame, T> call, boolean inheritOldFrame) throws Throwable {
+    private <T> T withNewFrame(ThrowableFunction<Frame, T> call, boolean inheritOldFrame) throws Throwable {
         Frame previous = threadVar.value();
         Frame newFrame = inheritOldFrame && isValidFrame(previous) ? new NestedFrame(previous) : new Frame();
         return callWithScope(previous, newFrame, call);
@@ -305,8 +307,16 @@ public class AsyncExecutionScope implements Scope {
         }
     }
     
-    private <T> T callWithScope(Frame previousFrame, Frame newFrame, ThreadVar.ThrowableFunction<Frame, T> call) throws Throwable {
-        return threadVar.applyWith(previousFrame, newFrame, call);
+    private <T> T callWithScope(Frame previousFrame, Frame newFrame, ThrowableFunction<Frame, T> call) throws Throwable {
+        return threadVar.callWith(previousFrame, newFrame, () -> {
+            try {
+                return call.apply(newFrame == INVALID_FRAME ? null : newFrame);
+            } catch (Exception | Error ex) {
+                throw ex;
+            } catch (Throwable ex) {
+                throw new UndeclaredThrowableException(ex);
+            }
+        });
     }
 
     public static AsyncExecutionScope instance() {
@@ -314,4 +324,13 @@ public class AsyncExecutionScope implements Scope {
     }
     
     private static final AsyncExecutionScope INSTANCE = new AsyncExecutionScope();
+    
+    @FunctionalInterface
+    public static interface ThrowableFunction<T, R> {
+        R apply(T param) throws Throwable;
+        static <T,R> ThrowableFunction<T, R> of(Function<T, R> fn) {
+            return fn::apply;
+        }
+    }
+
 }

@@ -71,7 +71,7 @@ class AsyncAwaitLegacyFilter implements Filter, Ordered {
             throw ex;
         } catch (RuntimeException | Error ex) {
             throw ex;
-        } catch (Throwable ex) {
+        } catch (Exception ex) {
             throw new ServletException(ex);
         }
     }

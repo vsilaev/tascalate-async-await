@@ -9,27 +9,16 @@
 		<relativePath>../</relativePath>
 	</parent>
 
-	<artifactId>net.tascalate.async.resolver.swing</artifactId>
+	<artifactId>net.tascalate.async.runtime-java25</artifactId>
 	<packaging>jar</packaging>
 
-	<name>Tascalate Async/Await - SchedulerResolver / Swing</name>
+	<name>Tascalate Async/Await - Runtime (API, SPI, Internal Core) + Java 25+ Update</name>
 
 	<properties>
 		<project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
 	</properties>
 
 	<dependencies>
-		<dependency>
-			<groupId>${project.groupId}</groupId>
-			<artifactId>${project.groupId}.runtime</artifactId>
-			<version>${project.version}</version>
-		</dependency>
-
-		<dependency>
-			<groupId>org.kohsuke.metainf-services</groupId>
-			<artifactId>metainf-services</artifactId>
-			<optional>true</optional>
-		</dependency>
 		<dependency>
 			<groupId>org.slf4j</groupId>
 			<artifactId>slf4j-api</artifactId>
@@ -43,8 +32,22 @@
 	<build>
 		<plugins>
 			<plugin>
-				<groupId>org.moditect</groupId>
-				<artifactId>moditect-maven-plugin</artifactId>
+				<groupId>org.apache.maven.plugins</groupId>
+				<artifactId>maven-compiler-plugin</artifactId>
+				<executions>
+					<execution>
+						<id>default-compile</id>
+						<goals>
+							<goal>compile</goal>
+						</goals>
+						<configuration>
+							<jdkToolchain>
+								<version>25</version>
+								<vendor>Oracle</vendor>
+							</jdkToolchain>
+						</configuration>
+					</execution> 
+				</executions>
 			</plugin>
 		</plugins>
 	</build>

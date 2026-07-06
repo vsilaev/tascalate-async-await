@@ -24,28 +24,13 @@
  */
 package net.tascalate.async.core;
 
-import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CompletionStage;
+import java.util.function.UnaryOperator;
 
-public class RestrictedCompletableFuture<T> extends CompletableFuture<T> {
-    public RestrictedCompletableFuture() {
-        
-    }
+import net.tascalate.async.AsyncGenerator;
+
+public interface InternalAsyncGenerator<T> extends AsyncGenerator<T> {
     
-    boolean internalSuccess(T value) {
-        return super.complete(value);
-    }
-    
-    boolean internalFailure(Throwable exception) {
-        return super.completeExceptionally(exception);
-    }
-    
-    @Override
-    public final boolean complete(T value) {
-        throw new UnsupportedOperationException("ResultPromise may not be completed explicitly");
-    }
-    
-    @Override
-    public final boolean completeExceptionally(Throwable exception) {
-        throw new UnsupportedOperationException("ResultPromise may not be completed explicitly");
-    }    
+    abstract CompletionStage<?> __completion();
+    abstract CompletionStage<?> __completion(UnaryOperator<CompletionStage<?>> mapper);
 }

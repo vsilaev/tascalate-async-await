@@ -29,6 +29,7 @@ import java.util.Optional;
 import java.util.concurrent.ExecutorService;
 import java.util.function.Function;
 
+import org.aspectj.lang.Aspects;
 import org.aspectj.lang.ProceedingJoinPoint;
 import org.springframework.beans.factory.InitializingBean;
 import org.springframework.beans.factory.config.CustomScopeConfigurer;
@@ -85,7 +86,7 @@ class AsyncAwaitConfiguration {
         
         @Bean(name="<<async-await-async-call-boundary-interceptor>>")
         AsyncCallBoundaryInterceptor asyncCallBoundaryInterceptor() {
-            return new AsyncCallBoundaryInterceptor();
+            return Aspects.aspectOf(AsyncCallBoundaryInterceptor.class);
         }
 
     }

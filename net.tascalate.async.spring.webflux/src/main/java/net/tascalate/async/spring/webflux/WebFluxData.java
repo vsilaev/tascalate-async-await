@@ -29,18 +29,21 @@ import org.springframework.web.server.ServerWebExchange;
 import net.tascalate.async.Scheduler;
 import reactor.util.context.Context;
 
-class WebFluxData {
-    
-    private static final ThreadLocal<WebFluxData> CURRENT_DATA_HOLDER = new ThreadLocal<>();
-    
-    private static final WebFluxData EMPTY = new WebFluxData(new ReadOnlyContext(Context.empty()), null, null);
+final class WebFluxData {
+
+    private static final WebFluxData EMPTY = new WebFluxData(Context.empty(), null, null);
+    private static final WebFluxDataHolder HOLDER = WebFluxDataHolder.newInstance(EMPTY);
     
     private final Context context;
     private final ServerWebExchange serverWebExchange;
     private final Scheduler asyncAwaitScheduler;
     
-    private WebFluxData(Context context, ServerWebExchange serverWebExchange, Scheduler asyncAwaitScheduler) {
-        this.context = new ReadOnlyContext(null == context ? Context.empty() : context);
+    WebFluxData(Context context, ServerWebExchange serverWebExchange, Scheduler asyncAwaitScheduler) {
+        this.context = context instanceof ReadOnlyContext 
+                       ? 
+                       context 
+                       :
+                       new ReadOnlyContext(null == context ? Context.empty() : context);
         this.serverWebExchange = serverWebExchange;
         this.asyncAwaitScheduler = asyncAwaitScheduler;
     }
@@ -57,30 +60,24 @@ class WebFluxData {
         return asyncAwaitScheduler;
     }
     
-    static WebFluxData get() {
-        return CURRENT_DATA_HOLDER.get();
-    }
-    
     static WebFluxData safeGet() {
-        WebFluxData result = get();
-        return null == result ? EMPTY : result;
+        WebFluxData result = HOLDER.current();
+        return result == null ? EMPTY : result;
     }
-    
-    static WebFluxData update(Context context, ServerWebExchange serverWebExchange, Scheduler asyncAwaitScheduler) {
-        return update(new WebFluxData(context, serverWebExchange, asyncAwaitScheduler));
-    }
-    
+
     static WebFluxData update(WebFluxData webFluxDataHolder) {
-        WebFluxData result = CURRENT_DATA_HOLDER.get();
-        CURRENT_DATA_HOLDER.set(webFluxDataHolder);
-        return result;
+        return HOLDER.update(webFluxDataHolder);
     }
     
     static void restore(WebFluxData previous) {
-        if (null != previous) {
-            CURRENT_DATA_HOLDER.set(previous);
-        } else {
-            CURRENT_DATA_HOLDER.remove();
-        }
+        HOLDER.restore(previous);
+    }
+    
+    static Runnable contextualize(Runnable code) {
+        return HOLDER.contextualize(code);
+    }
+    
+    static Runnable contextualize(Runnable code, boolean needScheduler, boolean needExchange, boolean needContext) {
+        return HOLDER.contextualize(code, needScheduler, needExchange, needContext);
     }
 }

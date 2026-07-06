@@ -22,30 +22,10 @@
  * OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
-package net.tascalate.async.core;
+package net.tascalate.async.spring;
 
-import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CompletionStage;
 
-public class RestrictedCompletableFuture<T> extends CompletableFuture<T> {
-    public RestrictedCompletableFuture() {
-        
-    }
-    
-    boolean internalSuccess(T value) {
-        return super.complete(value);
-    }
-    
-    boolean internalFailure(Throwable exception) {
-        return super.completeExceptionally(exception);
-    }
-    
-    @Override
-    public final boolean complete(T value) {
-        throw new UnsupportedOperationException("ResultPromise may not be completed explicitly");
-    }
-    
-    @Override
-    public final boolean completeExceptionally(Throwable exception) {
-        throw new UnsupportedOperationException("ResultPromise may not be completed explicitly");
-    }    
+public interface AsyncCloseable {
+    CompletionStage<Void> close(Throwable error);
 }

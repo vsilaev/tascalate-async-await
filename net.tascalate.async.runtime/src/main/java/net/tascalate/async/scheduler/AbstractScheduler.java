@@ -25,6 +25,7 @@
 package net.tascalate.async.scheduler;
 
 import java.util.Collections;
+import java.util.EnumSet;
 import java.util.Set;
 import java.util.function.Function;
 
@@ -35,7 +36,7 @@ public abstract class AbstractScheduler implements Scheduler {
     private final Function<? super Runnable, ? extends Runnable> contextualizer;
     
     protected AbstractScheduler(Set<Characteristics> characteristics, Function<? super Runnable, ? extends Runnable> contextualizer) {
-        this.characteristics = null != characteristics ? Collections.unmodifiableSet(characteristics) : Collections.emptySet();
+        this.characteristics = null != characteristics ? Collections.unmodifiableSet(characteristics) : EnumSet.noneOf(Scheduler.Characteristics.class);
         this.contextualizer  = contextualizer;
     }
     

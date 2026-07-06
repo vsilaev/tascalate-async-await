@@ -48,55 +48,27 @@ class AsyncAwaitContextualizer implements Function<Runnable, Runnable> {
     }
     
     static Runnable contextualize(Runnable rawCode) {
-        Runnable code = AsyncExecutionScope.instance().contextualize(rawCode);
-        
-        WebFluxData current = WebFluxData.get();
-        if (null == current) {
-            return code;
-        } 
-        
-        return () -> {
-            WebFluxData previous = WebFluxData.update(current);
-            try {
-                code.run();
-            } finally {
-                WebFluxData.restore(previous);
-            }
-        }; 
+        return WebFluxData.contextualize(
+            AsyncExecutionScope.instance().contextualize(rawCode)
+        );
     }
     
     static Function<Runnable, Runnable> propagate(Set<AsyncAwaitContextItem> items) {
         if (null == items || items.isEmpty()) {
             return Function.identity();
         }
-        return code -> {
-            Runnable xcode;
+        return rawCode -> {
+            Runnable code;
             if (items.contains(AsyncAwaitContextItem.ASYNC_SCOPE)) {
-                xcode = AsyncExecutionScope.instance().contextualize(code);
+                code = AsyncExecutionScope.instance().contextualize(rawCode);
             } else {
-                xcode = code;
+                code = rawCode;
             }
-            
-            WebFluxData current = WebFluxData.get();
-            if (null == current) {
-                return xcode;
-            } 
-            
+
             boolean needScheduler = items.contains(AsyncAwaitContextItem.SCHEDULER);
             boolean needExchange  = items.contains(AsyncAwaitContextItem.REQUEST);
             boolean needContext   = items.contains(AsyncAwaitContextItem.SECURITY_CONTEXT) || items.contains(AsyncAwaitContextItem.MISC_CONTEXT);
-            Runnable delegate = xcode;
-            
-            return () -> {
-                WebFluxData previous = WebFluxData.update(needContext   ? current.context() : null,
-                                                          needExchange  ? current.serverWebExchange() : null,
-                                                          needScheduler ? current.asyncAwaitScheduler() : null);
-                try {
-                    delegate.run();
-                } finally {
-                    WebFluxData.restore(previous);
-                }                
-            };
+            return WebFluxData.contextualize(code, needScheduler, needExchange, needContext);
         };
     }
 

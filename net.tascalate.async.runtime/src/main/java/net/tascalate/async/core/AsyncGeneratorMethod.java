@@ -55,6 +55,10 @@ abstract public class AsyncGeneratorMethod<T> extends AbstractAsyncMethod {
             if (success) {
                 generator.end(null);
             }
+            CompletionStage<?> altCompletion = generator.__completion();
+            if (altCompletion != future) {
+                AsyncMethodExecutor.await(altCompletion);
+            }
         }
     }
     

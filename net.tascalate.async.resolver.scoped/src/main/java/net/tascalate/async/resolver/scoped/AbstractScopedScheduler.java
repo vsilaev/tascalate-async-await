@@ -27,6 +27,7 @@ package net.tascalate.async.resolver.scoped;
 import java.lang.invoke.MethodHandles;
 
 import net.tascalate.async.Scheduler;
+import net.tascalate.async.scheduler.SimpleScheduler;
 import net.tascalate.async.spi.MethodDefinition;
 import net.tascalate.async.spi.SchedulerResolver;
 
@@ -54,4 +55,8 @@ public class AbstractScopedScheduler implements SchedulerResolver {
     public String toString() {
         return String.format("%s[priority=%d, scope=%s]", getClass().getSimpleName(), priority(), scope);
     }
+    
+    static final Scheduler SENTINEL = new SimpleScheduler(r -> {
+        throw new UnsupportedOperationException();
+    });
 }

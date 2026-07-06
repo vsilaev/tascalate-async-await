@@ -26,13 +26,21 @@ package net.tascalate.async.spring;
 
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Set;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CompletionStage;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.atomic.AtomicReference;
+import java.util.stream.Collectors;
 
 import org.springframework.beans.factory.ObjectFactory;
 import org.springframework.beans.factory.config.Scope;
-import org.springframework.core.NamedThreadLocal;
+
+import net.tascalate.async.core.InternalCallContext;
+import net.tascalate.async.spi.ThreadVar;
 
 public class AsyncExecutionScope implements Scope {
     
@@ -53,6 +61,16 @@ public class AsyncExecutionScope implements Scope {
         
         synchronized void registerDestructionCallback(Runnable callback) {
             destructor = callback;
+        }
+        
+        CompletionStage<Void> asyncDestroy(Throwable error) {
+            AsyncCloseable ac = null;
+            synchronized (this) {
+                if (instance instanceof AsyncCloseable) {
+                    ac = (AsyncCloseable)instance;
+                }
+            }
+            return ac == null ? null : ac.close(error);
         }
         
         void destroy() {
@@ -90,12 +108,67 @@ public class AsyncExecutionScope implements Scope {
             object.registerDestructionCallback(callback);
         }
         
-        void destroy() {
+        CompletionStage<Void> destroy(Throwable error, boolean passErrorToDestructor) {
             Map<String, AsyncExecutionScope.ScopedObject> copy = new HashMap<>(scopedObjects);
             scopedObjects.clear();
+            
+            AtomicReference<Throwable> primaryErrorRef = new AtomicReference<>(error);
+            
+            List<CompletableFuture<Void>> allAsyncClose =
             copy.values()
                 .stream()
-                .forEach(ScopedObject::destroy);
+                .map(v -> applyDestructors(v, passErrorToDestructor ? error : null, primaryErrorRef))
+                .filter(Objects::nonNull)
+                .map(CompletionStage::toCompletableFuture)
+                .collect(Collectors.toList());
+            
+            if (!allAsyncClose.isEmpty()) {
+                @SuppressWarnings("unchecked")
+                CompletableFuture<Void>[] f = allAsyncClose.toArray(new CompletableFuture[allAsyncClose.size()]);
+                return CompletableFuture.allOf(f);
+            } else {
+                Throwable actualError = primaryErrorRef.get();
+                if (null == actualError) {
+                    return CompletableFuture.completedFuture(null); 
+                } else {
+                    CompletableFuture<Void> result = new CompletableFuture<>();
+                    result.completeExceptionally(actualError);
+                    return result;
+                }
+            }
+        }
+        
+        static CompletionStage<Void> applyDestructors(ScopedObject v, Throwable originalError, AtomicReference<Throwable> primaryErrorRef) {
+            CompletionStage<Void> result = v.asyncDestroy(originalError);
+            if (null == result) {
+                invokeSyncDestroy(v, primaryErrorRef);
+                return null;
+            } else {
+                return result.whenComplete((r, e) -> {
+                   if (null != e) {
+                       enlistError(e, primaryErrorRef);
+                   }
+                   invokeSyncDestroy(v, primaryErrorRef);
+                });
+            }
+        }
+        
+        static void invokeSyncDestroy(ScopedObject v, AtomicReference<Throwable> primaryErrorRef) {
+            try {
+                v.destroy();  
+              } catch (Throwable suppressedError) {
+                  enlistError(suppressedError, primaryErrorRef);
+              }
+        }
+        
+        static void enlistError(Throwable nextError, AtomicReference<Throwable> primaryErrorRef) {
+            if (InternalCallContext.isExitSignal(nextError)) {
+                return;
+            }
+            if (!primaryErrorRef.compareAndSet(null, nextError)) {
+                primaryErrorRef.get().addSuppressed(nextError);
+            }
+            
         }
         
         Set<String> ownedKeys() {
@@ -138,11 +211,11 @@ public class AsyncExecutionScope implements Scope {
     
     private static final Frame INVALID_FRAME = new Frame();
 
-    private final ThreadLocal<Frame> threadScope = new NamedThreadLocal<>("AsyncExecutionScope");
+    private final ThreadVar<Frame> threadVar = new ThreadVar<>("AsyncExecutionScope", INVALID_FRAME);
 
     @Override
     public Object get(String name, ObjectFactory<?> objectFactory) {
-        Frame frame = threadScope.get();
+        Frame frame = threadVar.value();
         if (!isValidFrame(frame)) {
             throw new IllegalStateException("No valid async call scope available for the current thread");
         }
@@ -157,7 +230,7 @@ public class AsyncExecutionScope implements Scope {
 
     @Override
     public  Object remove(String name) {
-        Frame frame = threadScope.get();
+        Frame frame = threadVar.value();
         if (isValidFrame(frame)) {
             return frame.remove(name);
         } else {
@@ -167,7 +240,7 @@ public class AsyncExecutionScope implements Scope {
 
     @Override
     public void registerDestructionCallback(String name, Runnable callback) {
-        Frame frame = threadScope.get();
+        Frame frame = threadVar.value();
         if (isValidFrame(frame)) {
             frame.registerDestructionCallback(name, callback);
         } else {
@@ -182,14 +255,14 @@ public class AsyncExecutionScope implements Scope {
 
     
     boolean hasFrame() {
-        return isValidFrame(threadScope.get());
+        return isValidFrame(threadVar.value());
     }
     
     private static boolean isValidFrame(Frame frame) {
         return frame != null && frame != INVALID_FRAME;
     }
     
-    <T> T withFrame(boolean createNewFrame, boolean inheritOldFrame, NewFrameCall<T> call) throws Throwable {
+    <R> R withFrame(boolean createNewFrame, boolean inheritOldFrame, ThreadVar.ThrowableFunction<Frame, R> call) throws Throwable {
         if (createNewFrame) {
             return withNewFrame(call, inheritOldFrame);
         } else {
@@ -197,82 +270,48 @@ public class AsyncExecutionScope implements Scope {
         }
     }
     
-    <T> T withoutFrame(NewFrameCall<T> call) throws Throwable {
-        Frame previous = threadScope.get();
+    <R> R withoutFrame(ThreadVar.ThrowableFunction<Frame, R> call) throws Throwable {
+        Frame previous = threadVar.value();
         if (isValidFrame(previous)) {
-            threadScope.set(INVALID_FRAME);
-            try {
-                return call.apply(null);
-            } finally {
-                resetThreadScope(previous);
-            }
+            return callWithScope(previous, INVALID_FRAME, call);
         } else {
             // No scope added
             return call.apply(null);
         }
     }
     
-    private <T> T withNewOrExistingFrame(NewFrameCall<T> call) throws Throwable {
-        Frame previous = threadScope.get();
+    private <R> R withNewOrExistingFrame(ThreadVar.ThrowableFunction<Frame, R> call) throws Throwable {
+        Frame previous = threadVar.value();
         if (!isValidFrame(previous)) {
-            Frame newFrame = new Frame();
-            threadScope.set(newFrame);
-            try {
-                return call.apply(newFrame);
-            } finally {
-                resetThreadScope(previous);
-            }
+            return callWithScope(previous, new Frame(), call);
         } else {
             // No scope added
             return call.apply(null);
         }
     }
     
-    private <T> T withNewFrame(NewFrameCall<T> call, boolean inheritOldFrame) throws Throwable {
-        Frame previous = threadScope.get();
+    private <T> T withNewFrame(ThreadVar.ThrowableFunction<Frame, T> call, boolean inheritOldFrame) throws Throwable {
+        Frame previous = threadVar.value();
         Frame newFrame = inheritOldFrame && isValidFrame(previous) ? new NestedFrame(previous) : new Frame();
-        threadScope.set(newFrame);
-        try {
-            return call.apply(newFrame);
-        } finally {
-            resetThreadScope(previous);
-        }
+        return callWithScope(previous, newFrame, call);
     }
     
     public Runnable contextualize(Runnable code) {
-        Frame frame = threadScope.get();
+        Frame frame = threadVar.value();
         if (null == frame) {
             return code;
         } else {
-            return () -> {
-                Frame previous = threadScope.get();
-                threadScope.set(frame);
-                try {
-                    code.run();
-                } finally {
-                    resetThreadScope(previous);
-                }
-            };
+            return () -> threadVar.runWith(frame, code);
         }
     }
     
-    void resetThreadScope(Frame previous) {
-        if (null == previous) {
-            threadScope.remove();
-        } else {
-            threadScope.set(previous);
-        }
+    private <T> T callWithScope(Frame previousFrame, Frame newFrame, ThreadVar.ThrowableFunction<Frame, T> call) throws Throwable {
+        return threadVar.applyWith(previousFrame, newFrame, call);
     }
-    
+
     public static AsyncExecutionScope instance() {
         return INSTANCE;
     }
     
     private static final AsyncExecutionScope INSTANCE = new AsyncExecutionScope();
-    
-    @FunctionalInterface
-    static interface NewFrameCall<T> {
-        T apply(Frame frame) throws Throwable;
-    }
-
 }

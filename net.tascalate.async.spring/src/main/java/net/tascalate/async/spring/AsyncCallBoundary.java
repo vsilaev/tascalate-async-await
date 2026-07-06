@@ -47,5 +47,6 @@ public @interface AsyncCallBoundary {
     }
     
     public Propagation value() default Propagation.REQUIRED;
+    public boolean ignoreGeneratorEarlyExit() default true;
 }
 

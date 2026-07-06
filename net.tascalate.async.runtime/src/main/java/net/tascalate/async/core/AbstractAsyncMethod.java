@@ -125,19 +125,13 @@ abstract public class AbstractAsyncMethod implements Runnable {
     }
     
     private Runnable createSimplifiedResumeHandler(Runnable contextualResumer, long currentBlockerVersion) {
-        Thread suspendThread = Thread.currentThread();
         return new Runnable() {
             @Override
             public void run() {
-                if (Thread.currentThread() == suspendThread) {
-                    // Is it possible to use originalResumer here, i.e. one without context???
-                    contextualResumer.run();
-                } else {
-                    try {
-                        scheduler.schedule(contextualResumer);
-                    } catch (RejectedExecutionException ex) {
-                        failure(ex);
-                    }
+                try {
+                    scheduler.schedule(contextualResumer);
+                } catch (RejectedExecutionException ex) {
+                    failure(ex);
                 }
             }
         };        
@@ -176,7 +170,9 @@ abstract public class AbstractAsyncMethod implements Runnable {
     final void cancelAwaitUnconditionally(PhaseCancellation<?> phaseCancellation) {
         // No longer need reference
         this.phaseCancellation = null;
-        phaseCancellation.proceed();
+        if (null != phaseCancellation) {
+            phaseCancellation.proceed();
+        }
     }
 
     static final class PhaseCancellation<V> {

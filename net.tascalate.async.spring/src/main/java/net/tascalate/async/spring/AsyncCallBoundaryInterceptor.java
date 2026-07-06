@@ -24,8 +24,8 @@
  */
 package net.tascalate.async.spring;
 
+import java.lang.reflect.Method;
 import java.util.concurrent.CompletionStage;
-
 import org.aspectj.lang.ProceedingJoinPoint;
 import org.aspectj.lang.annotation.Around;
 import org.aspectj.lang.annotation.Aspect;
@@ -33,35 +33,48 @@ import org.aspectj.lang.annotation.Pointcut;
 import org.aspectj.lang.reflect.MethodSignature;
 
 import net.tascalate.async.AsyncGenerator;
+import net.tascalate.async.core.InternalAsyncGenerator;
 
 @Aspect
-class AsyncCallBoundaryInterceptor {
+public class AsyncCallBoundaryInterceptor {
 
-    AsyncCallBoundaryInterceptor() {
+    public AsyncCallBoundaryInterceptor() {
     }
 
-    @Pointcut("execution(java.util.concurrent.CompletionStage+ *.*(..)) && @within(asyncCallBoundary) && !@annotation(net.tascalate.async.spring.AsyncCallBoundary)")
-    void asyncTasksMethodsWithBoundary(AsyncCallBoundary asyncCallBoundary) {}
+    @Pointcut("execution(java.util.concurrent.CompletionStage+ *.*(..))")
+    void anyCompletionStageMethod() {}
+
+    @Pointcut("execution(net.tascalate.async.AsyncGenerator+ *.*(..))")
+    void anyAsyncGeneratorMethod() {}
+
+    @Pointcut("@within(net.tascalate.async.spring.AsyncCallBoundary) || @annotation(net.tascalate.async.spring.AsyncCallBoundary)")
+    void hasBoundaryAnnotation() {}
+
+    @Around("anyCompletionStageMethod() && hasBoundaryAnnotation()")
+    public Object doInvokeAsyncTask(ProceedingJoinPoint joinPoint) throws Throwable {
+        return invokeAsyncTask(joinPoint, resolveBoundary(joinPoint));
+    }
+
+    @Around("anyAsyncGeneratorMethod() && hasBoundaryAnnotation()")
+    public Object doInvokeAsyncGenerator(ProceedingJoinPoint joinPoint) throws Throwable {
+        return invokeAsyncGenerator(joinPoint, resolveBoundary(joinPoint));
+    }
     
-    @Pointcut("execution(net.tascalate.async.AsyncGenerator+ *.*(..)) && @within(asyncCallBoundary) && !@annotation(net.tascalate.async.spring.AsyncCallBoundary)")
-    void asyncGeneratorMethodsWithBoundary(AsyncCallBoundary asyncCallBoundary) {}
-    
-    
-    @Around("@annotation(asyncCallBoundary)")
-    Object invokeAnyAsyncMethodWithExplicitBoundary(ProceedingJoinPoint joinPoint, AsyncCallBoundary asyncCallBoundary) throws Throwable {
+    private static AsyncCallBoundary resolveBoundary(ProceedingJoinPoint joinPoint) {
         MethodSignature signature = (MethodSignature) joinPoint.getSignature();
-        Class<?> returnType = signature.getReturnType();
-        if (CompletionStage.class.isAssignableFrom(returnType)) {
-            return invokeAsyncTask(joinPoint, asyncCallBoundary);
-        } else if (AsyncGenerator.class.isAssignableFrom(returnType)) {
-            return invokeAsyncGenerator(joinPoint, asyncCallBoundary);
+        Method method = signature.getMethod();
+        
+        // Check method first, fallback to class
+        AsyncCallBoundary boundary = method.getAnnotation(AsyncCallBoundary.class);
+        if (boundary == null) {
+            Class<?> clazz = method.getDeclaringClass(); 
+            return clazz.getAnnotation(AsyncCallBoundary.class);
         } else {
-            throw new IllegalStateException(AsyncCallBoundary.class.getName() + " annotation is not supported for methods with return type " + returnType);
+            return boundary;
         }
     }
-    
-    @Around("asyncTasksMethodsWithBoundary(asyncCallBoundary)")
-    CompletionStage<?> invokeAsyncTask(ProceedingJoinPoint joinPoint, AsyncCallBoundary asyncCallBoundary) throws Throwable {
+
+    private static CompletionStage<?> invokeAsyncTask(ProceedingJoinPoint joinPoint, AsyncCallBoundary asyncCallBoundary) throws Throwable {
         AsyncCallBoundary.Propagation propagation = asyncCallBoundary.value();
         switch (propagation) {
             case REQUIRES_NEW:
@@ -72,7 +85,7 @@ class AsyncCallBoundaryInterceptor {
                 return AsyncExecutionScope.instance().withFrame(createNewFrame, inheritOldFrame, newFrame -> {
                     CompletionStage<?> result = nonNullResult(CompletionStage.class, joinPoint);
                     if (null != newFrame) {
-                        result.whenComplete((r, e) -> newFrame.destroy());
+                        return FinalizerFuture.awaitDestructor(result, true, newFrame::destroy);
                     }
                     return result;
                 });
@@ -90,8 +103,7 @@ class AsyncCallBoundaryInterceptor {
         return unknownAsyncCallBoundaryPropagation(joinPoint, asyncCallBoundary);
     }
     
-    @Around("asyncGeneratorMethodsWithBoundary(asyncCallBoundary)")
-    AsyncGenerator<?> invokeAsyncGenerator(ProceedingJoinPoint joinPoint, AsyncCallBoundary asyncCallBoundary) throws Throwable {
+    private static AsyncGenerator<?> invokeAsyncGenerator(ProceedingJoinPoint joinPoint, AsyncCallBoundary asyncCallBoundary) throws Throwable {
         AsyncCallBoundary.Propagation propagation = asyncCallBoundary.value();
         switch (propagation) {
             case REQUIRES_NEW:
@@ -102,7 +114,15 @@ class AsyncCallBoundaryInterceptor {
                 return AsyncExecutionScope.instance().withFrame(createNewFrame, inheritOldFrame, newFrame -> {
                     AsyncGenerator<?> result = nonNullResult(AsyncGenerator.class, joinPoint);
                     if (null != newFrame) {
-                        result.onCompletion(e -> newFrame.destroy());
+                        if (result instanceof InternalAsyncGenerator) {
+                            boolean cancellationIsError = !asyncCallBoundary.ignoreGeneratorEarlyExit();
+                            InternalAsyncGenerator<?> iresult = (InternalAsyncGenerator<?>)result; 
+                            iresult.__completion(
+                                done -> FinalizerFuture.awaitDestructor(done, cancellationIsError, newFrame::destroy)
+                            );
+                        } else {
+                            throw new IllegalStateException("Unable to apply async call boundary (" + propagation + ") to the generator of type " + result.getClass());
+                        }
                     }
                     return result;
                 });

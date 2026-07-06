@@ -66,7 +66,8 @@ class AsyncAwaitWebFilter implements WebFilter,
                     */
                     .doOnSubscribe(subscription -> {
                         CoreSubscriber<?> actual = (CoreSubscriber<?>)Scannable.from(subscription).scan(Scannable.Attr.ACTUAL);
-                        previous.set(WebFluxData.update(actual.currentContext(), exchange, scheduler));
+                        WebFluxData data = new WebFluxData(actual.currentContext(), exchange, scheduler);
+                        previous.set(WebFluxData.update(data));
                     })
                     .doFinally(signal -> {
                         WebFluxData.restore(previous.get());

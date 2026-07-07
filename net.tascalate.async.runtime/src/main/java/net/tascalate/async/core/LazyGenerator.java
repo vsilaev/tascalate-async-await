@@ -26,7 +26,7 @@ package net.tascalate.async.core;
 
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionStage;
-import java.util.concurrent.atomic.AtomicReference;
+import java.util.concurrent.atomic.AtomicReferenceFieldUpdater;
 import java.util.function.UnaryOperator;
 
 import net.tascalate.async.AsyncYield;
@@ -34,10 +34,14 @@ import net.tascalate.async.CustomizableSequence;
 import net.tascalate.async.Scheduler;
 import net.tascalate.async.Sequence;
 import net.tascalate.async.suspendable;
+import net.tascalate.async.util.TypeUtil;
 
 class LazyGenerator<T> implements InternalAsyncGenerator<T> {
+    private static final AtomicReferenceFieldUpdater<LazyGenerator<?>, CompletionStage<?>> DONE_UPDATER = 
+            AtomicReferenceFieldUpdater.newUpdater(TypeUtil.cast(LazyGenerator.class), TypeUtil.cast(CompletionStage.class), "done");
+    
     private final AsyncGeneratorMethod<?> owner;
-    private final AtomicReference<CompletionStage<?>> done;
+    private volatile CompletionStage<?> done;
     
     // Start with locked producer and unlocked consumer
     // Also assume that next() MAY BE called before begin
@@ -49,7 +53,7 @@ class LazyGenerator<T> implements InternalAsyncGenerator<T> {
     
     LazyGenerator(AsyncGeneratorMethod<T> owner) {
     	this.owner = owner;
-    	this.done = new AtomicReference<>(owner.future);
+    	this.done = owner.future;
     }
 
     @Override
@@ -111,12 +115,12 @@ class LazyGenerator<T> implements InternalAsyncGenerator<T> {
     
     @Override
     public CompletionStage<?> __completion() {
-        return done.get();
+        return done;
     }
 
     @Override
     public CompletionStage<?> __completion(UnaryOperator<CompletionStage<?>> mapper) {
-        return done.updateAndGet(mapper);
+        return DONE_UPDATER.updateAndGet(this, mapper);
     }
 
     final @suspendable AsyncYield.Reply<T> emit(Sequence<? extends CompletionStage<T>> pendingValues) {

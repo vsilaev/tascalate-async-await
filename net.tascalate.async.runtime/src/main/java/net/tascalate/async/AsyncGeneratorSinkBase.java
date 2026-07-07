@@ -29,16 +29,23 @@ import java.util.LinkedList;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionStage;
-import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicIntegerFieldUpdater;
 import java.util.function.LongConsumer;
 
 import net.tascalate.async.core.AsyncGeneratorMethod;
 import net.tascalate.async.core.AsyncMethodExecutor;
 import net.tascalate.async.core.InternalCallContext;
 import net.tascalate.async.spi.MethodDefinition;
+import net.tascalate.async.util.TypeUtil;
 
 abstract class AsyncGeneratorSinkBase<T> {
-    private final AtomicBoolean subscribed = new AtomicBoolean(false);
+    
+    private static final AtomicIntegerFieldUpdater<AsyncGeneratorSinkBase<?>> SUBSCRIBED_UPDATER =
+            AtomicIntegerFieldUpdater.newUpdater(TypeUtil.cast(AsyncGeneratorSinkBase.class), "subscribed");
+    
+    @SuppressWarnings("unused")
+    private volatile int subscribed = 0;
+    
     private final CompletableFuture<?> subscription = new CompletableFuture<>();
     private final AwaitableQueue<Command<T>> commands = new AwaitableQueue<>();
     
@@ -54,7 +61,7 @@ abstract class AsyncGeneratorSinkBase<T> {
     }
     
     public void subscribe(LongConsumer requestItemsOp, Runnable cancelOp) {
-        if (!subscribed.compareAndSet(false, true)) {
+        if (!SUBSCRIBED_UPDATER.compareAndSet(this, 0,  1)) {
             throw new IllegalStateException("Multiple subscription requests to the single emitter");
         }
         this.requestItemsOp = requestItemsOp;

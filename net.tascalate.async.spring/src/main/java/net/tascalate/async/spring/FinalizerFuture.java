@@ -27,22 +27,25 @@ package net.tascalate.async.spring;
 import java.util.concurrent.CancellationException;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionStage;
-import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicIntegerFieldUpdater;
 import java.util.function.BiFunction;
 
 import net.tascalate.async.core.CompletionStageHelper;
 import net.tascalate.async.core.RestrictedCompletableFuture;
 
 class FinalizerFuture <T> extends RestrictedCompletableFuture<T> {
+    private static final AtomicIntegerFieldUpdater<FinalizerFuture<?>> WAS_CANCELLED_UPDATER =
+            AtomicIntegerFieldUpdater.newUpdater(cast(FinalizerFuture.class), "wasCancelled");
+    
     private final CompletionStage<?> cancellationTarget;
-    private final AtomicBoolean wasCancelled = new AtomicBoolean();
+    private volatile int wasCancelled = 0;
     
     private FinalizerFuture(CompletionStage<?> cancellationTarget) {
         this.cancellationTarget = cancellationTarget;
     }
     
     boolean delayedCancel(boolean mayInterruptIfRunning) {
-        if (wasCancelled.get()) {
+        if (wasCancelled > 0) {
             return super.cancel(mayInterruptIfRunning);
         } else {
             return false;
@@ -51,7 +54,7 @@ class FinalizerFuture <T> extends RestrictedCompletableFuture<T> {
     
     @Override
     public boolean cancel(boolean mayInterruptIfRunning) {
-        if (wasCancelled.compareAndSet(false, true)) {
+        if (WAS_CANCELLED_UPDATER.compareAndSet(this,  0,  1)) {
             CompletionStageHelper.cancelCompletionStage(cancellationTarget, mayInterruptIfRunning);
             return true;
         } else {
@@ -130,5 +133,10 @@ class FinalizerFuture <T> extends RestrictedCompletableFuture<T> {
             }
         }
 
+    }
+    
+    @SuppressWarnings("unchecked")
+    private static <T> Class<T> cast(Class<?> clazz) {
+        return (Class<T>)clazz;
     }
 }

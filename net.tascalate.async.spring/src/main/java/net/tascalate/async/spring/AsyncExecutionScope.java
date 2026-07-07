@@ -96,7 +96,7 @@ public class AsyncExecutionScope implements Scope {
         }
         
         Object get(String name, ObjectFactory<?> objectFactory) {
-            ScopedObject object = scopedObjects.computeIfAbsent(name, __ -> new ScopedObject());
+            ScopedObject object = scopedObjects.computeIfAbsent(name, $ -> new ScopedObject());
             return object.get(objectFactory);
         }
         
@@ -106,7 +106,7 @@ public class AsyncExecutionScope implements Scope {
         }
 
         void registerDestructionCallback(String name, Runnable callback) {
-            ScopedObject object = scopedObjects.computeIfAbsent(name, __ -> new ScopedObject());
+            ScopedObject object = scopedObjects.computeIfAbsent(name, $ -> new ScopedObject());
             object.registerDestructionCallback(callback);
         }
         

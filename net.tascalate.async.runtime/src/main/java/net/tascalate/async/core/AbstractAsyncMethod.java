@@ -27,8 +27,9 @@ package net.tascalate.async.core;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionStage;
 import java.util.concurrent.RejectedExecutionException;
-import java.util.concurrent.atomic.AtomicLong;
-import java.util.concurrent.atomic.AtomicReference;
+import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.atomic.AtomicLongFieldUpdater;
+import java.util.concurrent.atomic.AtomicReferenceFieldUpdater;
 import java.util.function.Function;
 
 import net.tascalate.async.AsyncResult;
@@ -37,6 +38,12 @@ import net.tascalate.async.suspendable;
 
 abstract public class AbstractAsyncMethod implements Runnable {
     
+    private static final AtomicReferenceFieldUpdater<AbstractAsyncMethod, State> STATE_UPDATER = 
+            AtomicReferenceFieldUpdater.newUpdater(AbstractAsyncMethod.class, State.class, "state");
+    
+    private static final AtomicLongFieldUpdater<AbstractAsyncMethod> BLOCKER_VERSION_UPDATER = 
+            AtomicLongFieldUpdater.newUpdater(AbstractAsyncMethod.class, "blockerVersion");
+    
     enum State {
         INITIAL, RUNNING, COMPLETED
     }
@@ -44,8 +51,9 @@ abstract public class AbstractAsyncMethod implements Runnable {
     public final CompletableFuture<?> future;
     
     private final Scheduler scheduler;
-    private final AtomicReference<State> state = new AtomicReference<>(State.INITIAL);
-    private final AtomicLong blockerVersion = new AtomicLong(0);
+    
+    private volatile State state = State.INITIAL;
+    private volatile long blockerVersion = 0;
 
     private volatile PhaseCancellation<?> phaseCancellation;
     
@@ -55,13 +63,13 @@ abstract public class AbstractAsyncMethod implements Runnable {
     }
 
     public final @suspendable void run() {
-        if (!state.compareAndSet(State.INITIAL, State.RUNNING)) {
+        if (!STATE_UPDATER.compareAndSet(this, State.INITIAL, State.RUNNING)) {
             throw new IllegalStateException(getClass().getName() + " should be in INITIAL state");
         }
         try {
             internalRun();
         } finally {
-            if (!state.compareAndSet(State.RUNNING, State.COMPLETED)) {
+            if (!STATE_UPDATER.compareAndSet(this, State.RUNNING, State.COMPLETED)) {
                 throw new IllegalStateException(getClass().getName() + " should be in RUNNING state");
             }           	
         }
@@ -70,7 +78,7 @@ abstract public class AbstractAsyncMethod implements Runnable {
     abstract protected @suspendable void internalRun();
 
     final boolean isRunning() {
-        return state.get() == State.RUNNING;
+        return state == State.RUNNING;
     }
     
     protected final boolean interrupted() {
@@ -97,9 +105,9 @@ abstract public class AbstractAsyncMethod implements Runnable {
             state, scheduler, blockerVersion, currentPhaseCancellation == null ? null : currentPhaseCancellation.awaitingOn()
         );
     }
-    
+
     final Runnable createResumeHandler(Runnable originalResumer) {
-        long currentBlockerVersion = blockerVersion.get();
+        long currentBlockerVersion = blockerVersion;
         Runnable contextualResumer = scheduler.contextualize(originalResumer);
         if (scheduler.characteristics().contains(Scheduler.Characteristics.INTERRUPTIBLE)) {
             return createInterruptibleResumeHandler(contextualResumer, currentBlockerVersion);
@@ -138,7 +146,7 @@ abstract public class AbstractAsyncMethod implements Runnable {
     }
     
     private boolean registerResumeTarget(CompletionStage<?> resumePromise, long expectedBlockerVersion) {
-        if (blockerVersion.compareAndSet(expectedBlockerVersion, expectedBlockerVersion + 1)) {
+        if (BLOCKER_VERSION_UPDATER.compareAndSet(this, expectedBlockerVersion, expectedBlockerVersion + 1)) {
            PhaseCancellation<?> resumePhaseCancellation = new PhaseCancellation<>(resumePromise, false);
             // Save references for outer promise cancellation
             this.phaseCancellation = resumePhaseCancellation;
@@ -152,7 +160,7 @@ abstract public class AbstractAsyncMethod implements Runnable {
     }
     
     final <V> CompletionStage<V> registerAwaitTarget(CompletionStage<V> originalAwait) {
-        blockerVersion.incrementAndGet();
+        BLOCKER_VERSION_UPDATER.incrementAndGet(this);
         PhaseCancellation<V> awaitPhaseCancellation = new PhaseCancellation<>(originalAwait, true);
         // Save references for outer promise cancellation
         this.phaseCancellation = awaitPhaseCancellation;

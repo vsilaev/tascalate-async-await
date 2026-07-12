@@ -149,7 +149,7 @@
 					<testSources/>
 				</configuration>
 				<executions>
-			                <execution>
+					<execution>
 						<id>ajc-compile</id>
 						<!-- Binds to process-classes so it runs immediately after java compilation -->
 						<phase>process-classes</phase>

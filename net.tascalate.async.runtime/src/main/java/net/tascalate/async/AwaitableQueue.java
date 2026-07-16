@@ -28,6 +28,7 @@ import java.util.Queue;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentLinkedQueue;
 
+import net.tascalate.async.core.AbstractAsyncMethod;
 import net.tascalate.async.core.AsyncMethodExecutor;
 
 final class AwaitableQueue<T> {
@@ -38,8 +39,8 @@ final class AwaitableQueue<T> {
     AwaitableQueue() {
     }
     
-    @suspendable void await() {
-        AsyncMethodExecutor.await(currentAwaitingSignal);
+    @suspendable void await(AbstractAsyncMethod owner) {
+        AsyncMethodExecutor.await(currentAwaitingSignal, owner);
     }
     
     T poll() {

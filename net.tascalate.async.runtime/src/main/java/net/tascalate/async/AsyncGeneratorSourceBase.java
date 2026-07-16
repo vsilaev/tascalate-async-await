@@ -62,7 +62,7 @@ abstract class AsyncGeneratorSourceBase<T> {
                 long total = 0;
                 try (Sequence<?> closeable = sequence) {
                     while (true) {
-                        requests.await();
+                        requests.await(this);
                         
                         Counter counter;
                         while ((counter = requests.poll()) != null) {
@@ -73,7 +73,7 @@ abstract class AsyncGeneratorSourceBase<T> {
                                         total++;
                                     }
                                     
-                                    T item = AsyncMethodExecutor.await(futureItem);
+                                    T item = AsyncMethodExecutor.await(futureItem, this);
                                     itemProcessor.accept(item);
                                 } else {
                                     success(total);

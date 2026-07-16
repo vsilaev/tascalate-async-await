@@ -24,58 +24,90 @@
  */
 package net.tascalate.async.sequence;
 
-import java.util.ArrayList;
-import java.util.Collection;
+import java.util.Collections;
 import java.util.Iterator;
-
+import java.util.Set;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionStage;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.LinkedBlockingQueue;
-
+import java.util.concurrent.atomic.AtomicIntegerFieldUpdater;
+import java.util.function.BiConsumer;
 import java.util.stream.Stream;
 
 import net.tascalate.async.Sequence;
 import net.tascalate.async.core.AsyncMethodExecutor;
+import net.tascalate.async.core.CompletionStageHelper;
+import net.tascalate.async.util.TypeUtil;
 
 public class FutureCompletionSequence<T, F extends CompletionStage<T>> implements Sequence<F> {
     
+    public static enum Cancel {
+        NONE {
+            @Override
+            void apply(Set<CompletionStage<?>> enlistedPromises, Iterator<? extends CompletionStage<?>> pendingPromises) {
+                
+            }
+        },
+        ENLISTED {
+            @Override
+            void apply(Set<CompletionStage<?>> enlistedPromises, Iterator<? extends CompletionStage<?>> pendingPromises) {
+                enlistedPromises.forEach(p -> CompletionStageHelper.cancelCompletionStage(p, true));
+            }
+        },
+        ALL {
+            @Override
+            void apply(Set<CompletionStage<?>> enlistedPromises, Iterator<? extends CompletionStage<?>> pendingPromises) {
+                ENLISTED.apply(enlistedPromises, pendingPromises);
+                while (pendingPromises.hasNext()) {
+                    CompletionStage<?> nextPromise = pendingPromises.next();
+                    CompletionStageHelper.cancelCompletionStage(nextPromise, true);
+                }
+            }            
+        };
+        
+        abstract void apply(Set<CompletionStage<?>> enlistedPromises, Iterator<? extends CompletionStage<?>> pendingPromises);
+    }
+    
+    private static final AtomicIntegerFieldUpdater<FutureCompletionSequence<?, ?>> IN_PROGRESS_UPDATER = 
+            AtomicIntegerFieldUpdater.newUpdater(TypeUtil.cast(FutureCompletionSequence.class), "inProgress");
+    
     private final Iterator<? extends F> pendingPromises;
     private final int chunkSize;
-    private final BlockingQueue<F> settledPromises = new LinkedBlockingQueue<>();
-    private int inProgress = 0;
+    private final Cancel cancelPolicy;
     
+    private final BlockingQueue<F> settledPromises;
+    private final Set<CompletionStage<?>> enlistedPromises; 
+    
+    private volatile int inProgress = 0;
     private volatile CompletableFuture<Void> consumerLock = new CompletableFuture<>();
-    private Sequence<F> current = Sequence.empty();
     
-    protected FutureCompletionSequence(Iterator<? extends F> pendingValues, int chunkSize) {  
+    protected FutureCompletionSequence(Iterator<? extends F> pendingValues, int chunkSize) {
+        this(pendingValues, chunkSize, Cancel.ENLISTED);
+    }
+    
+    protected FutureCompletionSequence(Iterator<? extends F> pendingValues, int chunkSize, Cancel cancelPolicy) {  
         this.pendingPromises = pendingValues;
         this.chunkSize = chunkSize;
+        this.cancelPolicy = cancelPolicy == null ? Cancel.ENLISTED : cancelPolicy;
+        this.settledPromises = chunkSize > 0 ? new LinkedBlockingQueue<>(chunkSize)
+                                             : new LinkedBlockingQueue<>();  
+        this.enlistedPromises = Collections.newSetFromMap(new ConcurrentHashMap<>());
     }
     
     @Override
     public F next() {
         while (true) {
-            // If we may return more without switching state...
-            F resolvedValue = current.next(); 
-            if (null != resolvedValue) {
-                return resolvedValue;
-            }
-    
             if (inProgress < 0) {
                 // Forcibly closed
                 return null;
             } else {
-                final Collection<F> readyValues = new ArrayList<>(/*Math.max(0, chunkSize)*/);
-                settledPromises.drainTo(readyValues);
-                inProgress -= readyValues.size();
-                
-                if (!readyValues.isEmpty()) {
-                    // If we are consuming slower than producing 
-                    // then use available results right away
-                    current = Sequence.of(readyValues);
-                    // recursion via loop
-                    continue; 
+                F readyValue = settledPromises.poll();
+                if (null != readyValue) {
+                    IN_PROGRESS_UPDATER.decrementAndGet(this);
+                    enlistPending();
+                    return readyValue;
                 } else {
                     // Otherwise await for any result...            
                     if (inProgress > 0) {
@@ -85,7 +117,6 @@ public class FutureCompletionSequence<T, F extends CompletionStage<T>> implement
                         // recursion via loop
                         continue;
                     } else {
-                        current = Sequence.empty();
                         if (enlistPending()) {
                             // More was enlisted
                             continue; //recursion via loop
@@ -102,13 +133,14 @@ public class FutureCompletionSequence<T, F extends CompletionStage<T>> implement
     @Override
     public void close() {
         inProgress = Integer.MIN_VALUE;
-        current.close();
-        current = Sequence.empty();
+        cancelPolicy.apply(enlistedPromises, pendingPromises);
+        enlistedPromises.clear();
+        settledPromises.clear();
+        consumerLock.complete(null);
     }
     
     private boolean enlistPending() {
         boolean enlisted = false;
-        int i = 0;
         while (pendingPromises.hasNext()) {
             F nextPromise = pendingPromises.next();
             
@@ -116,33 +148,55 @@ public class FutureCompletionSequence<T, F extends CompletionStage<T>> implement
             // while stage may be completed already
             // we should increment step-by-step 
             // instead of setting the value at once
-            inProgress++; 
-            nextPromise.whenComplete((r, e) -> enlistResolved(nextPromise));
+            int currentInProgress = IN_PROGRESS_UPDATER.incrementAndGet(this);
+            if (currentInProgress < 0) {
+                // was closed in between
+                break;
+            }
+            /*
+            inProgress++;
+            */
+            enlistedPromises.add(nextPromise);
+            nextPromise.whenComplete(enlistResolved(nextPromise));
             enlisted = true;
             
-            i++;
-            if (chunkSize > 0 && i >= chunkSize) {
+            if (chunkSize > 0 && currentInProgress >= chunkSize) {
                 break;
             }
         };  
         return enlisted;
     }
-    
-    private void enlistResolved(F resolvedPromise) {
-        try {
-            settledPromises.put(resolvedPromise);
-        } catch (InterruptedException e) {
-            throw new RuntimeException(e); // Shouldn't happen for the queue with an unlimited size
-        }
-        consumerLock.complete(null);
+
+    private BiConsumer<T, Throwable> enlistResolved(F resolvedPromise) {
+        return (resolvedValue, ex) -> {
+            enlistedPromises.remove(resolvedPromise);
+            try {
+                settledPromises.put(resolvedPromise);
+                consumerLock.complete(null);
+            } catch (InterruptedException ie) {
+                // Shouldn't happen for the queue with an unlimited size
+                if (null != ex) {
+                    ie.addSuppressed(ex);
+                }
+                Thread.currentThread().interrupt(); 
+                boolean completedByThisException = consumerLock.completeExceptionally(ie);
+                if (!completedByThisException) {
+                    consumerLock.whenComplete(($, originalException) -> {
+                        if (null != originalException) {
+                            originalException.addSuppressed(ie);
+                        }
+                    });
+                }
+            }
+        };
     }
 
     
     @Override
     public String toString() {
         return String.format(
-            "%s[current=%s, consumer-lock=%s, remaining=%s, resolved-promises=%s]",
-            getClass().getSimpleName(), current, consumerLock, inProgress, settledPromises
+            "%s[consumer-lock=%s, remaining=%s, resolved-promises=%s]",
+            getClass().getSimpleName(), consumerLock, inProgress, settledPromises
         );
     }
 

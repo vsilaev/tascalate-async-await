@@ -28,8 +28,14 @@ import org.apache.commons.javaflow.core.StackRecorder;
 
 import net.tascalate.async.InvalidCallContextException;
 import net.tascalate.async.Scheduler;
+import net.tascalate.async.spi.ThreadVar;
 
 public class InternalCallContext {
+    
+    private static final Runnable NO_RUNNABLE = () -> {};
+    
+    static final ThreadVar<Runnable> CURRENT_ASYNC_CALL = new ThreadVar<Runnable>("<current-async-call>", NO_RUNNABLE);
+    
     private InternalCallContext() {}
     
     public static Scheduler scheduler(boolean asyncCallMustBeAvailable) {
@@ -57,19 +63,7 @@ public class InternalCallContext {
     }
     
     private static AbstractAsyncMethod asyncMethod(boolean mustBeAvailable) {
-        StackRecorder stackRecorder = StackRecorder.get();
-        Runnable result;
-        if (null == stackRecorder) {
-            if (mustBeAvailable) {
-                throw new InvalidCallContextException(
-                    "Continuation was continued incorrectly - are your classes instrumented for javaflow?"
-                );
-            } else {
-                result = null;
-            }
-        } else {
-            result = stackRecorder.getRunnable();
-        }
+        Runnable result = CURRENT_ASYNC_CALL.value();
         if (result instanceof AbstractAsyncMethod) {
             return (AbstractAsyncMethod)result;
         } else if (mustBeAvailable) {
@@ -79,6 +73,7 @@ public class InternalCallContext {
         } else {
             return null;
         }
+        
     }
     
     @SuppressWarnings("unchecked")

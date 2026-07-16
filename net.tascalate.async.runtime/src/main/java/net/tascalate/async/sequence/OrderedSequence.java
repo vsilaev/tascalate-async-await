@@ -52,6 +52,7 @@ public class OrderedSequence<T> implements Sequence<T> {
     };
 
     private final Iterator<? extends T> delegate;
+    private volatile boolean closed = false; 
     
     protected OrderedSequence(Iterator<? extends T> delegate) {
         this.delegate  = delegate;
@@ -59,6 +60,10 @@ public class OrderedSequence<T> implements Sequence<T> {
     
     @Override
     public T next() {
+        if (closed) {
+            return null;
+        }
+        
         if (delegate.hasNext()) {
             T result = delegate.next();
             if (null == result) {
@@ -72,6 +77,7 @@ public class OrderedSequence<T> implements Sequence<T> {
 
     @Override
     public void close() {
+        closed = true;
     }    
     
     @Override

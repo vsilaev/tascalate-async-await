@@ -38,7 +38,7 @@ import net.tascalate.javaflow.SuspendableIterator;
 import net.tascalate.javaflow.SuspendableProducer;
 import net.tascalate.javaflow.SuspendableStream;
 
-public interface Sequence<T> extends AutoCloseable {
+public interface Sequence<T> extends Iterable<T>, AutoCloseable {
     @suspendable T next();
     
     void close();
@@ -62,7 +62,7 @@ public interface Sequence<T> extends AutoCloseable {
         });
     }
     
-    default SuspendableIterator<T> iterator() {
+    default @suspendable SuspendableIterator<T> iterator() {
         // Optimized version instead of [to-producer].stream().iterator()
         // to minimize call stack with suspendable methods
         return new SuspendableIterator<T>() {

@@ -41,6 +41,7 @@ class LazyGenerator<T> implements InternalAsyncGenerator<T> {
             AtomicReferenceFieldUpdater.newUpdater(TypeUtil.cast(LazyGenerator.class), TypeUtil.cast(CompletionStage.class), "done");
     
     private final AsyncGeneratorMethod<?> owner;
+    private final Values<T> values; 
     private volatile CompletionStage<?> done;
     
     // Start with locked producer and unlocked consumer
@@ -54,6 +55,12 @@ class LazyGenerator<T> implements InternalAsyncGenerator<T> {
     LazyGenerator(AsyncGeneratorMethod<T> owner) {
     	this.owner = owner;
     	this.done = owner.future;
+    	values = new AsyncValues<>(this);
+    }
+    
+    @Override
+    public Values<T> values() {
+        return values;
     }
 
     @Override

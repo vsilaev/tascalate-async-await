@@ -272,35 +272,37 @@ class AsyncTaskMethodTransformer extends AbstractAsyncMethodTransformer {
                         case "interrupted":
                             newInstructions.add(new VarInsnNode(ALOAD, 0));
                             newInstructions.add(
-                                    new MethodInsnNode(INVOKEVIRTUAL, 
-                                                       ASYNC_TASK_METHOD_TYPE.getInternalName(), 
-                                                       "interrupted", 
-                                                       Type.getMethodDescriptor(Type.BOOLEAN_TYPE), 
-                                                       false
-                                    )
+                                new MethodInsnNode(INVOKEVIRTUAL, 
+                                                   ASYNC_TASK_METHOD_TYPE.getInternalName(), 
+                                                   "interrupted", 
+                                                   Type.getMethodDescriptor(Type.BOOLEAN_TYPE), 
+                                                   false
+                                )
                             );                            
                             continue;        
                         case "scheduler":
                             newInstructions.add(new VarInsnNode(ALOAD, 0));
                             newInstructions.add(
-                                    new MethodInsnNode(INVOKEVIRTUAL, 
-                                                       ASYNC_TASK_METHOD_TYPE.getInternalName(), 
-                                                       "scheduler", 
-                                                       Type.getMethodDescriptor(SCHEDULER_TYPE), 
-                                                       false
-                                    )
+                                new MethodInsnNode(INVOKEVIRTUAL, 
+                                                   ASYNC_TASK_METHOD_TYPE.getInternalName(), 
+                                                   "scheduler", 
+                                                   Type.getMethodDescriptor(SCHEDULER_TYPE), 
+                                                   false
+                                )
                             );                            
                             continue;                                
                         case "await":
+                            newInstructions.add(new VarInsnNode(ALOAD, 0));
                             newInstructions.add(
                                 new MethodInsnNode(INVOKESTATIC, 
                                                    ASYNC_METHOD_EXECUTOR_TYPE.getInternalName(), 
                                                    "await", 
-                                                   Type.getMethodDescriptor(OBJECT_TYPE, COMPLETION_STAGE_TYPE),
+                                                   Type.getMethodDescriptor(OBJECT_TYPE, COMPLETION_STAGE_TYPE, 
+                                                                                         ABSTRACT_ASYNC_METHOD_TYPE), 
                                                    false
                                 )
                             );
-                            continue;    
+                            continue;
                         case "throwing":
                             int exceptionTypesCount = Type.getArgumentTypes(min.desc).length;
                             // POP-out method arguments from stack

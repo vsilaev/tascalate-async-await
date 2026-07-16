@@ -64,7 +64,7 @@ public class AsyncMethodExecutor {
         log.debug("Starting suspended Continuation");
         Continuation continuation = Continuation.startSuspendedWith(asyncMethod, true);
         // Start it
-        ContinuationResumer<?, Throwable> originalInvoker = new ContinuationResumer<>(continuation);
+        ContinuationResumer<?, Throwable> originalInvoker = new ContinuationResumer<>(continuation, asyncMethod);
         originalInvoker.setup(null, null);
         asyncMethod.createResumeHandler(originalInvoker).run();
     }
@@ -101,7 +101,7 @@ public class AsyncMethodExecutor {
         CompletionStage<R> future   = suspendParams.future;
         AbstractAsyncMethod suspendedMethod = suspendParams.suspendedMethod;
         
-        ContinuationResumer<? super R, Throwable> originalResumer = new ContinuationResumer<>(continuation);
+        ContinuationResumer<? super R, Throwable> originalResumer = new ContinuationResumer<>(continuation, suspendedMethod);
         Runnable wrappedResumer = suspendedMethod.createResumeHandler(originalResumer);
         // Setup future and give it a chance to continue the Continuation
         try {
@@ -116,13 +116,17 @@ public class AsyncMethodExecutor {
 
     /**
      */
+    public @suspendable static <R, E extends Throwable> R await(CompletionStage<R> future, AbstractAsyncMethod currentMethod) throws E {
+        return INSTANCE.awaitTask(future, currentMethod);
+    }
+    
     public @suspendable static <R, E extends Throwable> R await(CompletionStage<R> future) throws E {
-        return INSTANCE.awaitTask(future);
+        return INSTANCE.awaitTask(future, null);
     }
 
     /**
      */
-    protected @suspendable <R, E extends Throwable> R awaitTask(CompletionStage<R> future) throws E {
+    protected @suspendable <R, E extends Throwable> R awaitTask(CompletionStage<R> future, AbstractAsyncMethod currentMethod) throws E {
         // Blocking is available - resume() method is being called
     	
         // If promise is already resolved don't suspend
@@ -132,7 +136,9 @@ public class AsyncMethodExecutor {
             return earlyResult.done();
         }
         
-        AbstractAsyncMethod currentMethod = InternalCallContext.asyncMethod();
+        if (null == currentMethod) {
+            currentMethod = InternalCallContext.asyncMethod();
+        }
 
         // Register (and wrap) promise we are blocking on
         // to support cancellation from outside
@@ -244,10 +250,15 @@ public class AsyncMethodExecutor {
     
     class ContinuationResumer<R, E extends Throwable> implements Runnable {
         private final Continuation continuation;
+        private final AbstractAsyncMethod call;
+        private final Runnable contextualRunnable;
+        
         private R result;
         private E error;
-        ContinuationResumer(Continuation continuation) {
+        ContinuationResumer(Continuation continuation, AbstractAsyncMethod call) {
             this.continuation = continuation;
+            this.call = call;
+            this.contextualRunnable = this::doRun;
         }
         
         void setup(R result, E error) {
@@ -257,6 +268,10 @@ public class AsyncMethodExecutor {
         
         @Override
         public void run() {
+            InternalCallContext.CURRENT_ASYNC_CALL.runWith(call, contextualRunnable);
+        }
+        
+        void doRun() {
             if (error == null) {
                 resume(continuation, FutureResult.success(result));
             } else {

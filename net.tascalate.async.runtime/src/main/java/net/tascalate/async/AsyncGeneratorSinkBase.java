@@ -96,7 +96,7 @@ abstract class AsyncGeneratorSinkBase<T> {
             @Override
             protected @suspendable void doRun() throws Throwable {
                 // If iteration starts before actual subscription happens - then do async wait
-                AsyncMethodExecutor.await(subscription);
+                AsyncMethodExecutor.await(subscription, this);
                 
                 long unprocessed = 0;
                 
@@ -110,7 +110,7 @@ abstract class AsyncGeneratorSinkBase<T> {
                             request(batchSize);
                         }
                         
-                        commands.await();
+                        commands.await(this);
                         
                         Command<T> command;
                         Batch<T> batch = new Batch<>();

@@ -31,6 +31,7 @@ import java.util.stream.Stream;
 import java.util.stream.StreamSupport;
 
 import net.tascalate.async.core.AsyncMethodExecutor;
+import net.tascalate.async.core.AsyncValues;
 import net.tascalate.async.sequence.FutureCompletionSequence;
 
 import net.tascalate.javaflow.SuspendableIterator;
@@ -39,6 +40,14 @@ import net.tascalate.javaflow.function.SuspendableFunction;
 
 public interface AsyncGenerator<T> extends CustomizableSequence<CompletionStage<T>> { 
     
+    public static interface Values<T> extends Iterable<T>, AutoCloseable {
+        SuspendableStream<T> stream();
+        
+        @suspendable SuspendableIterator<T> iterator();
+        
+        @Override
+        void close();
+    }
 
     public static final class Sink<T> extends AsyncGeneratorSinkBase<T> {
         Sink(long batchSize, Scheduler scheduler) {
@@ -58,36 +67,18 @@ public interface AsyncGenerator<T> extends CustomizableSequence<CompletionStage<
         }
     }
     
+    Values<T> values();
+
+    @SuppressWarnings("resource")
+    @Deprecated
     default SuspendableStream<T> valuesStream() {
-        return stream().map$(awaitValue());
+        return new AsyncValues<>(this).stream();
     }     
     
+    @SuppressWarnings("resource")
+    @Deprecated
     default SuspendableIterator<T> valuesIterator() {
-        // Optimized version instead of [to-producer].stream().map$(await).iterator()
-        // to minimize call stack with suspendable methods
-        SuspendableIterator<CompletionStage<T>> original = iterator();
-        return new SuspendableIterator<T>() {
-            @Override
-            public T next() {
-                CompletionStage<T> future = original.next();
-                return AsyncMethodExecutor.await( future );
-            }
-
-            @Override
-            public boolean hasNext() {
-                return original.hasNext();
-            }
-
-            @Override
-            public void close() {
-                original.close();
-            }
-
-            @Override
-            public String toString() {
-                return String.format("%s-ValuesIterator[owner=%s]", getClass().getSimpleName(), AsyncGenerator.this);
-            }            
-        };
+        return new AsyncValues<>(this).iterator();
     }
     
     abstract Scheduler scheduler();
@@ -173,6 +164,23 @@ public interface AsyncGenerator<T> extends CustomizableSequence<CompletionStage<
     
     public static <T> AsyncGenerator<T> emptyOn(Scheduler scheduler) {
         return new AsyncGenerator<T>() {
+            
+            private final Values<T> values = new Values<T>() {
+
+                @Override
+                public void close() {
+                }
+
+                @Override
+                public SuspendableStream<T> stream() {
+                    return SuspendableStream.empty();
+                }
+
+                @Override
+                public SuspendableIterator<T> iterator() {
+                    return SuspendableStream.<T>empty().iterator();
+                }
+            };
 
             @Override
             public CompletionStage<T> next(Object param) {
@@ -191,6 +199,11 @@ public interface AsyncGenerator<T> extends CustomizableSequence<CompletionStage<
             @Override
             public Scheduler scheduler() {
                 return scheduler;
+            }
+
+            @Override
+            public Values<T> values() {
+                return values;
             }
         };
     }

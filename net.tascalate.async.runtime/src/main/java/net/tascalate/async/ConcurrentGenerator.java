@@ -144,7 +144,7 @@ public final class ConcurrentGenerator<T> implements AutoCloseable {
                try (Sequence<?> closeable = sequence) {
                    outer:
                    while (true) {
-                       queue.await();
+                       queue.await(this);
                        
                        RestrictedCompletableFuture<Result<T>> request;
                        while ((request = queue.poll()) != null) {
@@ -157,7 +157,7 @@ public final class ConcurrentGenerator<T> implements AutoCloseable {
                                    // If request is canceled by client, then we are canceling an item we are waiting for
                                    request.whenComplete((r,e) -> cancelCompletionStage(next, true));
                                    
-                                   T produced = AsyncMethodExecutor.await(next);
+                                   T produced = AsyncMethodExecutor.await(next, this);
                                    completeSuccess(request, Result.of(produced));
                                }
                            } catch (Throwable ex) {

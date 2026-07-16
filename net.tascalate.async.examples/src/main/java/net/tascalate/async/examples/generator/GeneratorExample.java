@@ -45,7 +45,6 @@ import net.tascalate.async.Sequence;
 import net.tascalate.async.async;
 import net.tascalate.async.suspendable;
 import net.tascalate.concurrent.CompletableTask;
-import net.tascalate.javaflow.SuspendableIterator;
 
 public class GeneratorExample {
 
@@ -104,10 +103,8 @@ public class GeneratorExample {
         }
         System.out.println(x);
         
-        try (SuspendableIterator<String> values = moreStringsEx().valuesIterator()) {
-            
-            while (values.hasNext()) {
-                String v = values.next();
+        try (AsyncGenerator.Values<String> values = moreStringsEx().values()) {
+            for (String v : values) {
                 System.out.println("+++Received: " + v);
             }
         } catch (FileNotFoundException | IllegalArgumentException ex) {
@@ -168,8 +165,7 @@ public class GeneratorExample {
         async.yield(chainedGenerator());
 
         try (AsyncGenerator<String> nested = moreStrings()) {
-            CompletionStage<String> singleResult; 
-            while (null != (singleResult = nested.next())) {
+            for (CompletionStage<String> singleResult : nested) {
                 String v = await(singleResult);
                 System.out.println("Nested: " + v);
                 if (Integer.parseInt(v) % 2 == 0) {

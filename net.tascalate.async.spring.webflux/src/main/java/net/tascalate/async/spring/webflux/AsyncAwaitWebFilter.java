@@ -32,8 +32,6 @@ import org.springframework.web.server.WebFilter;
 import org.springframework.web.server.WebFilterChain;
 
 import net.tascalate.async.Scheduler;
-import reactor.core.CoreSubscriber;
-import reactor.core.Scannable;
 import reactor.core.publisher.Mono;
 
 class AsyncAwaitWebFilter implements WebFilter, 
@@ -48,18 +46,17 @@ class AsyncAwaitWebFilter implements WebFilter,
     @Override
     public Mono<Void> filter(ServerWebExchange exchange, WebFilterChain chain) {
         AtomicReference<WebFluxData> previous = new AtomicReference<>();
-        return chain.filter(exchange)
-                    /*
-                    .doFirst() as an alternative 
-                    */
-                    .doOnSubscribe(subscription -> {
-                        CoreSubscriber<?> actual = (CoreSubscriber<?>)Scannable.from(subscription).scan(Scannable.Attr.ACTUAL);
-                        WebFluxData data = new WebFluxData(actual.currentContext(), exchange, scheduler);
-                        previous.set(WebFluxData.update(data));
-                    })
-                    .doFinally(signal -> {
-                        WebFluxData.restore(previous.get());
-                    });
+        return Mono.deferContextual(ctx -> {
+           return chain.filter(exchange)
+                       .doOnSubscribe(subscription -> {
+                           WebFluxData data = new WebFluxData(ctx, exchange, scheduler);
+                           previous.set(WebFluxData.update(data));
+                       })
+                       .doFinally(signal -> {
+                           WebFluxData.restore(previous.get());
+                       });
+
+        });
     }
 
 

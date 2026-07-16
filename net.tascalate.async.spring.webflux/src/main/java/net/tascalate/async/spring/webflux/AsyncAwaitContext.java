@@ -31,7 +31,7 @@ import java.util.function.Function;
 import org.springframework.web.server.ServerWebExchange;
 
 import net.tascalate.async.spring.AsyncAwaitContextItem;
-import reactor.util.context.Context;
+import reactor.util.context.ContextView;
 
 public final class AsyncAwaitContext {
     private AsyncAwaitContext() {
@@ -50,7 +50,7 @@ public final class AsyncAwaitContext {
         return WebFluxData.safeGet().serverWebExchange();
     }
     
-    public static Context currentReactiveContext() {
+    public static ContextView currentReactiveContext() {
         return WebFluxData.safeGet().context();
     }
 

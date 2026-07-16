@@ -28,27 +28,24 @@ import org.springframework.web.server.ServerWebExchange;
 
 import net.tascalate.async.Scheduler;
 import reactor.util.context.Context;
+import reactor.util.context.ContextView;
 
 final class WebFluxData {
 
     private static final WebFluxData EMPTY = new WebFluxData(Context.empty(), null, null);
     private static final WebFluxDataHolder HOLDER = WebFluxDataHolder.newInstance(EMPTY);
     
-    private final Context context;
+    private final ContextView context;
     private final ServerWebExchange serverWebExchange;
     private final Scheduler asyncAwaitScheduler;
     
-    WebFluxData(Context context, ServerWebExchange serverWebExchange, Scheduler asyncAwaitScheduler) {
-        this.context = context instanceof ReadOnlyContext 
-                       ? 
-                       context 
-                       :
-                       new ReadOnlyContext(null == context ? Context.empty() : context);
+    WebFluxData(ContextView context, ServerWebExchange serverWebExchange, Scheduler asyncAwaitScheduler) {
+        this.context = null == context ? Context.empty() : context;
         this.serverWebExchange = serverWebExchange;
         this.asyncAwaitScheduler = asyncAwaitScheduler;
     }
     
-    Context context() {
+    ContextView context() {
         return context;
     }
     

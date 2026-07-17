@@ -20,6 +20,11 @@
 
 	<dependencies>
 		<dependency>
+			<groupId>net.tascalate.javaflow</groupId>
+			<artifactId>net.tascalate.javaflow.extras</artifactId>
+		</dependency>
+
+		<dependency>
 			<groupId>net.tascalate.async</groupId>
 			<artifactId>net.tascalate.async.runtime</artifactId>
 			<version>${project.version}</version>

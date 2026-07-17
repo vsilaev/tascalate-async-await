@@ -29,14 +29,7 @@ import java.util.function.Function;
 
 import java.util.stream.Stream;
 
-import org.apache.commons.javaflow.api.continuable;
-
 import net.tascalate.async.sequence.OrderedSequence;
-
-import net.tascalate.javaflow.Option;
-import net.tascalate.javaflow.SuspendableIterator;
-import net.tascalate.javaflow.SuspendableProducer;
-import net.tascalate.javaflow.SuspendableStream;
 
 public interface Sequence<T> extends Iterable<T>, AutoCloseable {
     @suspendable T next();
@@ -47,25 +40,8 @@ public interface Sequence<T> extends Iterable<T>, AutoCloseable {
         return decoratorFactory.apply(this);
     }
 
-    default SuspendableStream<T> stream() {
-        return new SuspendableStream<>(new SuspendableProducer<T>() {
-            @Override
-            public Option<T> produce() {
-                T result = Sequence.this.next();
-                return null != result ? Option.some(result) : Option.none();
-            }
-
-            @Override
-            public void close() {
-                Sequence.this.close();
-            }
-        });
-    }
-    
-    default @suspendable SuspendableIterator<T> iterator() {
-        // Optimized version instead of [to-producer].stream().iterator()
-        // to minimize call stack with suspendable methods
-        return new SuspendableIterator<T>() {
+    default @suspendable SequenceIterator<T> iterator() {
+        return new SequenceIterator.Closeable<T>() {
             private boolean advance  = true;
             private T current = null;
             
@@ -85,14 +61,13 @@ public interface Sequence<T> extends Iterable<T>, AutoCloseable {
                 return current;
             }
 
-            @Override
             public void close() {
                 current = null;
                 advance = false;
                 Sequence.this.close();
             }
             
-            protected @continuable void advanceIfNecessary() {
+            protected @suspendable void advanceIfNecessary() {
                 if (advance) {
                     current = Sequence.this.next();
                 }
@@ -101,7 +76,7 @@ public interface Sequence<T> extends Iterable<T>, AutoCloseable {
 
             @Override
             public String toString() {
-                return String.format("%s-PromisesIterator[owner=%s, current=%s]", getClass().getSimpleName(), Sequence.this, current);
+                return String.format("%s-SequenceIterator[owner=%s, current=%s]", getClass().getSimpleName(), Sequence.this, current);
             }            
         };
     }
@@ -131,30 +106,4 @@ public interface Sequence<T> extends Iterable<T>, AutoCloseable {
     public static <T> Sequence<T> of(Stream<? extends T> values) {
         return OrderedSequence.create(values);
     }
-
-    public static <T> Function<SuspendableProducer<? extends T>, Sequence<T>> fromStream() {
-        final class SequenceByProducer implements Sequence<T> {
-            private final SuspendableProducer<? extends T> producer;
-            
-            SequenceByProducer(SuspendableProducer<? extends T> producer) {
-                this.producer = producer;
-            }
-            
-            @Override
-            public T next() {
-                return producer.produce().orElseNull().get();
-            }
-
-            @Override
-            public void close() {
-                producer.close();
-            }
-            
-            @Override
-            public String toString() {
-                return String.format("%s[producer=%s]", getClass().getSimpleName(), producer);
-            }
-        };
-        return SequenceByProducer::new;
-    }        
 }

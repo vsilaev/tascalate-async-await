@@ -1,5 +1,5 @@
 /**
- * ﻿Copyright 2015-2022 Valery Silaev (http://vsilaev.com)
+ * Copyright 2015-2025 Valery Silaev (http://vsilaev.com)
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
@@ -24,18 +24,18 @@
  */
 package net.tascalate.async;
 
-//@Deprecated
-public class YieldReply<T> {
-    final public T value;
-    final public Object param;
-    
-    public YieldReply(T value, Object param) {
-        this.value = value;
-        this.param = param;
-    }
+import java.util.Iterator;
+
+public interface SequenceIterator<T> extends Iterator<T> {
     
     @Override
-    public String toString() {
-        return String.format("%s[value=%s, param=%s]", getClass().getSimpleName(), value, param);
+    @suspendable T next();
+    
+    @Override
+    @suspendable boolean hasNext();
+    
+    public static interface Closeable<T> extends SequenceIterator<T>, AutoCloseable {
+        @Override
+        void close();
     }
 }

@@ -25,12 +25,32 @@
 package net.tascalate.async.sequence;
 
 import java.util.Iterator;
+import java.util.NoSuchElementException;
 import java.util.concurrent.CompletionStage;
 import java.util.stream.Stream;
 
 import net.tascalate.async.Sequence;
+import net.tascalate.async.SequenceIterator;
 
 public class OrderedSequence<T> implements Sequence<T> {
+    
+    public static final SequenceIterator.Closeable<Object> EMPTY_ITERATOR = new SequenceIterator.Closeable<Object>() {
+
+        @Override
+        public Object next() {
+            throw new NoSuchElementException();
+        }
+
+        @Override
+        public boolean hasNext() {
+            return false;
+        }
+
+        @Override
+        public void close() {
+        }
+        
+    };
     
     public static final Sequence<Object> EMPTY_SEQUENCE = new Sequence<Object>() {
 

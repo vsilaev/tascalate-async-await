@@ -24,7 +24,10 @@
  */
 package net.tascalate.async.examples.generator;
 
-import static net.tascalate.async.AsyncGenerator.awaitValue;
+import static net.tascalate.async.apix.JavaFlowBidge.awaitValue;
+import static net.tascalate.async.apix.JavaFlowBidge.fromStream;
+import static net.tascalate.async.apix.JavaFlowBidge.stream;
+
 import static net.tascalate.async.CallContext.async;
 import static net.tascalate.async.CallContext.await;
 
@@ -79,8 +82,8 @@ public class StreamTest {
     @async public CompletionStage<String> asyncFlatMap() {
         String result = 
         produceAlphaStrings()
-            .stream()
-            .flatMap(px -> producePrefixedStrings(px).stream())
+            .as(stream())
+            .flatMap(px -> producePrefixedStrings(px).as(stream()))
             .drop(2)
             .take(18)
             .map$(awaitValue())
@@ -91,7 +94,7 @@ public class StreamTest {
 
     @async public CompletionStage<String> asyncOperation(int outerDiv) {
         produceMergedStrings()
-            .stream()  
+            .as(stream())  
             // REQUIRES JVM ARGS: -javaagent:../net.tascalate.async.agent/target/tascalate.instrument-async.jar
             //.map$(f -> await(f))      // -- worked, static
             //.map$(this::waitFuture)   // -- worked, instance ref
@@ -106,7 +109,7 @@ public class StreamTest {
 
         return async( 
             produceNumericStrings()
-            .stream()
+            .as(stream())
             .map$(awaitValue())
             .reduce((t, s) -> t + "\n" + s)
             .orElse("<error-reduce")
@@ -118,19 +121,19 @@ public class StreamTest {
         
         SuspendableStream<CompletionStage<String>> alphas = 
             produceAlphaStrings()
-                .stream()
+            .as(stream())
                 .map(p -> p.thenApply(v -> v + " VALUE"));
         
         SuspendableStream<CompletionStage<String>> numerics =         
             produceNumericStrings()
-                .stream()
+            .as(stream())
                 .map( Promises::from )
                 .map( p -> p.orTimeout(Duration.ofMillis(500)) );
 
         async.yield(
             SuspendableStream
                 .zip(numerics, alphas, (a, b) -> a.thenCombine(b, (av, bv) -> av + " - " + bv) )
-                .convert(Sequence.fromStream())
+                .convert(fromStream())
         );
         return async.yield();
     }

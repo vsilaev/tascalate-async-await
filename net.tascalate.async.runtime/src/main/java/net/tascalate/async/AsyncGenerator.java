@@ -26,24 +26,26 @@ package net.tascalate.async;
 
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionStage;
+import java.util.function.BiFunction;
 import java.util.function.Consumer;
+import java.util.function.Function;
 import java.util.stream.Stream;
 import java.util.stream.StreamSupport;
 
-import net.tascalate.async.core.AsyncMethodExecutor;
-import net.tascalate.async.core.AsyncValues;
 import net.tascalate.async.sequence.FutureCompletionSequence;
-
-import net.tascalate.javaflow.SuspendableIterator;
-import net.tascalate.javaflow.SuspendableStream;
-import net.tascalate.javaflow.function.SuspendableFunction;
+import net.tascalate.async.sequence.OrderedSequence;
 
 public interface AsyncGenerator<T> extends CustomizableSequence<CompletionStage<T>> { 
     
     public static interface Values<T> extends Iterable<T>, AutoCloseable {
-        SuspendableStream<T> stream();
         
-        @suspendable SuspendableIterator<T> iterator();
+        default <D> D as(Function<? super Values<T>, ? extends D> decoratorFactory) {
+            return decoratorFactory.apply(this);
+        }
+        
+        <D> D as(BiFunction<? super Values<T>, ? super AsyncGenerator<T>, ? extends D> decoratorFactory);
+        
+        @suspendable SequenceIterator<T> iterator();
         
         @Override
         void close();
@@ -68,18 +70,6 @@ public interface AsyncGenerator<T> extends CustomizableSequence<CompletionStage<
     }
     
     Values<T> values();
-
-    @SuppressWarnings("resource")
-    @Deprecated
-    default SuspendableStream<T> valuesStream() {
-        return new AsyncValues<>(this).stream();
-    }     
-    
-    @SuppressWarnings("resource")
-    @Deprecated
-    default SuspendableIterator<T> valuesIterator() {
-        return new AsyncValues<>(this).iterator();
-    }
     
     abstract Scheduler scheduler();
     
@@ -165,20 +155,25 @@ public interface AsyncGenerator<T> extends CustomizableSequence<CompletionStage<
     public static <T> AsyncGenerator<T> emptyOn(Scheduler scheduler) {
         return new AsyncGenerator<T>() {
             
+            AsyncGenerator<T> self() {
+                return this;
+            }
+            
             private final Values<T> values = new Values<T>() {
 
                 @Override
                 public void close() {
                 }
-
+                
+                @SuppressWarnings("unchecked")
                 @Override
-                public SuspendableStream<T> stream() {
-                    return SuspendableStream.empty();
+                public SequenceIterator<T> iterator() {
+                    return (SequenceIterator<T>) OrderedSequence.EMPTY_ITERATOR;
                 }
 
                 @Override
-                public SuspendableIterator<T> iterator() {
-                    return SuspendableStream.<T>empty().iterator();
+                public <D> D as(BiFunction<? super Values<T>, ? super AsyncGenerator<T>, ? extends D> decoratorFactory) {
+                    return decoratorFactory.apply(this, self());
                 }
             };
 
@@ -208,12 +203,5 @@ public interface AsyncGenerator<T> extends CustomizableSequence<CompletionStage<
         };
     }
     
-    public static <T> SuspendableFunction<CompletionStage<T>, T> awaitValue() {
-        return new SuspendableFunction<CompletionStage<T>, T>() {
-            @Override
-            public T apply(CompletionStage<T> future) {
-                return AsyncMethodExecutor.await(future);
-            }
-        };
-    }
+
 }

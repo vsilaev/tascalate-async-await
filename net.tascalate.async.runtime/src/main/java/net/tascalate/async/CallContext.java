@@ -66,27 +66,6 @@ public class CallContext {
         return methodCallMustBeReplaced();
     }
 
-    @Deprecated
-    public static <T> AsyncYield.Reply<T> yield(T readyValue) throws InvalidCallContextException {
-        return methodCallMustBeReplaced();
-    }
-
-    @Deprecated
-    public static <T> AsyncYield.Reply<T> yield(CompletionStage<T> pendingValue) throws CancellationException, InvalidCallContextException {
-        return methodCallMustBeReplaced();
-    }
-
-    @Deprecated
-    public static <T> AsyncYield.Reply<T> yield(Sequence<? extends CompletionStage<T>> values) throws CancellationException, InvalidCallContextException {
-        return methodCallMustBeReplaced();
-    }
-
-    @Deprecated
-    public static <T> AsyncGenerator<T> yield() {
-        return methodCallMustBeReplaced();
-    }
-    
-
     public static <E1 extends Throwable> void throwing(Class<E1> e1) throws E1 {}
     public static <E1 extends Throwable, 
                    E2 extends Throwable> void throwing(Class<E1> e1, Class<E2> e2) throws E1, E2 {}

@@ -148,7 +148,8 @@ public class AsyncMethodExecutor {
         log.debug("Suspending continuation");
         Object outcome = Continuation.suspend(
             // Save Runnable of the suspending continuation + future
-            new SuspendParams<>(currentMethod, future)
+            new SuspendParams<>(currentMethod, future),
+            currentMethod
         );
         log.debug("Continuation continued");
 

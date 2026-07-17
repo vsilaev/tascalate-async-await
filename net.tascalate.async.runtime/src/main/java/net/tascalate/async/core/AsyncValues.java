@@ -1,10 +1,11 @@
 package net.tascalate.async.core;
 
 import java.util.concurrent.CompletionStage;
+import java.util.function.BiFunction;
 
 import net.tascalate.async.AsyncGenerator;
-import net.tascalate.javaflow.SuspendableIterator;
-import net.tascalate.javaflow.SuspendableStream;
+import net.tascalate.async.SequenceIterator;
+import net.tascalate.async.AsyncGenerator.Values;
 
 public class AsyncValues<T> implements AsyncGenerator.Values<T> {
 
@@ -13,18 +14,13 @@ public class AsyncValues<T> implements AsyncGenerator.Values<T> {
     public AsyncValues(AsyncGenerator<T> owner) {
         this.owner = owner;
     }
-    
-    @Override
-    public SuspendableStream<T> stream() {
-        return owner.stream().map$(AsyncGenerator.awaitValue());
-    }
 
     @Override
-    public SuspendableIterator<T> iterator() {
+    public SequenceIterator<T> iterator() {
         // Optimized version instead of [to-producer].stream().map$(await).iterator()
         // to minimize call stack with suspendable methods
-        SuspendableIterator<CompletionStage<T>> original = owner.iterator();
-        return new SuspendableIterator<T>() {
+        SequenceIterator<CompletionStage<T>> original = owner.iterator();
+        return new SequenceIterator.Closeable<T>() {
             @Override
             public T next() {
                 CompletionStage<T> future = original.next();
@@ -38,7 +34,7 @@ public class AsyncValues<T> implements AsyncGenerator.Values<T> {
 
             @Override
             public void close() {
-                original.close();
+                owner.close();
             }
 
             @Override
@@ -51,5 +47,10 @@ public class AsyncValues<T> implements AsyncGenerator.Values<T> {
     @Override
     public void close() {
         owner.close();
+    }
+    
+    @Override
+    public <D> D as(BiFunction<? super Values<T>, ? super AsyncGenerator<T>, ? extends D> decoratorFactory) {
+        return decoratorFactory.apply(this, owner);
     }
 }

@@ -24,6 +24,9 @@
  */
 package net.tascalate.async.examples.generator;
 
+import static net.tascalate.async.apix.JavaFlowBidge.stream;
+import static net.tascalate.async.apix.JavaFlowBidge.fromStream;
+
 import static net.tascalate.async.CallContext.async;
 import static net.tascalate.async.CallContext.await;
 import static net.tascalate.async.CallContext.scheduler;
@@ -118,7 +121,11 @@ public class SimpleArgs extends SamePackageSubclass {
         await(innerCallImplicit());
 
         StringJoiner joiner = new StringJoiner(delimeter);
-        try (Sequence<Promise<String>> generator = AsyncGenerator.from("ABC", "KLM", "XYZ").stream().map(Promises::from).convert(Sequence.fromStream())) {
+        try (Sequence<Promise<String>> generator = AsyncGenerator.from("ABC", "KLM", "XYZ")
+                                                                 .as(stream())
+                                                                 .map(Promises::from)
+                                                                 .convert(fromStream())) {
+            
             System.out.println("%%MergeStrings - before iterations");
             CompletionStage<String> singleResult; 
             while (null != (singleResult = generator.next())) {

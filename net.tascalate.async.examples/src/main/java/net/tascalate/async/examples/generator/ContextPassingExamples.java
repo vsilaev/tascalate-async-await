@@ -39,11 +39,12 @@ import java.util.concurrent.Executors;
 
 import net.tascalate.async.Scheduler;
 import net.tascalate.async.SchedulerProvider;
+import net.tascalate.async.SequenceIterator;
 import net.tascalate.async.async;
+import net.tascalate.async.apix.Generators;
 import net.tascalate.concurrent.CompletableTask;
 import net.tascalate.concurrent.var.ContextVar;
 import net.tascalate.concurrent.var.ThreadLocalVar;
-import net.tascalate.javaflow.SuspendableIterator;
 
 public class ContextPassingExamples {
     
@@ -96,7 +97,7 @@ public class ContextPassingExamples {
         System.out.println("Context C:" + MY_CONTEXT_VAR.get() + ", thread " + Thread.currentThread());
         int c = 0;
         MY_CONTEXT_VAR.set("ALTERED");
-        try (SuspendableIterator<CompletionStage<Duration>> i = Generators.delays(Duration.ofSeconds(1)).iterator()) {
+        try (SequenceIterator.Closeable<CompletionStage<Duration>> i = (SequenceIterator.Closeable<CompletionStage<Duration>>)Generators.delays(Duration.ofSeconds(1)).iterator()) {
             while (i.hasNext()) {
                 await( i.next() );
                 System.out.println(++v);

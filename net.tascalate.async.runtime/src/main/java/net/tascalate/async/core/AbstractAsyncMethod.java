@@ -31,11 +31,14 @@ import java.util.concurrent.atomic.AtomicLongFieldUpdater;
 import java.util.concurrent.atomic.AtomicReferenceFieldUpdater;
 import java.util.function.Function;
 
+import org.apache.commons.javaflow.core.StackOwner;
+import org.apache.commons.javaflow.core.StackRecorder;
+
 import net.tascalate.async.AsyncResult;
 import net.tascalate.async.Scheduler;
 import net.tascalate.async.suspendable;
 
-abstract public class AbstractAsyncMethod implements Runnable {
+abstract public class AbstractAsyncMethod extends StackOwner implements Runnable {
     
     private static final AtomicReferenceFieldUpdater<AbstractAsyncMethod, State> STATE_UPDATER = 
             AtomicReferenceFieldUpdater.newUpdater(AbstractAsyncMethod.class, State.class, "state");
@@ -55,6 +58,8 @@ abstract public class AbstractAsyncMethod implements Runnable {
     private volatile long blockerVersion = 0;
 
     private volatile PhaseCancellation<?> phaseCancellation;
+    
+    private StackRecorder stackRecorder;
     
     protected AbstractAsyncMethod(Scheduler scheduler) {
         this.future = new ResultPromise<>();
@@ -215,10 +220,21 @@ abstract public class AbstractAsyncMethod implements Runnable {
         }
     }
     
+    @Override
+    protected final StackRecorder getStack() {
+        return stackRecorder;
+    }
+    
+    @Override
+    protected final void setStack(StackRecorder value) {
+        stackRecorder = value;
+    }
+    
     final class ResultPromise<T> extends RestrictedCompletableFuture<T> implements AsyncResult<T> {
         
         ResultPromise() {}
         
+        @Override
         public Scheduler scheduler() {
             return scheduler;
         }

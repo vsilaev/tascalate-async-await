@@ -24,9 +24,11 @@
  */
 package net.tascalate.async.examples.generator;
 
+import static net.tascalate.async.apix.JavaFlowBidge.stream;
+import static net.tascalate.async.apix.JavaFlowBidge.awaitValue;
+
 import static net.tascalate.async.CallContext.async;
 import static net.tascalate.async.CallContext.await;
-import static net.tascalate.async.AsyncGenerator.awaitValue;
 
 import java.util.concurrent.CompletionStage;
 import java.util.concurrent.ExecutorService;
@@ -37,7 +39,6 @@ import net.tascalate.async.AsyncGenerator;
 import net.tascalate.async.AsyncYield;
 import net.tascalate.async.Scheduler;
 import net.tascalate.async.SchedulerProvider;
-import net.tascalate.async.Sequence;
 import net.tascalate.async.async;
 import net.tascalate.concurrent.Promise;
 import net.tascalate.javaflow.SuspendableStream;
@@ -65,14 +66,13 @@ public class RecursionTest {
         System.out.println( StackRecorder.get().getRunnable().toString() );
         */
         /*
-        try (SuspendableStream<Object> g = producer().stream().map$(awaitValue())) {
+        try (SuspendableStream<Object> g = producer(scheduler).as(stream()).map$(awaitValue())) {
             g.forEach(NOP);
         }
         */
         long result = 0;
         try (AsyncGenerator<Long> g = producer(scheduler)) {
-            CompletionStage<Long> pv = null;
-            while ((pv = g.next()) != null) {
+            for (CompletionStage<Long> pv : g) {
                 result += await(pv);
             }
         }

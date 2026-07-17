@@ -36,7 +36,8 @@ import net.tascalate.async.Sequence;
 import net.tascalate.async.suspendable;
 import net.tascalate.async.util.TypeUtil;
 
-class LazyGenerator<T> implements InternalAsyncGenerator<T> {
+class LazyGenerator<T> extends SuspendableSequence<CompletionStage<T>> 
+                       implements InternalAsyncGenerator<T> {
     private static final AtomicReferenceFieldUpdater<LazyGenerator<?>, CompletionStage<?>> DONE_UPDATER = 
             AtomicReferenceFieldUpdater.newUpdater(TypeUtil.cast(LazyGenerator.class), TypeUtil.cast(CompletionStage.class), "done");
     
@@ -65,11 +66,21 @@ class LazyGenerator<T> implements InternalAsyncGenerator<T> {
 
     @Override
     public CompletionStage<T> next() {
-        return next(NO_PARAM);
+        return next$(NO_PARAM, null);
     }
     
     @Override
     public CompletionStage<T> next(Object param) {
+        return next$(param , null);
+    }
+    
+    @Override
+    protected @suspendable CompletionStage<T> next$(AbstractAsyncMethod caller) {
+        return next$(NO_PARAM , caller);
+    }
+    
+    @Override
+    protected @suspendable CompletionStage<T> next$(Object param, AbstractAsyncMethod caller) {
         // Loop to replace tail recursion - BEGIN
         while (true) {
             if (owner.checkDone()) {
@@ -77,15 +88,24 @@ class LazyGenerator<T> implements InternalAsyncGenerator<T> {
             }
             
             // Await previously returned result, if any
-            FutureResult<T> latestResult = FutureResult.of(latestFuture);
+            FutureResult<T> latestResult = FutureResult.of(latestFuture, caller);
             
             // Could we advance further current delegate?
-            if (NO_PARAM != param && currentDelegate instanceof CustomizableSequence) {
+            if (NO_PARAM == param) {
+                if (currentDelegate instanceof ReadyValueSequence) {
+                    // Avoid @suspendable ceremony
+                    ReadyValueSequence<? extends CompletionStage<T>> typedDelegate = 
+                        (ReadyValueSequence<? extends CompletionStage<T>>)currentDelegate;
+                    latestFuture = typedDelegate.next_();
+                } else {
+                    latestFuture = SuspendableSequence.next$(currentDelegate, caller);
+                }
+            } else if (currentDelegate instanceof CustomizableSequence) {
                 CustomizableSequence<? extends CompletionStage<T>> typedDelegate 
                     = (CustomizableSequence<? extends CompletionStage<T>>)currentDelegate;
-                latestFuture = typedDelegate.next(param);
+                latestFuture = SuspendableSequence.next$(typedDelegate, param, caller);
             } else {
-                latestFuture = currentDelegate.next();
+                latestFuture = SuspendableSequence.next$(currentDelegate, caller);
             }
             
             if (null != latestFuture) {
@@ -99,7 +119,7 @@ class LazyGenerator<T> implements InternalAsyncGenerator<T> {
             latestResult.releaseLock(producerLock, param);
             
             // Wait till value is ready (suspends consumer)
-            acquireConsumerLock();
+            acquireConsumerLock(caller);
             consumerLock = new CompletableFuture<>();
             // Check everything once again after wait
         }
@@ -160,20 +180,20 @@ class LazyGenerator<T> implements InternalAsyncGenerator<T> {
     private @suspendable AsyncYield.Reply<T> acquireProducerLock() {
         CompletableFuture<AsyncYield.Reply<T>> currentLock = producerLock;
         if (!currentLock.isDone()) {
-            return AsyncMethodExecutor.await(currentLock);
+            return AsyncMethodExecutor.await(currentLock, owner);
         } else {
             // Never returns null while isDone() == true
             return currentLock.getNow(null);
         }
     }
     
-    private @suspendable void acquireConsumerLock() {
+    private @suspendable void acquireConsumerLock(AbstractAsyncMethod caller) {
         // When next() is called for first time
         // then consumerLock is NULL
         CompletableFuture<?> currentLock = consumerLock;
     	if (null != currentLock) {
     	    if (!currentLock.isDone()) {
-                AsyncMethodExecutor.await(currentLock);
+                AsyncMethodExecutor.await(currentLock, caller);
     	    }
             // Order matters - set to null only after wait      
             consumerLock = null;
@@ -224,14 +244,14 @@ class LazyGenerator<T> implements InternalAsyncGenerator<T> {
         }
         
         @suspendable 
-        static <T> FutureResult<T> of(CompletionStage<? extends T> future) {
+        static <T> FutureResult<T> of(CompletionStage<? extends T> future, AbstractAsyncMethod caller) {
             if (null == future) {
                 @SuppressWarnings("unchecked")
                 FutureResult<T> empty = (FutureResult<T>)EMPTY;
                 return empty;
             } else {
                 try {
-                    return new Success<T>(AsyncMethodExecutor.await(future));
+                    return new Success<T>(AsyncMethodExecutor.await(future, caller));
                 } catch (Throwable ex) {
                     InternalCallContext.checkExitSignal(ex);
                     return new Failure<T>(ex);

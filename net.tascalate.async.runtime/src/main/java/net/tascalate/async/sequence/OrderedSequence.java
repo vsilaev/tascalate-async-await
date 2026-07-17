@@ -31,8 +31,9 @@ import java.util.stream.Stream;
 
 import net.tascalate.async.Sequence;
 import net.tascalate.async.SequenceIterator;
+import net.tascalate.async.core.ReadyValueSequence;
 
-public class OrderedSequence<T> implements Sequence<T> {
+public class OrderedSequence<T> extends ReadyValueSequence<T> {
     
     public static final SequenceIterator.Closeable<Object> EMPTY_ITERATOR = new SequenceIterator.Closeable<Object>() {
 
@@ -52,10 +53,10 @@ public class OrderedSequence<T> implements Sequence<T> {
         
     };
     
-    public static final Sequence<Object> EMPTY_SEQUENCE = new Sequence<Object>() {
+    public static final Sequence<Object> EMPTY_SEQUENCE = new ReadyValueSequence<Object>() {
 
         @Override
-        public CompletionStage<Object> next() {
+        protected CompletionStage<Object> next_() {
             return null;
         }
 
@@ -79,7 +80,7 @@ public class OrderedSequence<T> implements Sequence<T> {
     }
     
     @Override
-    public T next() {
+    protected T next_() {
         if (closed) {
             return null;
         }
@@ -103,6 +104,49 @@ public class OrderedSequence<T> implements Sequence<T> {
     @Override
     public String toString() {
         return String.format("%s[delegate=%s]", getClass().getSimpleName(), delegate);
+    }
+    
+    public static <T> Sequence<T> just(T value) {
+        return new ReadyValueSequence<T>() {
+            
+            private volatile boolean closed = false;
+
+            @Override
+            protected T next_() {
+                if (closed) {
+                    return null;
+                }
+                closed = true;
+                return value;
+            }
+
+            @Override
+            public void close() {
+                closed = true;
+            }
+            
+            public SequenceIterator<T> iterator(boolean exclusive) {
+                return new SequenceIterator.Closeable<T>() {
+                    @Override
+                    public boolean hasNext() {
+                        return !closed;
+                    }
+
+                    @Override
+                    public T next() {
+                        if (closed) {
+                            throw new NoSuchElementException();
+                        }
+                        closed = true;
+                        return value;
+                    }
+
+                    public void close() {
+                        closed = true;
+                    }
+                };
+            }
+        };
     }
     
     public static <T> Sequence<T> create(Stream<? extends T> items) {

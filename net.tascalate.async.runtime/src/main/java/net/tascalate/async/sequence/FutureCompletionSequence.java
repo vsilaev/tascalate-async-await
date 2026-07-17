@@ -37,11 +37,13 @@ import java.util.function.BiConsumer;
 import java.util.stream.Stream;
 
 import net.tascalate.async.Sequence;
+import net.tascalate.async.core.AbstractAsyncMethod;
 import net.tascalate.async.core.AsyncMethodExecutor;
 import net.tascalate.async.core.CompletionStageHelper;
+import net.tascalate.async.core.SuspendableSequence;
 import net.tascalate.async.util.TypeUtil;
 
-public class FutureCompletionSequence<T, F extends CompletionStage<T>> implements Sequence<F> {
+public class FutureCompletionSequence<T, F extends CompletionStage<T>> extends SuspendableSequence<F> {
     
     public static enum Cancel {
         NONE {
@@ -98,6 +100,11 @@ public class FutureCompletionSequence<T, F extends CompletionStage<T>> implement
     
     @Override
     public F next() {
+        return next$(null);
+    }
+    
+    @Override
+    protected F next$(AbstractAsyncMethod caller) {
         while (true) {
             if (inProgress < 0) {
                 // Forcibly closed
@@ -111,7 +118,7 @@ public class FutureCompletionSequence<T, F extends CompletionStage<T>> implement
                 } else {
                     // Otherwise await for any result...            
                     if (inProgress > 0) {
-                        AsyncMethodExecutor.await(consumerLock);
+                        AsyncMethodExecutor.await(consumerLock, caller);
                         consumerLock = new CompletableFuture<>();
                         // ... and try again
                         // recursion via loop

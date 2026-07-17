@@ -41,6 +41,10 @@ public interface Sequence<T> extends Iterable<T>, AutoCloseable {
     }
 
     default @suspendable SequenceIterator<T> iterator() {
+        return iterator(false);
+    }
+
+    default @suspendable SequenceIterator<T> iterator(boolean exclusive) {
         return new SequenceIterator.Closeable<T>() {
             private boolean advance  = true;
             private T current = null;
@@ -88,6 +92,10 @@ public interface Sequence<T> extends Iterable<T>, AutoCloseable {
     @SuppressWarnings("unchecked")
     public static <T> Sequence<T> empty() {
         return (Sequence<T>)OrderedSequence.EMPTY_SEQUENCE;
+    }
+    
+    public static <T> Sequence<T> just(T value) {
+        return OrderedSequence.just(value); 
     }
     
     public static <T> Sequence<T> of(T value) {

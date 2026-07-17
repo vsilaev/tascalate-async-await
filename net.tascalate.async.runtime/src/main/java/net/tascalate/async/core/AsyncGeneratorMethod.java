@@ -25,6 +25,7 @@
 package net.tascalate.async.core;
 
 import java.util.concurrent.CancellationException;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
 import java.util.concurrent.CompletionStage;
 
@@ -89,11 +90,11 @@ abstract public class AsyncGeneratorMethod<T> extends AbstractAsyncMethod {
     }
     
     protected @suspendable final AsyncYield.Reply<T> emit(T readyValue) {
-        return generator.emit(AsyncGenerator.from(readyValue));
+        return generator.emit(Sequence.just(CompletableFuture.completedFuture(readyValue)));
     }
 
     protected @suspendable final AsyncYield.Reply<T> emit(CompletionStage<T> pendingValue) {
-        return generator.emit(Sequence.of(pendingValue));
+        return generator.emit(Sequence.just(pendingValue));
     }
 
     protected @suspendable final AsyncYield.Reply<T> emit(Sequence<? extends CompletionStage<T>> pendignValues) {

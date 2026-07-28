@@ -24,6 +24,7 @@
  */
 package net.tascalate.async.sequence;
 
+import java.util.Collection;
 import java.util.Collections;
 import java.util.Iterator;
 import java.util.Set;
@@ -39,45 +40,17 @@ import java.util.stream.Stream;
 import net.tascalate.async.Sequence;
 import net.tascalate.async.core.AbstractAsyncMethod;
 import net.tascalate.async.core.AsyncMethodExecutor;
-import net.tascalate.async.core.CompletionStageHelper;
 import net.tascalate.async.core.SuspendableSequence;
 import net.tascalate.async.util.TypeUtil;
 
 public class FutureCompletionSequence<T, F extends CompletionStage<T>> extends SuspendableSequence<F> {
-    
-    public static enum Cancel {
-        NONE {
-            @Override
-            void apply(Set<CompletionStage<?>> enlistedPromises, Iterator<? extends CompletionStage<?>> pendingPromises) {
-                
-            }
-        },
-        ENLISTED {
-            @Override
-            void apply(Set<CompletionStage<?>> enlistedPromises, Iterator<? extends CompletionStage<?>> pendingPromises) {
-                enlistedPromises.forEach(p -> CompletionStageHelper.cancelCompletionStage(p, true));
-            }
-        },
-        ALL {
-            @Override
-            void apply(Set<CompletionStage<?>> enlistedPromises, Iterator<? extends CompletionStage<?>> pendingPromises) {
-                ENLISTED.apply(enlistedPromises, pendingPromises);
-                while (pendingPromises.hasNext()) {
-                    CompletionStage<?> nextPromise = pendingPromises.next();
-                    CompletionStageHelper.cancelCompletionStage(nextPromise, true);
-                }
-            }            
-        };
-        
-        abstract void apply(Set<CompletionStage<?>> enlistedPromises, Iterator<? extends CompletionStage<?>> pendingPromises);
-    }
     
     private static final AtomicIntegerFieldUpdater<FutureCompletionSequence<?, ?>> IN_PROGRESS_UPDATER = 
             AtomicIntegerFieldUpdater.newUpdater(TypeUtil.cast(FutureCompletionSequence.class), "inProgress");
     
     private final Iterator<? extends F> pendingPromises;
     private final int chunkSize;
-    private final Cancel cancelPolicy;
+    private final CancelPolicy cancelPolicy;
     
     private final BlockingQueue<F> settledPromises;
     private final Set<CompletionStage<?>> enlistedPromises; 
@@ -86,13 +59,13 @@ public class FutureCompletionSequence<T, F extends CompletionStage<T>> extends S
     private volatile CompletableFuture<Void> consumerLock = new CompletableFuture<>();
     
     protected FutureCompletionSequence(Iterator<? extends F> pendingValues, int chunkSize) {
-        this(pendingValues, chunkSize, Cancel.ENLISTED);
+        this(pendingValues, chunkSize, CancelPolicy.ENLISTED);
     }
     
-    protected FutureCompletionSequence(Iterator<? extends F> pendingValues, int chunkSize, Cancel cancelPolicy) {  
+    protected FutureCompletionSequence(Iterator<? extends F> pendingValues, int chunkSize, CancelPolicy cancelPolicy) {  
         this.pendingPromises = pendingValues;
         this.chunkSize = chunkSize;
-        this.cancelPolicy = cancelPolicy == null ? Cancel.ENLISTED : cancelPolicy;
+        this.cancelPolicy = cancelPolicy == null ? CancelPolicy.ENLISTED : cancelPolicy;
         this.settledPromises = chunkSize > 0 ? new LinkedBlockingQueue<>(chunkSize)
                                              : new LinkedBlockingQueue<>();  
         this.enlistedPromises = Collections.newSetFromMap(new ConcurrentHashMap<>());
@@ -208,14 +181,30 @@ public class FutureCompletionSequence<T, F extends CompletionStage<T>> extends S
     }
 
     public static <T, F extends CompletionStage<T>> Sequence<F> create(Stream<? extends F> pendingPromises, int chunkSize) {
-        return create(pendingPromises.iterator(), chunkSize);
-    }
-
-    public static <T, F extends CompletionStage<T>> Sequence<F> create(Iterable<? extends F> pendingPromises, int chunkSize) {
-        return create(pendingPromises.iterator(), chunkSize);
+        return create(pendingPromises, chunkSize, CancelPolicy.ENLISTED);
     }
     
-    private static <T, F extends CompletionStage<T>> Sequence< F> create(Iterator<? extends F> pendingPromises, int chunkSize) {
-        return new FutureCompletionSequence<>(pendingPromises, chunkSize);
+    public static <T, F extends CompletionStage<T>> Sequence<F> create(Stream<? extends F> pendingPromises, 
+                                                                       int chunkSize,
+                                                                       CancelPolicy cancelPolicy) {
+        return create(pendingPromises.iterator(), chunkSize, cancelPolicy);
     }
+
+
+    public static <T, F extends CompletionStage<T>> Sequence<F> create(Collection<? extends F> pendingPromises, int chunkSize) {
+        return create(pendingPromises, chunkSize, CancelPolicy.ALL);
+    }
+    
+    public static <T, F extends CompletionStage<T>> Sequence<F> create(Collection<? extends F> pendingPromises, 
+                                                                       int chunkSize,
+                                                                       CancelPolicy cancelPolicy) {
+        return create(pendingPromises.iterator(), chunkSize, cancelPolicy);
+    }
+    
+    private static <T, F extends CompletionStage<T>> Sequence< F> create(Iterator<? extends F> pendingPromises, 
+                                                                         int chunkSize,
+                                                                         CancelPolicy cancelPolicy) {
+        return new FutureCompletionSequence<>(pendingPromises, chunkSize, cancelPolicy);
+    }
+
 }

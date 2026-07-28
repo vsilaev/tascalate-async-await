@@ -30,6 +30,8 @@ import java.util.function.Consumer;
 
 import net.tascalate.async.core.AsyncMethodExecutor;
 import net.tascalate.async.core.AsyncTaskMethod;
+import net.tascalate.async.core.SequenceKind;
+import net.tascalate.async.core.SuspendableSequence;
 import net.tascalate.async.spi.MethodDefinition;
 
 abstract class AsyncGeneratorSourceBase<T> {
@@ -60,6 +62,7 @@ abstract class AsyncGeneratorSourceBase<T> {
             @Override
             protected @suspendable void doRun() {
                 long total = 0;
+                SequenceKind kind = SequenceKind.kindOf(sequence);
                 try (Sequence<?> closeable = sequence) {
                     while (true) {
                         requests.await(this);
@@ -67,7 +70,24 @@ abstract class AsyncGeneratorSourceBase<T> {
                         Counter counter;
                         while ((counter = requests.poll()) != null) {
                             while (counter.next()) {
-                                CompletionStage<? extends T> futureItem = sequence.next();
+                                CompletionStage<? extends T> futureItem;
+                                switch (kind) { 
+                                    case READY_VALUES:
+                                        futureItem = SuspendableSequence.nextReadyValue(sequence);
+                                        break;
+                                    case SUSPENDABLE_CUSTOMIZABLE:
+                                    case SUSPENDABLE_REGULAR:                                   
+                                        futureItem = SuspendableSequence.nextSuspendable(sequence, this); 
+                                        break;
+                                    case NON_SUSPENDABLE_CUSTOMIZABLE:
+                                    case NON_SUSPENDABLE_REGULAR:
+                                        futureItem = sequence.next();
+                                        break;
+                                    default:
+                                        throw new IllegalStateException();
+                            
+                                }  
+                                //CompletionStage<? extends T> futureItem = sequence.next();
                                 if (null != futureItem) {
                                     if (total < Long.MAX_VALUE) {
                                         total++;

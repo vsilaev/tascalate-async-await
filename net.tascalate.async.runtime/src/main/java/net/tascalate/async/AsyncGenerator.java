@@ -24,6 +24,7 @@
  */
 package net.tascalate.async;
 
+import java.util.Collection;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionStage;
 import java.util.function.BiFunction;
@@ -32,6 +33,7 @@ import java.util.function.Function;
 import java.util.stream.Stream;
 import java.util.stream.StreamSupport;
 
+import net.tascalate.async.sequence.CancelPolicy;
 import net.tascalate.async.sequence.FutureCompletionSequence;
 import net.tascalate.async.sequence.OrderedSequence;
 
@@ -96,16 +98,26 @@ public interface AsyncGenerator<T> extends CustomizableSequence<CompletionStage<
     }
     
     public static <T> Sequence<CompletionStage<T>> from(T readyValue) {
-        return from(Stream.of(readyValue));
+        return Sequence.just(CompletableFuture.completedFuture(readyValue));
     }
     
     @SafeVarargs
     public static <T> Sequence<CompletionStage<T>> from(T... readyValues) {
-        return from(Stream.of(readyValues));
+        int size = readyValues == null ? 0 : readyValues.length;
+        switch (size) {
+            case 0: return Sequence.empty();
+            case 1: return Sequence.just(CompletableFuture.completedFuture(readyValues[0]));
+            default: return from(Stream.of(readyValues));
+        }
     }
     
-    public static <T> Sequence<CompletionStage<T>> from(Iterable<? extends T> readyValues) {
-        return from(StreamSupport.stream(readyValues.spliterator(), false));
+    public static <T> Sequence<CompletionStage<T>> from(Collection<? extends T> readyValues) {
+        int size = readyValues == null ? 0 : readyValues.size();
+        switch (size) {
+            case 0: return Sequence.empty();
+            case 1: return Sequence.just(CompletableFuture.completedFuture(readyValues.iterator().next()));
+            default: return from(StreamSupport.stream(readyValues.spliterator(), false));
+        }
     }
     
     public static <T> Sequence<CompletionStage<T>> from(Stream<? extends T> readyValues) {
@@ -114,23 +126,43 @@ public interface AsyncGenerator<T> extends CustomizableSequence<CompletionStage<
     
     @SafeVarargs
     public static <T, F extends CompletionStage<T>> Sequence<F> readyFirst(F... pendingValues) {
-        return readyFirst(Stream.of(pendingValues));
+        if (null == pendingValues || pendingValues.length == 0) {
+            return Sequence.empty();
+        } else {
+            return readyFirst(Stream.of(pendingValues), pendingValues.length);
+        }
     }
 
-    public static <T, F extends CompletionStage<T>> Sequence<F> readyFirst(Iterable<? extends F> pendingValues) {
+    public static <T, F extends CompletionStage<T>> Sequence<F> readyFirst(Collection<? extends F> pendingValues) {
         return readyFirst(pendingValues, -1);
     } 
     
-    public static <T, F extends CompletionStage<T>> Sequence<F> readyFirst(Iterable<? extends F> pendingValues, int chunkSize) {
-        return FutureCompletionSequence.create(pendingValues, chunkSize);
+    public static <T, F extends CompletionStage<T>> Sequence<F> readyFirst(Collection<? extends F> pendingValues, int chunkSize) {
+        return readyFirst(pendingValues, chunkSize, CancelPolicy.ALL);
     }
     
-    public static <T, F extends CompletionStage<T>> Sequence<F> readyFirst(Stream<? extends F> pendingValues) {
-        return readyFirst(pendingValues, -1);
+    public static <T, F extends CompletionStage<T>> Sequence<F> readyFirst(Collection<? extends F> pendingValues, CancelPolicy cancelPolicy) {
+        return readyFirst(pendingValues, -1, cancelPolicy);
+    }
+    
+    public static <T, F extends CompletionStage<T>> Sequence<F> readyFirst(Collection<? extends F> pendingValues, 
+                                                                           int chunkSize,
+                                                                           CancelPolicy cancelPolicy) {
+        if (pendingValues == null || pendingValues.isEmpty()) {
+            return Sequence.empty();
+        } else {
+            return FutureCompletionSequence.create(pendingValues, chunkSize, cancelPolicy);
+        }
     }
     
     public static <T, F extends CompletionStage<T>> Sequence<F> readyFirst(Stream<? extends F> pendingValues, int chunkSize) {
         return FutureCompletionSequence.create(pendingValues, chunkSize);
+    }
+    
+    public static <T, F extends CompletionStage<T>> Sequence<F> readyFirst(Stream<? extends F> pendingValues, 
+                                                                           int chunkSize,
+                                                                           CancelPolicy cancelPolicy) {
+        return FutureCompletionSequence.create(pendingValues, chunkSize, cancelPolicy);
     }
     
     @SuppressWarnings("resource")

@@ -94,24 +94,49 @@ public abstract class SuspendableSequence<T> implements Sequence<T> {
         throw new UnsupportedOperationException();
     }
     
-    public static @suspendable <T> T next$(Sequence<? extends T> source, AbstractAsyncMethod caller) {
-        if (source instanceof SuspendableSequence) {
-            @SuppressWarnings("unchecked")
-            SuspendableSequence<T> typedSource = (SuspendableSequence<T>)source;
-            return typedSource.next$(caller);
+    public static @suspendable <T> T $$$next$$$(Sequence<? extends T> sequence, AbstractAsyncMethod caller) {
+        if (sequence instanceof SuspendableSequence) {
+            SuspendableSequence<? extends T> typedSequence = 
+                (SuspendableSequence<? extends T>)sequence;        
+            return typedSequence.next$(caller);
+        } else if (sequence instanceof ReadyValueSequence) {
+            ReadyValueSequence<? extends T> typedSequence = 
+                (ReadyValueSequence<? extends T>)sequence;
+            return typedSequence.next_();
         } else {
-            return source.next();
+            return sequence.next();
         }
     }
     
-    public static @suspendable <T> T next$(CustomizableSequence<? extends T> source, Object param, AbstractAsyncMethod caller) {
-        if (source instanceof SuspendableSequence) {
+    public static @suspendable <T> T $$$next$$$(CustomizableSequence<? extends T> sequence, Object param, AbstractAsyncMethod caller) {
+        if (sequence instanceof SuspendableSequence) {
             @SuppressWarnings("unchecked")
-            SuspendableSequence<T> typedSource = (SuspendableSequence<T>)source;
-            return typedSource.next$(param, caller);
+            SuspendableSequence<? extends T> typedSequence = 
+                (SuspendableSequence<? extends T>)sequence;        
+            return typedSequence.next$(param, caller);
         } else {
-            return source.next(param);
+            return sequence.next(param);
         }
+    }
+
+    
+    public static <T> T nextReadyValue(Sequence<? extends T> sequence) {
+        // Avoid @suspendable ceremony
+        ReadyValueSequence<? extends T> typedSequence = 
+            (ReadyValueSequence<? extends T>)sequence;
+        return typedSequence.next_();
+    }
+    
+    public static @suspendable <T> T nextSuspendable(Sequence<? extends T> sequence, AbstractAsyncMethod caller) {
+        SuspendableSequence<? extends T> typedSequence = 
+                (SuspendableSequence<? extends T>)sequence;        
+        return typedSequence.next$(caller);
+    }
+    
+    public static @suspendable <T> T nextSuspendable(Sequence<? extends T> sequence, Object param, AbstractAsyncMethod caller) {
+        SuspendableSequence<? extends T> typedSequence = 
+                (SuspendableSequence<? extends T>)sequence;        
+        return typedSequence.next$(param, caller);
     }
 
 }

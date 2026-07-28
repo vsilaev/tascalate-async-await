@@ -52,6 +52,7 @@ class LazyGenerator<T> extends SuspendableSequence<CompletionStage<T>>
     private CompletionStage<T> latestFuture;
 
     private Sequence<? extends CompletionStage<T>> currentDelegate = Sequence.empty();
+    private SequenceKind currentDelegateKind = SequenceKind.READY_VALUES;
     
     LazyGenerator(AsyncGeneratorMethod<T> owner) {
     	this.owner = owner;
@@ -91,6 +92,40 @@ class LazyGenerator<T> extends SuspendableSequence<CompletionStage<T>>
             FutureResult<T> latestResult = FutureResult.of(latestFuture, caller);
             
             // Could we advance further current delegate?
+            if (null == currentDelegateKind) {
+                currentDelegateKind = SequenceKind.kindOf(currentDelegate);
+            }
+            switch (currentDelegateKind) { 
+                case READY_VALUES:
+                    // Avoid @suspendable ceremony
+                    latestFuture = SuspendableSequence.nextReadyValue(currentDelegate);
+                    break;
+                case SUSPENDABLE_CUSTOMIZABLE:
+                    latestFuture = NO_PARAM == param 
+                                   ? SuspendableSequence.nextSuspendable(currentDelegate, caller) 
+                                   : SuspendableSequence.nextSuspendable(currentDelegate, param, caller);       
+                    break;
+                case SUSPENDABLE_REGULAR:
+                    latestFuture = SuspendableSequence.nextSuspendable(currentDelegate, caller); 
+                    break;
+                case NON_SUSPENDABLE_CUSTOMIZABLE: {
+                    CustomizableSequence<? extends CompletionStage<T>> typedDelegate 
+                            = (CustomizableSequence<? extends CompletionStage<T>>)currentDelegate;
+                    latestFuture = NO_PARAM == param 
+                                   ? typedDelegate.next() 
+                                   : typedDelegate.next(param);                    
+                    break;
+                }
+                case NON_SUSPENDABLE_REGULAR: {
+                    latestFuture = currentDelegate.next();
+                    break;
+                }
+                default:
+                    throw new IllegalStateException();
+            
+            }
+
+            /*
             if (NO_PARAM == param) {
                 if (currentDelegate instanceof ReadyValueSequence) {
                     // Avoid @suspendable ceremony
@@ -107,6 +142,7 @@ class LazyGenerator<T> extends SuspendableSequence<CompletionStage<T>>
             } else {
                 latestFuture = SuspendableSequence.next$(currentDelegate, caller);
             }
+            */
             
             if (null != latestFuture) {
                 // Yes, we can
@@ -152,6 +188,7 @@ class LazyGenerator<T> extends SuspendableSequence<CompletionStage<T>>
 
     final @suspendable AsyncYield.Reply<T> emit(Sequence<? extends CompletionStage<T>> pendingValues) {
         currentDelegate = pendingValues;
+        currentDelegateKind = null;
         // Re-set producerLock
         // It's important to reset it before unlocking consumer!
         producerLock = new CompletableFuture<>();
@@ -174,6 +211,7 @@ class LazyGenerator<T> extends SuspendableSequence<CompletionStage<T>>
             owner.failure(ex);
         }
         currentDelegate = Sequence.empty();
+        currentDelegateKind = SequenceKind.READY_VALUES;
         releaseConsumerLock();
     }
 

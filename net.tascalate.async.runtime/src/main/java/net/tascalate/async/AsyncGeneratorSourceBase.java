@@ -70,6 +70,8 @@ abstract class AsyncGeneratorSourceBase<T> {
                         Counter counter;
                         while ((counter = requests.poll()) != null) {
                             while (counter.next()) {
+                                // Optimization of the following:
+                                // CompletionStage<? extends T> futureItem = sequence.next();
                                 CompletionStage<? extends T> futureItem;
                                 switch (kind) { 
                                     case READY_VALUES:
@@ -87,7 +89,6 @@ abstract class AsyncGeneratorSourceBase<T> {
                                         throw new IllegalStateException();
                             
                                 }  
-                                //CompletionStage<? extends T> futureItem = sequence.next();
                                 if (null != futureItem) {
                                     if (total < Long.MAX_VALUE) {
                                         total++;

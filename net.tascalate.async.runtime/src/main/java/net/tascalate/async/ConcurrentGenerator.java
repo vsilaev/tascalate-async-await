@@ -152,6 +152,8 @@ public final class ConcurrentGenerator<T> implements AutoCloseable {
                        RestrictedCompletableFuture<Result<T>> request;
                        while ((request = queue.poll()) != null) {
                            try {
+                               // Optimization of the following:
+                               // CompletionStage<? extends T> next = sequence.next();
                                CompletionStage<? extends T> next;
                                switch (kind) { 
                                    case READY_VALUES:
@@ -170,7 +172,6 @@ public final class ConcurrentGenerator<T> implements AutoCloseable {
                            
                                }                               
 
-                               //CompletionStage<? extends T> next = sequence.next();
                                if (null == next) {
                                    completeSuccess(request, Result.done());
                                    break outer;

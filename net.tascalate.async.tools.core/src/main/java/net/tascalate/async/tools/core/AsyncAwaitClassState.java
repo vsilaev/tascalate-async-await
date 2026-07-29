@@ -174,6 +174,10 @@ final class AsyncAwaitClassState {
         return subclassCheck.test(classNode.name, maybeParentClass);
     }
     
+    boolean isSubclassOf(String className, String maybeParentClass) {
+        return subclassCheck.test(className, maybeParentClass);
+    }
+    
     void registerAccessMethod(String owner, String name, String desc, String kind, MethodNode methodNode) {
         accessMethods.put(owner + '#' + name + '#' + desc + '-' + kind, methodNode);
         putMethod(methodNode, true);

@@ -92,6 +92,8 @@ class LazyGenerator<T> extends SuspendableSequence<CompletionStage<T>>
             FutureResult<T> latestResult = FutureResult.of(latestFuture, caller);
             
             // Could we advance further current delegate?
+            // Switch below is optimization of
+            // currentDelegate.next() / currentDelegate.next(param)
             if (null == currentDelegateKind) {
                 currentDelegateKind = SequenceKind.kindOf(currentDelegate);
             }
@@ -124,25 +126,6 @@ class LazyGenerator<T> extends SuspendableSequence<CompletionStage<T>>
                     throw new IllegalStateException();
             
             }
-
-            /*
-            if (NO_PARAM == param) {
-                if (currentDelegate instanceof ReadyValueSequence) {
-                    // Avoid @suspendable ceremony
-                    ReadyValueSequence<? extends CompletionStage<T>> typedDelegate = 
-                        (ReadyValueSequence<? extends CompletionStage<T>>)currentDelegate;
-                    latestFuture = typedDelegate.next_();
-                } else {
-                    latestFuture = SuspendableSequence.next$(currentDelegate, caller);
-                }
-            } else if (currentDelegate instanceof CustomizableSequence) {
-                CustomizableSequence<? extends CompletionStage<T>> typedDelegate 
-                    = (CustomizableSequence<? extends CompletionStage<T>>)currentDelegate;
-                latestFuture = SuspendableSequence.next$(typedDelegate, param, caller);
-            } else {
-                latestFuture = SuspendableSequence.next$(currentDelegate, caller);
-            }
-            */
             
             if (null != latestFuture) {
                 // Yes, we can

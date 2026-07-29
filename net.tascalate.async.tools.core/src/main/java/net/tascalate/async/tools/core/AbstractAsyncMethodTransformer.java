@@ -57,6 +57,7 @@ import net.tascalate.asmx.tree.ClassNode;
 import net.tascalate.asmx.tree.FieldInsnNode;
 import net.tascalate.asmx.tree.FieldNode;
 import net.tascalate.asmx.tree.InnerClassNode;
+import net.tascalate.asmx.tree.InsnList;
 import net.tascalate.asmx.tree.InvokeDynamicInsnNode;
 import net.tascalate.asmx.tree.LabelNode;
 import net.tascalate.asmx.tree.LocalVariableAnnotationNode;
@@ -64,6 +65,7 @@ import net.tascalate.asmx.tree.LocalVariableNode;
 import net.tascalate.asmx.tree.MethodInsnNode;
 import net.tascalate.asmx.tree.MethodNode;
 import net.tascalate.asmx.tree.TypeAnnotationNode;
+import net.tascalate.asmx.tree.VarInsnNode;
 
 abstract public class AbstractAsyncMethodTransformer {
     protected final static Logger log = LoggerFactory.getLogger(AsyncAwaitClassFileGenerator.class);
@@ -86,10 +88,12 @@ abstract public class AbstractAsyncMethodTransformer {
     private final static Type METHOD_HANDLES_LOOKUP_TYPE  = Type.getType(MethodHandles.Lookup.class);
     private final static Type METHOD_DEFINITION_TYPE      = Type.getObjectType("net/tascalate/async/spi/MethodDefinition");
     private final static Type SCHEDULER_PROVIDER_TYPE     = Type.getObjectType("net/tascalate/async/SchedulerProvider");
+    private final static Type SEQUENCE_TYPE               = Type.getObjectType("net/tascalate/async/Sequence");
+    private final static Type CUSTOMIZABLE_SEQUENCE_TYPE  = Type.getObjectType("net/tascalate/async/CustomizableSequence");
+    private final static Type SUSPENDABLE_SEQUENCE_TYPE   = Type.getObjectType("net/tascalate/async/core/SuspendableSequence");
     private final static Type TASCALATE_PROMISE_TYPE      = Type.getObjectType("net/tascalate/concurrent/Promise");
     private final static Type TASCALATE_PROMISES_TYPE     = Type.getObjectType("net/tascalate/concurrent/Promises");
     
-
     private final AsyncAwaitClassState classState;
 
     protected final ClassNode classNode;
@@ -905,6 +909,37 @@ abstract public class AbstractAsyncMethodTransformer {
 
     protected MethodNode getAccessMethod(String owner, String name, String desc, String kind) {
         return classState.getAccessMethod(owner, name, desc, kind);
+    }
+    
+    protected boolean optimizeSequenceNext(InsnList instructions, MethodInsnNode min) {
+        if ((min.getOpcode() == INVOKEVIRTUAL || 
+             min.getOpcode() == INVOKEINTERFACE) && 
+            "next".equals(min.name) &&
+             classState.isSubclassOf(min.owner, SEQUENCE_TYPE.getInternalName())) {
+        
+            Type[] argTypes = Type.getArgumentTypes(min.desc);
+            int argCount = argTypes.length;
+            if (argCount == 0 || (argCount == 1 && OBJECT_TYPE.equals(argTypes[0]))) {
+                instructions.add(new VarInsnNode(ALOAD, 0));
+                instructions.add(
+                    new MethodInsnNode(INVOKESTATIC, 
+                                       SUSPENDABLE_SEQUENCE_TYPE.getInternalName(), 
+                                       "$$$next$$$", 
+                                       argCount == 0
+                                       ?
+                                       Type.getMethodDescriptor(OBJECT_TYPE, SEQUENCE_TYPE, 
+                                                                             ABSTRACT_ASYNC_METHOD_TYPE)
+                                       :
+                                       Type.getMethodDescriptor(OBJECT_TYPE, CUSTOMIZABLE_SEQUENCE_TYPE,
+                                                                             OBJECT_TYPE,
+                                                                             ABSTRACT_ASYNC_METHOD_TYPE), 
+                                       false
+                    )
+                );
+                return true;
+            }
+        }
+        return false;
     }
     
     private MethodNode findSuperclassMethod(String className, MethodInsnNode methodInstructionNode) {

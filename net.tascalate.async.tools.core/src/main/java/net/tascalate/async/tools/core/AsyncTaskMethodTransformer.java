@@ -313,6 +313,8 @@ class AsyncTaskMethodTransformer extends AbstractAsyncMethodTransformer {
                         case "yield":
                             throw new IllegalStateException("YIELD must be used only inside generator methods");
                     }
+                } else if (optimizeSequenceNext(newInstructions, min)) {
+                    continue;
                 }
             } else if (insn instanceof InvokeDynamicInsnNode) {
                 Object[] opts = findOwnerInvokeDynamic(insn, ownerMethods);

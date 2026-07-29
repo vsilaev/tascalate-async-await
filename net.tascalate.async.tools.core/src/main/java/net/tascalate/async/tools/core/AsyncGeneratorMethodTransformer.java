@@ -331,6 +331,8 @@ class AsyncGeneratorMethodTransformer extends AbstractAsyncMethodTransformer {
                     newInstructions.add(new InsnNode(SWAP));
                     newInstructions.add(new InsnNode(POP));
                     continue;
+                } else if (optimizeSequenceNext(newInstructions, min)) {
+                    continue;
                 }
             } else if (insn instanceof InvokeDynamicInsnNode) {
                 Object[] opts = findOwnerInvokeDynamic(insn, ownerMethods);

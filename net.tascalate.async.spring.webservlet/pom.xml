@@ -33,6 +33,12 @@
 		</dependency>
 		<dependency>
 			<groupId>${project.groupId}</groupId>
+			<artifactId>${project.groupId}.runtime</artifactId>
+			<version>${project.version}</version>
+			<scope>provided</scope>
+		</dependency>
+		<dependency>
+			<groupId>${project.groupId}</groupId>
 			<artifactId>${project.groupId}.spring</artifactId>
 			<version>${project.version}</version>
 		</dependency>
@@ -80,10 +86,6 @@
 			<plugin>
 				<groupId>org.moditect</groupId>
 				<artifactId>moditect-maven-plugin</artifactId>
-			</plugin>
-			<plugin>
-				<groupId>net.tascalate.javaflow</groupId>
-				<artifactId>net.tascalate.javaflow.tools.maven</artifactId>
 			</plugin>
 		</plugins>
 	</build>

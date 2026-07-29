@@ -25,7 +25,6 @@
 module net.tascalate.async.runtime {
     requires org.slf4j;
     requires transitive net.tascalate.javaflow.api;
-    requires transitive net.tascalate.javaflow.extras;
     
     exports net.tascalate.async;
     exports net.tascalate.async.concurrent;

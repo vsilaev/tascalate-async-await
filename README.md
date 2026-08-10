@@ -509,7 +509,7 @@ What happens on the *producer* side i.e. inside the `produceAsyncStrings()` gene
 
 Use the `generator` inside the *consumer* within a `try-with-resources` block so it is always closed when the *consumer* stops iterating or an error occurs. This guarantees the generator’s finalization logic runs even if the *consumer* returns early, throws an exception, or abandons iteration.
 ## Alternative iteration options
-Instead of handling a null‑terminated sequence of `CompletionStage`-s  directly, you can use more common `iterator`  idiom in the `consumeGenerator()`:
+Instead of handling a null‑terminated sequence of `CompletionStage`-s  directly, you can use more common `Iterable`/`iterator`  idiom in the `consumeGenerator()`:
 ```java
 @async CompletionStage<Long> consumeGenerator() {
     try (var generator = produceAsyncStrings()) {
@@ -523,7 +523,7 @@ Instead of handling a null‑terminated sequence of `CompletionStage`-s  directl
 ```
 The alternative and the original version have the same performance traits. Simply pick the style you like better.
 
-Both *consumer* styles discussed above allow attaching an asynchronous pipeline to each returned pending value before awaiting it. Additionally, errors can be managed while awaiting individual pending tasks, as will be demonstrated later, thereby allowing for sophisticated error handling and recovery strategies. If you do not need that flexibility, use the concise iterator form, `AsyncGenerator<T>.valuesIterator()`, that mirrors ECMAScript and C# async iterators:
+Both *consumer* styles discussed above allow attaching an asynchronous pipeline to each returned pending value before awaiting it. Additionally, errors can be managed while awaiting individual pending tasks, as will be demonstrated later, thereby allowing for sophisticated error handling and recovery strategies. If you do not need that flexibility, use the concise iterator form via `AsyncGenerator<T>.values()` `Iterable`, that mirrors ECMAScript and C# async `for-each` loop:
 ```java
 @async CompletionStage<Long> consumeGenerator() {
     try (var generator = produceAsyncStrings()) {
@@ -555,7 +555,7 @@ async Task<long> consumeGenerator() {
 ```
 The Java version using Tascalate Async/Await is definitely more verbose, but the underlying semantics closely match those in ECMAScript and C#. .
 
-**IMPORTANT:** Do not share an `AsyncGenerator`, its `iterator()` or `valuesIterator()` across multiple threads! These types *facilitate* asynchronous control flow but are not thread‑safe: they maintain internal suspension and lifecycle state that must be accessed from a single execution context at a time. Only three kinds of callers are guaranteed to provide the correct execution context for consuming an `AsyncGenerator`: asynchronous tasks, other asynchronous generators, and suspendable methods. If you must cross thread boundaries, convert yielded values into a thread‑safe handoff (will be shown below) rather than sharing the generator or its iterator directly.
+**IMPORTANT:** Do not share an `AsyncGenerator`, its `iterator()` or `values().iterator()` across multiple threads! These types *facilitate* asynchronous control flow but are not thread‑safe: they maintain internal suspension and lifecycle state that must be accessed from a single execution context at a time. Only three kinds of callers are guaranteed to provide the correct execution context for consuming an `AsyncGenerator`: asynchronous tasks, other asynchronous generators, and suspendable methods. If you must cross thread boundaries, convert yielded values into a thread‑safe handoff (will be shown below) rather than sharing the generator or its iterator directly.
 
 ## Controlling asynchronous generator from consumer
 Tascalate Async / Await `AsyncGenerator` supports passing a value from the *consumer* back to the *producer* (generator) by calling `generator.next(param)`. When the consumer supplies `param`, that value becomes a part of the result of the corresponding `async.yield(...)` expression inside the generator method (the *producer* receives it when it resumes). This mirrors ECMAScript’s `next(value)` behavior and enables two‑way communication: the *consumer* can send control data, acknowledgements, or backpressure hints to the *producer*. Let's review the following example:

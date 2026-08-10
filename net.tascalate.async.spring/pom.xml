@@ -126,7 +126,7 @@
 							<includeArtifactIds>${project.groupId}.spring-java21</includeArtifactIds>
 							<type>jar</type>
 							<outputDirectory>${project.build.outputDirectory}/META-INF/versions/21</outputDirectory>
-							<includes>**/AsyncAwaitConfiguration21.class</includes>
+							<excludes>**/IntValueFormula*.class,**/DefaultAsyncAwaitExecutor.class</excludes>
 							<failOnMissingClassifierArtifact>true</failOnMissingClassifierArtifact>
 						</configuration>
 					</execution>

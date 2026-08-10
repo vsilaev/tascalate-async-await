@@ -31,8 +31,10 @@ import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
 
 import org.springframework.boot.context.properties.ConfigurationProperties;
+import org.springframework.context.annotation.Lazy;
 import org.springframework.stereotype.Component;
 
+@Lazy
 @Component
 @ConfigurationProperties(prefix = "async-await.executor")
 public class AsyncAwaitExecutorProperties {
@@ -90,11 +92,12 @@ public class AsyncAwaitExecutorProperties {
         TimeMeasurment tm = keepAliveTime == null ? new TimeMeasurment(Duration.ofMinutes(1)) : new TimeMeasurment(keepAliveTime);
         int workQueueSizeValue = workQueueSize == null ? Integer.MAX_VALUE : workQueueSize.applyAsInt(cores);
         return new ThreadPoolExecutor(
-                corePoolSizeValue > 0 ? corePoolSizeValue : cores, 
-                maximumPoolSizeValue > 0 ? maximumPoolSizeValue : cores,
-                tm.amount, tm.unit,
-                new LinkedBlockingDeque<>(workQueueSizeValue > 0 ? workQueueSizeValue : Integer.MAX_VALUE),
-                new NamedThreadFactory(null == threadNamePrefix || threadNamePrefix.isEmpty() ? "async-await-scheduler-thread_" : threadNamePrefix));        
+            corePoolSizeValue > 0 ? corePoolSizeValue : cores, 
+            maximumPoolSizeValue > 0 ? maximumPoolSizeValue : cores,
+            tm.amount, tm.unit,
+            new LinkedBlockingDeque<>(workQueueSizeValue > 0 ? workQueueSizeValue : Integer.MAX_VALUE),
+            new NamedThreadFactory(null == threadNamePrefix || threadNamePrefix.isEmpty() ? "async-await-scheduler-thread_" : threadNamePrefix)
+        );        
 
     }
 

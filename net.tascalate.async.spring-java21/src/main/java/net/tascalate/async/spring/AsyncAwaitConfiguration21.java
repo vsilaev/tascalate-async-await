@@ -25,8 +25,6 @@
 package net.tascalate.async.spring;
 
 import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
-import java.util.concurrent.ThreadFactory;
 
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnJava;
@@ -50,12 +48,8 @@ class AsyncAwaitConfiguration21 {
     @ConditionalOnMissingBean(annotation = DefaultAsyncAwaitExecutor.class)
     @ConditionalOnJava(value = JavaVersion.TWENTY_ONE, range = Range.EQUAL_OR_NEWER)
     @ConditionalOnProperty(name = "async-await.executor.use-virtual-threads", havingValue = "true", matchIfMissing = true)
-    ExecutorService defaultAsyncAwaitExecutorService() {
-        ThreadFactory factory = Thread.ofVirtual()
-                                      .name(asyncAwaitExecutorThreadNamePrefix, 0)
-                                      .factory();
-        
-        return Executors.newThreadPerTaskExecutor(factory);        
+    ExecutorService defaultAsyncAwaitExecutorService(AsyncAwaitExecutorProperties21 executorProperties) {
+        return executorProperties.createExecutorService();        
     }
 
 }

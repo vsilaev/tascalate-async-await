@@ -28,7 +28,7 @@ pluginManagement {
             if (requested.id.id == "async-await") {
                 useModule("net.tascalate.async:net.tascalate.async.tools.gradle:1.5.0")
             } else if (requested.id.id == "continuations") {
-                useModule("net.tascalate.javaflow:net.tascalate.javaflow.tools.gradle:2.8.4")
+                useModule("net.tascalate.javaflow:net.tascalate.javaflow.tools.gradle:2.8.6")
             }
         }
     }
@@ -72,7 +72,7 @@ buildscript {
 
     dependencies {
         classpath 'net.tascalate.async:net.tascalate.async.tools.gradle:1.5.0'
-        classpath 'net.tascalate.javaflow:net.tascalate.javaflow.tools.gradle:2.8.4'
+        classpath 'net.tascalate.javaflow:net.tascalate.javaflow.tools.gradle:2.8.6'
         /* other plugins */
     }
 }
@@ -100,7 +100,7 @@ buildscript {
 
     dependencies {
         classpath 'net.tascalate.async:net.tascalate.async.tools.gradle:1.5.0'
-        classpath 'net.tascalate.javaflow:net.tascalate.javaflow.tools.gradle:2.8.4'
+        classpath 'net.tascalate.javaflow:net.tascalate.javaflow.tools.gradle:2.8.6'
         /* other plugins */
     }
 }
@@ -183,7 +183,7 @@ Second, add the following build plugins in the specified order:
     <plugin>
       <groupId>net.tascalate.javaflow</groupId>
       <artifactId>net.tascalate.javaflow.tools.maven</artifactId>
-      <version>2.8.4</version>
+      <version>2.8.6</version>
       <executions>
         <execution>
           <id>javaflow-enhance-main-classes</id> 

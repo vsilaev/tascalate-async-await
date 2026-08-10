@@ -553,7 +553,7 @@ async Task<long> consumeGenerator() {
     return 42;
 }
 ```
-The Java version using Tascalate Async/Await is definitely more verbose, but the underlying semantics closely match those in ECMAScript and C#. .
+The Java version using Tascalate Async/Await is slightly more verbose, but the underlying semantics closely match those in ECMAScript and C#. .
 
 **IMPORTANT:** Do not share an `AsyncGenerator`, its `iterator()` or `values().iterator()` across multiple threads! These types *facilitate* asynchronous control flow but are not thread‑safe: they maintain internal suspension and lifecycle state that must be accessed from a single execution context at a time. Only three kinds of callers are guaranteed to provide the correct execution context for consuming an `AsyncGenerator`: asynchronous tasks, other asynchronous generators, and suspendable methods. If you must cross thread boundaries, convert yielded values into a thread‑safe handoff (will be shown below) rather than sharing the generator or its iterator directly.
 

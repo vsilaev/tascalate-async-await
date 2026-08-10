@@ -511,33 +511,27 @@ Use the `generator` inside the *consumer* within a `try-with-resources` block so
 ## Alternative iteration options
 Instead of handling a null‑terminated sequence of `CompletionStage`-s  directly, you can use more common `iterator`  idiom in the `consumeGenerator()`:
 ```java
-@async CompletionStage<Long> consumeGenerator() {  
-    try (SuspendableIterator<CompletionStage<String>> iterator = produceAsyncStrings().iterator()) {
-        while (iterator.next()) {
-            CompletionStage<String> pendingValue = iterator.next();
-            String value = await(pendingValue);  
-            System.out.println(value);  
-        }  
+@async CompletionStage<Long> consumeGenerator() {
+    try (var generator = produceAsyncStrings()) {
+        for (var pendingValue : generator) {
+            var value = await(pendingValue);
+            System.out.println(value);
+        }
     }
-    return async(42L);  
+    return async(42L);
 }
 ```
-It's critical to admit that `SuspendableIterator` is an _iterator‑like_ API, not a subtype of `java.util.Iterator`, and `AsyncGenerator` does **not** implement `java.lang.Iterable`. It provides `hasNext()` and `next()` methods that may **suspend** the caller while awaiting asynchronous results, so it cannot be used with Java’s `for‑each` loop. The `SuspendableIterator` returned by an `AsyncGenerator` is `AutoCloseable`; use it inside a `try‑with‑resources` block so the underlying generator is always closed when iteration ends, the *consumer* returns early, or an exception occurs.
-
 The alternative and the original version have the same performance traits. Simply pick the style you like better.
 
 Both *consumer* styles discussed above allow attaching an asynchronous pipeline to each returned pending value before awaiting it. Additionally, errors can be managed while awaiting individual pending tasks, as will be demonstrated later, thereby allowing for sophisticated error handling and recovery strategies. If you do not need that flexibility, use the concise iterator form, `AsyncGenerator<T>.valuesIterator()`, that mirrors ECMAScript and C# async iterators:
 ```java
-@async CompletionStage<Long> consumeGenerator() {  
-    /* SuspendableIterator<String> */
-    try (var viterator = produceAsyncStrings().valuesIterator()) {
-        while (viterator.next()) {
-            /* String */
-            var value = viterator.next();
-            System.out.println(value);  
-        }  
+@async CompletionStage<Long> consumeGenerator() {
+    try (var generator = produceAsyncStrings()) {
+        for (var value : generator.values()) {
+            System.out.println(value);
+        }
     }
-    return async(42L);  
+    return async(42L);
 }
 ```
 The *consumer* iterates over each settled value directly in a simple `await foreach / for await`‑style loop. This form is shorter, easier to read, and is the best choice when you only need to process settled `T` values in order .

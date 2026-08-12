@@ -56,13 +56,6 @@
 			<optional>true</optional>
 		</dependency>
 		<dependency>
-			<groupId>${project.groupId}</groupId>
-			<artifactId>${project.groupId}.spring-java21</artifactId>
-			<version>${project.version}</version>
-			<scope>compile</scope>
-			<optional>true</optional>
-		</dependency>
-		<dependency>
 			<groupId>org.springframework</groupId>
 			<artifactId>spring-core</artifactId>
 			<version>${spring.version}</version>
@@ -117,16 +110,22 @@
 				<executions>
 					<execution>
 						<id>unpack-binaries-java21</id>
-						<phase>process-classes</phase>
+						<phase>prepare-package</phase>
 						<goals>
-							<goal>unpack-dependencies</goal>
+							<goal>unpack</goal>
 						</goals>
 						<configuration>
-							<includeGroupIds>${project.groupId}</includeGroupIds>
-							<includeArtifactIds>${project.groupId}.spring-java21</includeArtifactIds>
-							<type>jar</type>
-							<outputDirectory>${project.build.outputDirectory}/META-INF/versions/21</outputDirectory>
-							<excludes>**/IntValueFormula*.class,**/DefaultAsyncAwaitExecutor.class</excludes>
+							<artifactItems>
+								<artifactItem>
+									<groupId>${project.groupId}</groupId>
+									<artifactId>${project.groupId}.spring-java21</artifactId>
+									<version>${project.version}</version>
+									<type>jar</type>
+									<overWrite>true</overWrite>
+									<outputDirectory>${project.build.outputDirectory}</outputDirectory>
+									<excludes>**/IntValueFormula*.class,**/DefaultAsyncAwaitExecutor.class,META-INF/**</excludes>
+								</artifactItem>
+							</artifactItems>
 							<failOnMissingClassifierArtifact>true</failOnMissingClassifierArtifact>
 						</configuration>
 					</execution>

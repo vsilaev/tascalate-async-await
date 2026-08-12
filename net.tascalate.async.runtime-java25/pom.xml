@@ -49,6 +49,25 @@
 					</execution> 
 				</executions>
 			</plugin>
+			<plugin>
+				<groupId>org.apache.maven.plugins</groupId>
+				<artifactId>maven-javadoc-plugin</artifactId>
+				<executions>
+					<execution>
+						<id>attach-javadocs</id>
+						<goals>
+							<goal>jar</goal>
+						</goals>
+					</execution>
+				</executions>
+				<configuration>
+					<jdkToolchain>
+						<version>25</version>
+						<vendor>Oracle</vendor>
+					</jdkToolchain>
+					<release>25</release>
+				</configuration>
+			</plugin>
 		</plugins>
 	</build>
 </project>

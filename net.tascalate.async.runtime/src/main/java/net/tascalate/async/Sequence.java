@@ -44,7 +44,7 @@ public interface Sequence<T> extends Iterable<T>, AutoCloseable {
         return iterator(false);
     }
 
-    default @suspendable SequenceIterator<T> iterator(boolean exclusive) {
+    default SequenceIterator<T> iterator(boolean exclusive) {
         return new SequenceIterator.Closeable<T>() {
             private boolean advance  = true;
             private T current = null;
@@ -87,6 +87,10 @@ public interface Sequence<T> extends Iterable<T>, AutoCloseable {
     
     default T nullItem() {
         return null;
+    }
+    
+    default SequenceKind kind() {
+        return SequenceKind.GENERIC_REGULAR;
     }
     
     @SuppressWarnings("unchecked")

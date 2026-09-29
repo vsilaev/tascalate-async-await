@@ -49,25 +49,21 @@ public interface AsyncGenerator<T> extends CustomizableSequence<CompletionStage<
         
         @suspendable SequenceIterator<T> iterator();
         
+        SequenceIterator<T> iterator(boolean exclusive);
+        
         @Override
         void close();
     }
 
     public static final class Sink<T> extends AsyncGeneratorSinkBase<T> {
-        Sink(long batchSize, Scheduler scheduler) {
-            super(batchSize, scheduler);
+        Sink(long batchSize) {
+            super(batchSize);
         }
     }
     
     public static final class Source<T> extends AsyncGeneratorSourceBase<T> {
-        Source(Sequence<? extends CompletionStage<? extends T>> sequence, Scheduler scheduler, Consumer<? super T> itemProcessor) {
-            super(sequence, scheduler, itemProcessor);
-        }
-        
-        @Override
-        Source<T> start() {
-            super.start();
-            return this;
+        Source(Sequence<? extends CompletionStage<? extends T>> sequence, Consumer<? super T> itemProcessor) {
+            super(sequence, itemProcessor);
         }
     }
     
@@ -171,7 +167,9 @@ public interface AsyncGenerator<T> extends CustomizableSequence<CompletionStage<
     }
 
     public static <T> Source<T> lazyFetch(Sequence<? extends CompletionStage<? extends T>> promises, Scheduler scheduler, Consumer<? super T> itemProcessor) {
-        return new Source<>(promises, scheduler, itemProcessor).start();
+        Source<T> result = new Source<>(promises, itemProcessor);
+        result.start(scheduler);
+        return result;
     }
     
     public static <T> AsyncGenerator<T> lazyEmit(Scheduler scheduler, Consumer<? super Sink<T>> subcriber) {
@@ -179,9 +177,9 @@ public interface AsyncGenerator<T> extends CustomizableSequence<CompletionStage<
     }
     
     public static <T> AsyncGenerator<T> lazyEmit(Scheduler scheduler, long batchSize, Consumer<? super Sink<T>> subcriber) {
-        Sink<T> emitter = new Sink<>(batchSize, scheduler);
+        Sink<T> emitter = new Sink<>(batchSize);
         subcriber.accept(emitter);
-        return emitter.start();
+        return emitter.start(scheduler);
     }
     
     public static <T> AsyncGenerator<T> emptyOn(Scheduler scheduler) {
@@ -200,6 +198,12 @@ public interface AsyncGenerator<T> extends CustomizableSequence<CompletionStage<
                 @SuppressWarnings("unchecked")
                 @Override
                 public SequenceIterator<T> iterator() {
+                    return (SequenceIterator<T>) OrderedSequence.EMPTY_ITERATOR;
+                }
+                
+                @SuppressWarnings("unchecked")
+                @Override
+                public SequenceIterator<T> iterator(boolean exclusive) {
                     return (SequenceIterator<T>) OrderedSequence.EMPTY_ITERATOR;
                 }
 

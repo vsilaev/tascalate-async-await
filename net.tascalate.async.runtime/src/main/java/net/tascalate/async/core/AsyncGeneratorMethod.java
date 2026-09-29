@@ -29,7 +29,7 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
 import java.util.concurrent.CompletionStage;
 
-import net.tascalate.async.AsyncYield;
+import net.tascalate.async.TAsyncYield;
 import net.tascalate.async.AsyncGenerator;
 import net.tascalate.async.Scheduler;
 import net.tascalate.async.Sequence;
@@ -88,16 +88,16 @@ abstract public class AsyncGeneratorMethod<T> extends AbstractAsyncMethod {
     protected final AsyncGenerator<T> emit() {
         return generator;
     }
-    
-    protected @suspendable final AsyncYield.Reply<T> emit(T readyValue) {
+
+    protected @suspendable final TAsyncYield.Reply<T> emit(T readyValue) {
         return generator.emit(Sequence.just(CompletableFuture.completedFuture(readyValue)));
     }
 
-    protected @suspendable final AsyncYield.Reply<T> emit(CompletionStage<T> pendingValue) {
+    protected @suspendable final TAsyncYield.Reply<T> emit(CompletionStage<T> pendingValue) {
         return generator.emit(Sequence.just(pendingValue));
     }
 
-    protected @suspendable final AsyncYield.Reply<T> emit(Sequence<? extends CompletionStage<T>> pendignValues) {
+    protected @suspendable final TAsyncYield.Reply<T> emit(Sequence<? extends CompletionStage<T>> pendignValues) {
         return generator.emit(pendignValues);
     }
     

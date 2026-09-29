@@ -30,16 +30,13 @@ import java.util.function.Supplier;
 public final class ThreadVar<T> {
     private final ThreadLocal<T> threadLocal = new ThreadLocal<>(); 
     private final String name;
-    private final T sentinel;
     
-    public ThreadVar(String name, T sentinel) {
+    public ThreadVar(String name) {
         this.name = name;
-        this.sentinel = sentinel;
     }
     
     public T value() {
-        T result = threadLocal.get();
-        return result == sentinel ? null : result;
+        return threadLocal.get();
     }
 
     public void runWith(T newValue, Runnable code) {

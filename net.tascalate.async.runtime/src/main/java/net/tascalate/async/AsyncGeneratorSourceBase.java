@@ -30,33 +30,28 @@ import java.util.function.Consumer;
 
 import net.tascalate.async.core.AsyncMethodExecutor;
 import net.tascalate.async.core.AsyncTaskMethod;
-import net.tascalate.async.core.SequenceKind;
-import net.tascalate.async.core.SuspendableSequence;
+import net.tascalate.async.sequence.SequenceAccess;
 import net.tascalate.async.spi.MethodDefinition;
 
 abstract class AsyncGeneratorSourceBase<T> {
     private final Sequence<? extends CompletionStage<? extends T>> sequence;
-    private final Scheduler scheduler;
     private final Consumer<? super T> itemProcessor;
 
     private final AwaitableQueue<Counter> requests = new AwaitableQueue<>();
     
     private AsyncResult<Long> completion;
     
-    AsyncGeneratorSourceBase(Sequence<? extends CompletionStage<? extends T>> sequence, 
-                             Scheduler scheduler, 
+    AsyncGeneratorSourceBase(Sequence<? extends CompletionStage<? extends T>> sequence,
                              Consumer<? super T> itemProcessor) {
         this.sequence = sequence;
-        this.scheduler = scheduler;
         this.itemProcessor = itemProcessor;
     }
     
-    AsyncGeneratorSourceBase<T> start() {
-        completion = doStart();
-        return this;
+    void start(Scheduler scheduler) {
+        completion = doStart(scheduler);
     }
     
-    private AsyncResult<Long> doStart() {
+    private AsyncResult<Long> doStart(Scheduler scheduler) {
         Scheduler resolvedScheduler = AsyncMethodExecutor.currentScheduler(scheduler, this, MethodHandles.lookup(), MD_DO_START);
         AsyncTaskMethod<Long> method = new AsyncTaskMethod<Long>(resolvedScheduler) {
             @Override
@@ -74,15 +69,16 @@ abstract class AsyncGeneratorSourceBase<T> {
                                 // CompletionStage<? extends T> futureItem = sequence.next();
                                 CompletionStage<? extends T> futureItem;
                                 switch (kind) { 
-                                    case READY_VALUES:
-                                        futureItem = SuspendableSequence.nextReadyValue(sequence);
+                                    case READY_VALUES_CUSTOMIZABLE:                                
+                                    case READY_VALUES_REGULAR:
+                                        futureItem = SequenceAccess.nextReadyValue(sequence);
                                         break;
-                                    case SUSPENDABLE_CUSTOMIZABLE:
-                                    case SUSPENDABLE_REGULAR:                                   
-                                        futureItem = SuspendableSequence.nextSuspendable(sequence, this); 
+                                    case PENDING_VALUES_CUSTOMIZABLE:
+                                    case PENDING_VALUES_REGULAR:                                   
+                                        futureItem = SequenceAccess.nextPendingValue(sequence, this); 
                                         break;
-                                    case NON_SUSPENDABLE_CUSTOMIZABLE:
-                                    case NON_SUSPENDABLE_REGULAR:
+                                    case GENERIC_CUSTOMIZABLE:
+                                    case GENERIC_REGULAR:
                                         futureItem = sequence.next();
                                         break;
                                     default:

@@ -4,7 +4,7 @@
 
 	<groupId>net.tascalate.async</groupId>
 	<artifactId>net.tascalate.async.parent</artifactId>
-	<version>1.5.0</version>
+	<version>1.6.0</version>
 	<packaging>pom</packaging>
 
 	<name>Tascalate Async/Await</name>
@@ -35,8 +35,8 @@
 	</developers>
 
 	<modules>
-		<module>net.tascalate.async.runtime</module>
 		<module>net.tascalate.async.runtime-java25</module>
+		<module>net.tascalate.async.runtime</module>
 		<module>net.tascalate.async.resolver.propagated</module>
 		<module>net.tascalate.async.resolver.provided</module>
 		<module>net.tascalate.async.resolver.scoped</module>
@@ -47,6 +47,7 @@
 		<module>net.tascalate.async.agent</module>
 		<module>net.tascalate.async.extras</module>
 		<module>net.tascalate.async.reactor</module>
+		<module>net.tascalate.async.mutiny</module>
 		<module>net.tascalate.async.spring-java21</module>
 		<module>net.tascalate.async.spring</module>
 		<module>net.tascalate.async.spring.scheduler</module>
@@ -58,11 +59,11 @@
 
 	<properties>
 		<project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
-		<tascalate.concurrent.version>0.9.12</tascalate.concurrent.version>
-		<tascalate.javaflow.version>2.8.6</tascalate.javaflow.version>
+		<tascalate.concurrent.version>0.9.13</tascalate.concurrent.version>
+		<tascalate.javaflow.version>2.9.0</tascalate.javaflow.version>
 		<tascalate.javaflow.extras.version>2.5.0</tascalate.javaflow.extras.version>
-		<tascalate.asmx.version>9.9.1</tascalate.asmx.version>
-		<tascalate.instrument.version>1.7.0</tascalate.instrument.version>
+		<tascalate.asmx.version>9.10.1</tascalate.asmx.version>
+		<tascalate.instrument.version>1.8.0</tascalate.instrument.version>
 		<spring.version>5.3.0</spring.version>
 		<spring.boot.version>2.7.0</spring.boot.version>
 		<reactor.version>3.4.0</reactor.version>

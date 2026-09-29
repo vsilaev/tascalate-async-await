@@ -63,7 +63,7 @@ class FinalizerFuture <T> extends RestrictedCompletableFuture<T> {
     }
     
     static <T> CompletionStage<T> awaitDestructor(CompletionStage<T> result, boolean cancellationIsError, 
-                                                   BiFunction<Throwable, Boolean, CompletionStage<Void>> destructor) {
+                                                  BiFunction<Throwable, Boolean, CompletionStage<Void>> destructor) {
         FinalizerFuture<T> alt = new FinalizerFuture<>(result);
         result.handle((r, e) -> Outcome.create(r, e, cancellationIsError))
               .thenCompose(o -> o.composeWith(destructor))

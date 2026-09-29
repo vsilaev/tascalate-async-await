@@ -31,9 +31,9 @@ import java.util.stream.Stream;
 
 import net.tascalate.async.Sequence;
 import net.tascalate.async.SequenceIterator;
-import net.tascalate.async.core.ReadyValueSequence;
+import net.tascalate.async.SequenceKind;
 
-public class OrderedSequence<T> extends ReadyValueSequence<T> {
+public class OrderedSequence<T> extends ReadyValuesSequence<T> {
     
     public static final SequenceIterator.Closeable<Object> EMPTY_ITERATOR = new SequenceIterator.Closeable<Object>() {
 
@@ -53,10 +53,15 @@ public class OrderedSequence<T> extends ReadyValueSequence<T> {
         
     };
     
-    public static final Sequence<Object> EMPTY_SEQUENCE = new ReadyValueSequence<Object>() {
+    public static final Sequence<Object> EMPTY_SEQUENCE = new ReadyValuesSequence<Object>() {
 
         @Override
-        protected CompletionStage<Object> next_() {
+        public SequenceKind kind() {
+            return SequenceKind.READY_VALUES_REGULAR;
+        }
+
+        @Override
+        protected CompletionStage<Object> takeNext() {
             return null;
         }
 
@@ -80,7 +85,12 @@ public class OrderedSequence<T> extends ReadyValueSequence<T> {
     }
     
     @Override
-    protected T next_() {
+    public SequenceKind kind() {
+        return SequenceKind.READY_VALUES_REGULAR;
+    }
+    
+    @Override
+    protected T takeNext() {
         if (closed) {
             return null;
         }
@@ -107,12 +117,17 @@ public class OrderedSequence<T> extends ReadyValueSequence<T> {
     }
     
     public static <T> Sequence<T> just(T value) {
-        return new ReadyValueSequence<T>() {
+        return new ReadyValuesSequence<T>() {
             
             private volatile boolean closed = false;
 
             @Override
-            protected T next_() {
+            public SequenceKind kind() {
+                return SequenceKind.READY_VALUES_REGULAR;
+            }
+
+            @Override
+            protected T takeNext() {
                 if (closed) {
                     return null;
                 }

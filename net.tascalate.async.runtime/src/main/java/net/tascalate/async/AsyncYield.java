@@ -24,10 +24,8 @@
  */
 package net.tascalate.async;
 
-import java.util.concurrent.CompletionStage;
-
-public final class AsyncYield<T> {
-    
+public final class AsyncYield<T> extends TAsyncYield<T, AsyncGenerator<T>> {
+    /*
     public final static class Reply<T> {
         
         final public T value;
@@ -43,9 +41,9 @@ public final class AsyncYield<T> {
             return String.format("%s[value=%s, param=%s]", getClass().getSimpleName(), value, param);
         }
     }
-    
+    */
     private AsyncYield() {}
-    
+    /*
     public AsyncGenerator<T> yield() {
         return CallContext.methodCallMustBeReplaced();
     }
@@ -61,6 +59,6 @@ public final class AsyncYield<T> {
     public @suspendable final <R extends T> Reply<R> yield(Sequence<? extends CompletionStage<R>> values) {
         return CallContext.methodCallMustBeReplaced();
     }
-    
+    */
     static final AsyncYield<Object> INSTANCE = new AsyncYield<>();
 }

@@ -50,14 +50,12 @@ abstract class AsyncGeneratorSinkBase<T> {
     private final AwaitableQueue<Command<T>> commands = new AwaitableQueue<>();
     
     private final long batchSize;
-    private final Scheduler scheduler;
     
     private LongConsumer requestItemsOp;
     private Runnable cancelOp;
     
-    AsyncGeneratorSinkBase(long batchSize, Scheduler scheduler) {
+    AsyncGeneratorSinkBase(long batchSize) {
         this.batchSize = batchSize;
-        this.scheduler = scheduler;
     }
     
     public void subscribe(LongConsumer requestItemsOp, Runnable cancelOp) {
@@ -90,7 +88,7 @@ abstract class AsyncGeneratorSinkBase<T> {
         cancelOp.run();
     }
     
-    AsyncGenerator<T> start() {
+    AsyncGenerator<T> start(Scheduler scheduler) {
         Scheduler resolvedScheduler = AsyncMethodExecutor.currentScheduler(scheduler, this, MethodHandles.lookup(), MD_START);
         AsyncGeneratorMethod<T> method = new AsyncGeneratorMethod<T>(resolvedScheduler) {
             @Override

@@ -35,13 +35,13 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
-import java.util.function.BiPredicate;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import net.tascalate.asmx.plus.ClassHierarchy;
 import net.tascalate.asmx.tree.ClassNode;
 import net.tascalate.asmx.tree.FieldNode;
 import net.tascalate.asmx.tree.MethodNode;
@@ -51,10 +51,9 @@ final class AsyncAwaitClassState {
     
     final ClassNode classNode;
     
-    private final BiPredicate<String, String> subclassCheck;
+    private final ClassHierarchy classHierarchy;
     private final Function<String, ClassNode> resolveClassNode;
     private final Map<String, List<String>> nestMemberRequest;
-    
     private final Map<String, AsyncAwaitClassState> superclasses = new HashMap<>();
 
     // Original method's "method name + method desc" -> Access method's
@@ -65,13 +64,16 @@ final class AsyncAwaitClassState {
     private final Set<String> accessMethodNames;
     private final Set<String> innerClassNames;
 
-    AsyncAwaitClassState(ClassNode classNode, BiPredicate<String, String> subclassCheck, Function<String, ClassNode> resolveClassNode, Map<String, List<String>> nestMemberRequest) {
-        this(classNode, subclassCheck, resolveClassNode, nestMemberRequest, false);
+    AsyncAwaitClassState(ClassNode classNode, 
+                         ClassHierarchy classHierarchy, 
+                         Function<String, ClassNode> resolveClassNode, 
+                         Map<String, List<String>> nestMemberRequest) {
+        this(classNode, classHierarchy, resolveClassNode, nestMemberRequest, false);
     }
     
-    AsyncAwaitClassState(ClassNode classNode, BiPredicate<String, String> subclassCheck, Function<String, ClassNode> resolveClassNode, Map<String, List<String>> nestMemberRequest, boolean minimal) {
+    AsyncAwaitClassState(ClassNode classNode, ClassHierarchy classHierarchy, Function<String, ClassNode> resolveClassNode, Map<String, List<String>> nestMemberRequest, boolean minimal) {
         this.classNode = classNode;
-        this.subclassCheck = subclassCheck;
+        this.classHierarchy = classHierarchy;
         this.resolveClassNode = resolveClassNode;
         this.nestMemberRequest = nestMemberRequest;
         
@@ -167,15 +169,15 @@ final class AsyncAwaitClassState {
         if (classNode == this.classNode || classNode.name.equals(this.classNode.name)) {
             return this;
         }
-        return new AsyncAwaitClassState(classNode, subclassCheck, resolveClassNode, nestMemberRequest, true);
+        return new AsyncAwaitClassState(classNode, classHierarchy, resolveClassNode, nestMemberRequest, true);
     }
     
     boolean isSubClassOf(String maybeParentClass) {
-        return subclassCheck.test(classNode.name, maybeParentClass);
+        return classHierarchy.isSubClass(classNode.name, maybeParentClass);
     }
     
     boolean isSubclassOf(String className, String maybeParentClass) {
-        return subclassCheck.test(className, maybeParentClass);
+        return classHierarchy.isSubClass(className, maybeParentClass);
     }
     
     void registerAccessMethod(String owner, String name, String desc, String kind, MethodNode methodNode) {
@@ -221,5 +223,17 @@ final class AsyncAwaitClassState {
         }
 
         return found;
+    }
+    
+    ReactiveExtension getExtension(String maybeExtensionClass, ReactiveTypeCardinality cardinality) {
+        return typedLoader().getExtension(maybeExtensionClass, cardinality);
+    }
+    
+    ReactiveExtension getExtensionByReactiveType(String reactiveType) {
+        return typedLoader().getExtensionByReactiveType(reactiveType);
+    }
+    
+    private AsmxResourceLoader typedLoader() {
+        return (AsmxResourceLoader)classHierarchy.loader();
     }
 }

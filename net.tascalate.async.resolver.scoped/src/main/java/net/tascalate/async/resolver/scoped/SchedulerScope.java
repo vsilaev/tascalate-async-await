@@ -33,8 +33,7 @@ import net.tascalate.async.spi.ThreadVar;
 public enum SchedulerScope {
     DEFAULTS, DEFAULTS_OVERRIDE, PROVIDER_OVERRIDE;
     
-    private final ThreadVar<Scheduler> threadVar =
-        new ThreadVar<Scheduler>("SchedulerScope", AbstractScopedScheduler.SENTINEL);
+    private final ThreadVar<Scheduler> threadVar = new ThreadVar<Scheduler>("SchedulerScope");
     
     public void runWith(Scheduler ctxExecutor, Runnable code) {
        threadVar.runWith(ctxExecutor, code); 

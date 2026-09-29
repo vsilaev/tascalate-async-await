@@ -58,6 +58,7 @@ import net.tascalate.asmx.tree.FieldInsnNode;
 import net.tascalate.asmx.tree.FieldNode;
 import net.tascalate.asmx.tree.InnerClassNode;
 import net.tascalate.asmx.tree.InsnList;
+import net.tascalate.asmx.tree.InsnNode;
 import net.tascalate.asmx.tree.InvokeDynamicInsnNode;
 import net.tascalate.asmx.tree.LabelNode;
 import net.tascalate.asmx.tree.LocalVariableAnnotationNode;
@@ -72,15 +73,22 @@ abstract public class AbstractAsyncMethodTransformer {
 
     static final String ASYNC_ANNOTATION_DESCRIPTOR = Type.getObjectType("net/tascalate/async/async").getDescriptor();
     
-    protected final static String CALL_CONTEXT_NAME = "net/tascalate/async/CallContext";
+    static final Type ASYNC_GENERATOR_TYPE    = Type.getObjectType("net/tascalate/async/AsyncGenerator");
+    static final Type COMPLETABLE_FUTURE_TYPE = Type.getObjectType("java/util/concurrent/CompletableFuture");
+    static final Type TASCALATE_PROMISE_TYPE  = Type.getObjectType("net/tascalate/concurrent/Promise");
+
     
     protected final static Type SUSPENDABLE_ANNOTATION_TYPE = Type.getObjectType("net/tascalate/async/suspendable");
     protected final static Type COMPLETION_STAGE_TYPE       = Type.getObjectType("java/util/concurrent/CompletionStage");
     protected final static Type OBJECT_TYPE                 = Type.getType(Object.class);
     protected final static Type ASYNC_METHOD_EXECUTOR_TYPE  = Type.getObjectType("net/tascalate/async/core/AsyncMethodExecutor");
     protected final static Type SCHEDULER_TYPE              = Type.getObjectType("net/tascalate/async/Scheduler");
-    
+    protected final static Type SEQUENCE_TYPE               = Type.getObjectType("net/tascalate/async/Sequence");
+
     protected final static Type ABSTRACT_ASYNC_METHOD_TYPE  = Type.getObjectType("net/tascalate/async/core/AbstractAsyncMethod");
+    
+    private final static String TASYNC_YIELD_NAME         = "net/tascalate/async/TAsyncYield";
+    private final static String CALL_CONTEXT_NAME         = "net/tascalate/async/CallContext";
 
     private final static Type STRING_TYPE                 = Type.getType(String.class);
     private final static Type CLASS_TYPE                  = Type.getType(Class.class);    
@@ -88,13 +96,13 @@ abstract public class AbstractAsyncMethodTransformer {
     private final static Type METHOD_HANDLES_LOOKUP_TYPE  = Type.getType(MethodHandles.Lookup.class);
     private final static Type METHOD_DEFINITION_TYPE      = Type.getObjectType("net/tascalate/async/spi/MethodDefinition");
     private final static Type SCHEDULER_PROVIDER_TYPE     = Type.getObjectType("net/tascalate/async/SchedulerProvider");
-    private final static Type SEQUENCE_TYPE               = Type.getObjectType("net/tascalate/async/Sequence");
     private final static Type CUSTOMIZABLE_SEQUENCE_TYPE  = Type.getObjectType("net/tascalate/async/CustomizableSequence");
-    private final static Type SUSPENDABLE_SEQUENCE_TYPE   = Type.getObjectType("net/tascalate/async/core/SuspendableSequence");
-    private final static Type TASCALATE_PROMISE_TYPE      = Type.getObjectType("net/tascalate/concurrent/Promise");
-    private final static Type TASCALATE_PROMISES_TYPE     = Type.getObjectType("net/tascalate/concurrent/Promises");
+    private final static Type SEQUENCE_ACESS_TYPE         = Type.getObjectType("net/tascalate/async/sequence/SequenceAccess");
     
-    private final AsyncAwaitClassState classState;
+    private final static Type READY_VALUES_SEQUENCE_TYPE   = Type.getObjectType("net/tascalate/async/sequence/ReadyValuesSequence");
+    private final static Type PENDING_VALUES_SEQUENCE_TYPE = Type.getObjectType("net/tascalate/async/sequence/PendingValuesSequence");
+
+    protected final AsyncAwaitClassState classState;
 
     protected final ClassNode classNode;
     protected final MethodNode originalAsyncMethod;
@@ -466,12 +474,7 @@ abstract public class AbstractAsyncMethodTransformer {
             result.visitFieldInsn(
                 GETFIELD, runnableBaseClass.getInternalName(), runnableFieldName, runnableFieldType.getDescriptor()
             );
-            if (TASCALATE_PROMISE_TYPE.equals(returnType)) {
-                result.visitMethodInsn(
-                    INVOKESTATIC, TASCALATE_PROMISES_TYPE.getInternalName(), "from", 
-                    Type.getMethodDescriptor(TASCALATE_PROMISE_TYPE, COMPLETION_STAGE_TYPE), false
-                ); 
-            }
+            convertAsyncMethodResult(result, returnType);
             result.visitInsn(ARETURN);
         } else {
             result.visitInsn(RETURN);
@@ -485,6 +488,8 @@ abstract public class AbstractAsyncMethodTransformer {
         result.visitEnd();
         return result;
     }
+    
+    abstract void convertAsyncMethodResult(MethodVisitor mv, Type returnType); 
 
     protected Object[] findOwnerInvokeDynamic(AbstractInsnNode instruction, List<MethodNode> ownerMethods) {
         if (instruction instanceof InvokeDynamicInsnNode) {
@@ -911,7 +916,7 @@ abstract public class AbstractAsyncMethodTransformer {
         return classState.getAccessMethod(owner, name, desc, kind);
     }
     
-    protected boolean optimizeSequenceNext(InsnList instructions, MethodInsnNode min) {
+    private boolean optimizeSequenceNext(InsnList instructions, MethodInsnNode min) {
         if ((min.getOpcode() == INVOKEVIRTUAL || 
              min.getOpcode() == INVOKEINTERFACE) && 
             "next".equals(min.name) &&
@@ -920,23 +925,58 @@ abstract public class AbstractAsyncMethodTransformer {
             Type[] argTypes = Type.getArgumentTypes(min.desc);
             int argCount = argTypes.length;
             if (argCount == 0 || (argCount == 1 && OBJECT_TYPE.equals(argTypes[0]))) {
-                instructions.add(new VarInsnNode(ALOAD, 0));
-                instructions.add(
-                    new MethodInsnNode(INVOKESTATIC, 
-                                       SUSPENDABLE_SEQUENCE_TYPE.getInternalName(), 
-                                       "$$$next$$$", 
-                                       argCount == 0
-                                       ?
-                                       Type.getMethodDescriptor(OBJECT_TYPE, SEQUENCE_TYPE, 
-                                                                             ABSTRACT_ASYNC_METHOD_TYPE)
-                                       :
-                                       Type.getMethodDescriptor(OBJECT_TYPE, CUSTOMIZABLE_SEQUENCE_TYPE,
-                                                                             OBJECT_TYPE,
-                                                                             ABSTRACT_ASYNC_METHOD_TYPE), 
-                                       false
-                    )
-                );
-                return true;
+                if (classState.isSubclassOf(min.owner, READY_VALUES_SEQUENCE_TYPE.getInternalName())) {
+                    instructions.add(
+                        new MethodInsnNode(INVOKESTATIC, 
+                                           SEQUENCE_ACESS_TYPE.getInternalName(), 
+                                           "nextReadyValue", 
+                                           argCount == 0
+                                           ?
+                                           Type.getMethodDescriptor(OBJECT_TYPE, SEQUENCE_TYPE)
+                                           :
+                                           Type.getMethodDescriptor(OBJECT_TYPE, SEQUENCE_TYPE,
+                                                                                 OBJECT_TYPE), 
+                                           false
+                        )
+                    );
+                    return true;              
+                } else if (classState.isSubclassOf(min.owner, PENDING_VALUES_SEQUENCE_TYPE.getInternalName())) {
+                    instructions.add(new VarInsnNode(ALOAD, 0));
+                    instructions.add(
+                        new MethodInsnNode(INVOKESTATIC, 
+                                           SEQUENCE_ACESS_TYPE.getInternalName(), 
+                                           "nextPendingValue", 
+                                           argCount == 0
+                                           ?
+                                           Type.getMethodDescriptor(OBJECT_TYPE, SEQUENCE_TYPE, 
+                                                                                 ABSTRACT_ASYNC_METHOD_TYPE)
+                                           :
+                                           Type.getMethodDescriptor(OBJECT_TYPE, SEQUENCE_TYPE,
+                                                                                 OBJECT_TYPE,
+                                                                                 ABSTRACT_ASYNC_METHOD_TYPE), 
+                                           false
+                        )
+                    );                    
+                    return true;                    
+                } else {
+                    instructions.add(new VarInsnNode(ALOAD, 0));
+                    instructions.add(
+                        new MethodInsnNode(INVOKESTATIC, 
+                                           SEQUENCE_ACESS_TYPE.getInternalName(), 
+                                           "__next", 
+                                           argCount == 0
+                                           ?
+                                           Type.getMethodDescriptor(OBJECT_TYPE, SEQUENCE_TYPE, 
+                                                                                 ABSTRACT_ASYNC_METHOD_TYPE)
+                                           :
+                                           Type.getMethodDescriptor(OBJECT_TYPE, CUSTOMIZABLE_SEQUENCE_TYPE,
+                                                                                 OBJECT_TYPE,
+                                                                                 ABSTRACT_ASYNC_METHOD_TYPE), 
+                                           false
+                        )
+                    );
+                    return true;
+                }
             }
         }
         return false;
@@ -1071,5 +1111,165 @@ abstract public class AbstractAsyncMethodTransformer {
             );
         }
         return result.toString();
+    }
+    
+    protected boolean handleCommonSyntax(InsnList newInstructions, MethodInsnNode min, Type generatedRunnableType) {
+        if (handleAwait(newInstructions, min)) {
+            return true;
+        }
+
+        if (min.getOpcode() == INVOKESTATIC && CALL_CONTEXT_NAME.equals(min.owner)) {
+            switch (min.name) {
+                case "interrupted":
+                    newInstructions.add(new VarInsnNode(ALOAD, 0));
+                    newInstructions.add(new MethodInsnNode(INVOKEVIRTUAL, 
+                                                           generatedRunnableType.getInternalName(),
+                                                           "interrupted", 
+                                                           Type.getMethodDescriptor(Type.BOOLEAN_TYPE), 
+                                                           false));
+                    return true;
+                case "scheduler":
+                    newInstructions.add(new VarInsnNode(ALOAD, 0));
+                    newInstructions.add(new MethodInsnNode(INVOKEVIRTUAL, 
+                                                           generatedRunnableType.getInternalName(),
+                                                           "scheduler", 
+                                                           Type.getMethodDescriptor(SCHEDULER_TYPE), 
+                                                           false));
+                    return true;
+                case "throwing":
+                    int exceptionTypesCount = Type.getArgumentTypes(min.desc).length;
+                    // POP-out method arguments from stack
+                    for (int i = exceptionTypesCount; i > 0; i--) {
+                        newInstructions.add(new InsnNode(POP));
+                    }
+                    return true;
+            }
+        } else if (optimizeSequenceNext(newInstructions, min)) {
+            return true;
+        }
+        return handleGenerator(newInstructions, min, generatedRunnableType);
+    }
+    
+    private boolean handleAwait(InsnList newInstructions, MethodInsnNode min) {
+        ReactiveExtension rxe = null;
+        if (min.getOpcode() == INVOKESTATIC && CALL_CONTEXT_NAME.equals(min.owner) && "await".equals(min.name) || 
+            (rxe = checkExtensionAwaitCall(min)) != null) {
+            
+            if (!CALL_CONTEXT_NAME.equals(min.owner)) {
+                newInstructions.add(new MethodInsnNode(INVOKESTATIC, 
+                                                       rxe.implementationInternalName(), 
+                                                       "__convert", 
+                                                       Type.getMethodDescriptor(COMPLETION_STAGE_TYPE, rxe.reactiveType), 
+                                                       false));
+            }
+            newInstructions.add(new VarInsnNode(ALOAD, 0));
+            newInstructions.add(new MethodInsnNode(INVOKESTATIC, 
+                                                   ASYNC_METHOD_EXECUTOR_TYPE.getInternalName(), 
+                                                   "await", 
+                                                   Type.getMethodDescriptor(OBJECT_TYPE, COMPLETION_STAGE_TYPE, ABSTRACT_ASYNC_METHOD_TYPE), 
+                                                   false));
+            return true;
+        } else {
+            return false;
+        }
+    }
+    
+    private boolean handleGenerator(InsnList newInstructions, MethodInsnNode min, Type generatedRunnableType) {
+        ReactiveExtension rxe;
+        if (min.getOpcode() == INVOKESTATIC && "generator".equals(min.name) &&
+            (rxe = checkExtensionGeneratorCall(min)) != null) {
+            
+            newInstructions.add(new VarInsnNode(ALOAD, 0));
+            newInstructions.add(new MethodInsnNode(INVOKEVIRTUAL, 
+                                                   generatedRunnableType.getInternalName(),
+                                                   "scheduler", 
+                                                   Type.getMethodDescriptor(SCHEDULER_TYPE), 
+                                                   false));    
+            
+            newInstructions.add(
+                    new MethodInsnNode(INVOKESTATIC, 
+                                       rxe.implementationInternalName(), 
+                                       "__convert", 
+                                       Type.getMethodDescriptor(AsyncGeneratorMethodTransformer.ASYNC_GENERATOR_TYPE, rxe.reactiveType, SCHEDULER_TYPE), 
+                                       false));
+            return true;
+        } else {
+            return false;
+        }
+    }
+    
+    protected boolean isAsyncCall(MethodInsnNode min) {
+        return
+        min.getOpcode() == INVOKESTATIC && CALL_CONTEXT_NAME.equals(min.owner) && "async".equals(min.name) ||
+        isExtensionAsyncCall(min);
+    }
+    
+    protected boolean isYieldCall(MethodInsnNode min) {
+        return
+        min.getOpcode() == INVOKEVIRTUAL && "yield".equals(min.name) && Type.getArgumentTypes(min.desc).length < 2 &&
+        (TASYNC_YIELD_NAME.equals(min.owner) || classState.isSubclassOf(min.owner, TASYNC_YIELD_NAME));
+    }
+
+    
+    private boolean isExtensionAsyncCall(MethodInsnNode min) {
+        ReactiveExtension rxe = classState.getExtension(min.owner, ReactiveTypeCardinality.ONE);
+        //return null != rxe && isValidExtensionAsyncSignature(min, rxe.reactiveType, rxe.method);
+        return null != rxe && isValidExtensionSignature(min, rxe.method, rxe.reactiveType, OBJECT_TYPE);
+    }
+    
+    private ReactiveExtension checkExtensionAwaitCall(MethodInsnNode min) {
+        ReactiveExtension rxe = classState.getExtension(min.owner, ReactiveTypeCardinality.ONE);
+        //return rxe != null && isValidExtensionAwaitSignature(min);
+        return rxe != null && isValidExtensionSignature(min, "await", OBJECT_TYPE, rxe.reactiveType)
+               ? rxe : null;
+    }
+    
+    private ReactiveExtension checkExtensionGeneratorCall(MethodInsnNode min) {
+        ReactiveExtension rxe = classState.getExtension(min.owner, ReactiveTypeCardinality.MANY);
+        return null != rxe && isValidExtensionSignature(min, "generator", ASYNC_GENERATOR_TYPE, rxe.reactiveType)
+               ? rxe : null;
+    }
+    
+    /*
+    private static boolean isValidExtensionAwaitSignature(MethodInsnNode min) {
+        boolean valid =
+        !min.itf &&
+        min.getOpcode() == INVOKESTATIC &&
+        "await".equals(min.name);
+        if (!valid) {
+            return false;
+        }
+        Type args[] = Type.getArgumentTypes(min.desc);
+        return args.length == 1 && OBJECT_TYPE.equals(Type.getReturnType(min.desc));
+    }
+    
+    private static boolean isValidExtensionAsyncSignature(MethodInsnNode min, Type resultType, String expectedMethodName) {
+        boolean valid =
+        !min.itf &&
+        min.getOpcode() == INVOKESTATIC &&
+        expectedMethodName.equals(min.name);
+        if (!valid) {
+            return false;
+        }
+        Type args[] = Type.getArgumentTypes(min.desc);
+        return args.length == 1 && resultType.equals(Type.getReturnType(min.desc));
+    }
+    */
+    
+    private static boolean isValidExtensionSignature(MethodInsnNode min, 
+                                                     String expectedMethodName,
+                                                     Type resultType, 
+                                                     Type argumentType) {
+        boolean valid =
+        !min.itf &&
+        min.getOpcode() == INVOKESTATIC &&
+        expectedMethodName.equals(min.name);
+        if (!valid) {
+            return false;
+        }
+        Type args[] = Type.getArgumentTypes(min.desc);
+        return args.length == 1 && 
+               resultType.equals(Type.getReturnType(min.desc)) &&
+               args[0].equals(argumentType);
     }
 }

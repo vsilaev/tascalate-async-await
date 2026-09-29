@@ -24,7 +24,9 @@
  */
 package net.tascalate.async.reactor;
 
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionStage;
+import java.util.function.Function;
 import java.util.function.Supplier;
 
 import org.reactivestreams.Subscription;
@@ -32,14 +34,25 @@ import org.reactivestreams.Subscription;
 import net.tascalate.async.AsyncGenerator;
 import net.tascalate.async.Scheduler;
 import net.tascalate.async.Sequence;
+import net.tascalate.async.core.CompletionStageHelper;
 import reactor.core.publisher.BaseSubscriber;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.FluxSink;
+import reactor.core.publisher.Mono;
 
 public final class ReactorAsyncAwaitBridge {
     
     private ReactorAsyncAwaitBridge() {
         
+    }
+    
+    public static <T> Mono<T> mono(CompletionStage<T> completionStage) {
+        return Mono.fromCompletionStage(completionStage)
+                   .doOnCancel(() -> CompletionStageHelper.cancelCompletionStage(completionStage, true));
+    }
+    
+    public static <T> CompletableFuture<T> promise(Mono<T> mono) {
+        return mono.toFuture();
     }
     
     public static <T> AsyncGenerator<T> createGenerator(Flux<? extends T> coldFlux, Scheduler asyncAwaitScheduler) {
@@ -80,39 +93,53 @@ public final class ReactorAsyncAwaitBridge {
         });
     }
     
-    public static <T> Flux<T> createFlux(Supplier<? extends AsyncGenerator<? extends T>> sourceFactory) {
-        return Flux.create(sink -> {
-            AsyncGenerator<? extends T> source = sourceFactory.get(); 
-            connectSourceAndSink(source.lazyFetch(sink::next), sink);
-        }, FluxSink.OverflowStrategy.ERROR);
+    public static <T> Flux<T> createFlux(AsyncGenerator<? extends T> generator) {
+        return createFlux(sink -> generator.lazyFetch(sink::next), false);
     }
     
-    public static <T> Flux<T> createFlux(Supplier<? extends Sequence<? extends CompletionStage<? extends T>>> sourceFactory, Scheduler asyncAwaitScheduler) {
-        return Flux.create(sink -> {
-            Sequence<? extends CompletionStage<? extends T>> source = sourceFactory.get();
-            connectSourceAndSink(AsyncGenerator.lazyFetch(source, asyncAwaitScheduler, sink::next), sink);
-        }, FluxSink.OverflowStrategy.ERROR);
+    public static <T> Flux<T> createFlux(Supplier<? extends AsyncGenerator<? extends T>> generatorFactory) {
+        return createFlux(generatorFactory, true);
     }
     
-    private static <T> void connectSourceAndSink(AsyncGenerator.Source<? extends T> source, FluxSink<T> sink) {
-        sink.onCancel(() -> source.cancel());
-        
-        sink.onRequest(count -> {
-            boolean requestAll = Long.MAX_VALUE == count;
-            if (requestAll) {
-                source.requestAll();
-            } else {
-                source.requestNext(count);    
-            }
-        });
+    public static <T> Flux<T> createFlux(Supplier<? extends AsyncGenerator<? extends T>> generatorFactory, boolean shared) {
+        return createFlux(sink -> generatorFactory.get().lazyFetch(sink::next), shared);
+    }
+    
+    public static <T> Flux<T> createFlux(Sequence<? extends CompletionStage<? extends T>> sequence, Scheduler asyncAwaitScheduler) {
+        return createFlux(() -> sequence, asyncAwaitScheduler, false);
+    }
+    
+    public static <T> Flux<T> createFlux(Supplier<? extends Sequence<? extends CompletionStage<? extends T>>> sequenceFactory, Scheduler asyncAwaitScheduler) {
+        return createFlux(sequenceFactory, asyncAwaitScheduler, true);
+    }
+    
+    public static <T> Flux<T> createFlux(Supplier<? extends Sequence<? extends CompletionStage<? extends T>>> sequenceFactory, Scheduler asyncAwaitScheduler, boolean shared) {
+        return createFlux(sink -> AsyncGenerator.lazyFetch(sequenceFactory.get(), asyncAwaitScheduler, sink::next), shared);
+    }
+    
+    private static <T> Flux<T> createFlux(Function<? super FluxSink<T>, ? extends AsyncGenerator.Source<? extends T>> sourceFactory, boolean shared) {
+        Flux<T> upstream = Flux.<T>create(sink -> {
+            AsyncGenerator.Source<? extends T> source = sourceFactory.apply(sink);
+            
+            sink.onCancel(() -> source.cancel());
+            
+            sink.onRequest(count -> {
+                boolean requestAll = Long.MAX_VALUE == count;
+                if (requestAll) {
+                    source.requestAll();
+                } else {
+                    source.requestNext(count);    
+                }
+            });
 
-        source.completion().whenComplete((r, e) -> {
-            if (null == e) {
-                sink.complete();
-            } else {
-                sink.error(e);
-            }
-        });
-        
+            source.completion().whenComplete((r, e) -> {
+                if (null == e) {
+                    sink.complete();
+                } else {
+                    sink.error(e);
+                }
+            });
+        }, FluxSink.OverflowStrategy.ERROR);
+        return shared ? upstream.share() : upstream;        
     }
 }

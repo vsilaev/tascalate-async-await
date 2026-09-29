@@ -22,29 +22,42 @@
  * OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
-package net.tascalate.async.core;
+package net.tascalate.async.sequence;
 
 import java.util.NoSuchElementException;
 
 import net.tascalate.async.CustomizableSequence;
 import net.tascalate.async.Sequence;
 import net.tascalate.async.SequenceIterator;
+import net.tascalate.async.SequenceKind;
 import net.tascalate.async.suspendable;
+import net.tascalate.async.core.AbstractAsyncMethod;
+import net.tascalate.async.core.InternalCallContext;
 
-public abstract class SuspendableSequence<T> implements Sequence<T> {
+public abstract class PendingValuesSequence<T> implements Sequence<T> {
+    
+    @Override
+    public SequenceKind kind() {
+        return this instanceof CustomizableSequence 
+               ? SequenceKind.PENDING_VALUES_CUSTOMIZABLE
+               : SequenceKind.PENDING_VALUES_REGULAR;
+    }
 
-    public @suspendable SequenceIterator<T> iterator() {
+    @Override
+    public SequenceIterator<T> iterator() {
         return iterator(true, null);
     }
     
+    @Override
     public SequenceIterator<T> iterator(boolean exclusive) {
         return iterator(exclusive, null);
     }
     
     private SequenceIterator<T> iterator(boolean exclusive, AbstractAsyncMethod caller) {
         if (exclusive) {
-            AbstractAsyncMethod exactCaller = null != caller ? caller : InternalCallContext.asyncMethod();
+            
             return new SequenceIterator.Closeable<T>() {
+                private AbstractAsyncMethod exactCaller = caller;
                 private boolean advance  = true;
                 private T current = null;
                 
@@ -67,19 +80,22 @@ public abstract class SuspendableSequence<T> implements Sequence<T> {
                 public void close() {
                     current = null;
                     advance = false;
-                    SuspendableSequence.this.close();
+                    PendingValuesSequence.this.close();
                 }
                 
                 protected @suspendable void advanceIfNecessary() {
                     if (advance) {
-                        current = SuspendableSequence.this.next$(exactCaller);
+                        if (null == exactCaller) {
+                            exactCaller = InternalCallContext.asyncMethod();
+                        }
+                        current = PendingValuesSequence.this.takeNext(exactCaller);
                     }
                     advance = false;
                 }
 
                 @Override
                 public String toString() {
-                    return String.format("ExclusiveSequenceIterator[owner=%s, current=%s]", SuspendableSequence.this, current);
+                    return String.format("ExclusiveSequenceIterator[owner=%s, current=%s]", PendingValuesSequence.this, current);
                 }            
             };
         } else {
@@ -88,55 +104,9 @@ public abstract class SuspendableSequence<T> implements Sequence<T> {
     }
     
     abstract 
-    protected @suspendable T next$(AbstractAsyncMethod caller);
+    protected @suspendable T takeNext(AbstractAsyncMethod caller);
     
-    protected @suspendable T next$(Object param, AbstractAsyncMethod caller) {
+    protected @suspendable T takeNext(Object param, AbstractAsyncMethod caller) {
         throw new UnsupportedOperationException();
     }
-    
-    public static @suspendable <T> T $$$next$$$(Sequence<? extends T> sequence, AbstractAsyncMethod caller) {
-        if (sequence instanceof SuspendableSequence) {
-            SuspendableSequence<? extends T> typedSequence = 
-                (SuspendableSequence<? extends T>)sequence;        
-            return typedSequence.next$(caller);
-        } else if (sequence instanceof ReadyValueSequence) {
-            ReadyValueSequence<? extends T> typedSequence = 
-                (ReadyValueSequence<? extends T>)sequence;
-            return typedSequence.next_();
-        } else {
-            return sequence.next();
-        }
-    }
-    
-    public static @suspendable <T> T $$$next$$$(CustomizableSequence<? extends T> sequence, Object param, AbstractAsyncMethod caller) {
-        if (sequence instanceof SuspendableSequence) {
-            @SuppressWarnings("unchecked")
-            SuspendableSequence<? extends T> typedSequence = 
-                (SuspendableSequence<? extends T>)sequence;        
-            return typedSequence.next$(param, caller);
-        } else {
-            return sequence.next(param);
-        }
-    }
-
-    
-    public static <T> T nextReadyValue(Sequence<? extends T> sequence) {
-        // Avoid @suspendable ceremony
-        ReadyValueSequence<? extends T> typedSequence = 
-            (ReadyValueSequence<? extends T>)sequence;
-        return typedSequence.next_();
-    }
-    
-    public static @suspendable <T> T nextSuspendable(Sequence<? extends T> sequence, AbstractAsyncMethod caller) {
-        SuspendableSequence<? extends T> typedSequence = 
-                (SuspendableSequence<? extends T>)sequence;        
-        return typedSequence.next$(caller);
-    }
-    
-    public static @suspendable <T> T nextSuspendable(Sequence<? extends T> sequence, Object param, AbstractAsyncMethod caller) {
-        SuspendableSequence<? extends T> typedSequence = 
-                (SuspendableSequence<? extends T>)sequence;        
-        return typedSequence.next$(param, caller);
-    }
-
 }

@@ -24,16 +24,32 @@
  */
 package net.tascalate.async.tools.core;
 
+import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStream;
+import java.io.InputStreamReader;
+import java.io.LineNumberReader;
+import java.net.URL;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.Enumeration;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.concurrent.locks.ReentrantLock;
 
 import org.apache.commons.javaflow.spi.ResourceLoader;
 
 class AsmxResourceLoader implements net.tascalate.asmx.plus.ResourceLoader {
     private final ResourceLoader loader;
+    private final ReentrantLock extensionsLock;
+    private Map<String, ReactiveExtension> extension2AsyncType1;
+    private Map<String, ReactiveExtension> extension2AsyncTypeN;
+    private Map<String, ReactiveExtension> asyncType2Extension;
     
     public AsmxResourceLoader(ResourceLoader loader) {
         this.loader = loader;
+        extensionsLock = new ReentrantLock();
     }
 
     @Override
@@ -46,5 +62,79 @@ class AsmxResourceLoader implements net.tascalate.asmx.plus.ResourceLoader {
         return loader.getResourceAsStream(name);
     }
     
+    @Override
+    public Enumeration<URL> getResources(String name) throws IOException {
+        return loader.getResources(name);
+    }
     
+    ReactiveExtension getExtension(String maybeExtensionClass, ReactiveTypeCardinality cardinality) {
+        ensureExtensionsLoaded();
+        switch (cardinality) {
+            case ONE: return extension2AsyncType1.get(maybeExtensionClass);
+            case MANY: return extension2AsyncTypeN.get(maybeExtensionClass);
+        }
+        throw new IllegalArgumentException("Unknown cardinality of the reactive type: " + cardinality);
+    }
+    
+    ReactiveExtension getExtensionByReactiveType(String asyncType) {
+        ensureExtensionsLoaded();
+        return asyncType2Extension.get(asyncType);
+    }
+    
+    private void ensureExtensionsLoaded() {
+        extensionsLock.lock();
+        try {
+            if (null != asyncType2Extension) {
+                return;
+            }
+            Map<String, ReactiveExtension> a2e = new HashMap<>();
+            Map<String, ReactiveExtension> e2a1 = new HashMap<>();
+            Map<String, ReactiveExtension> e2aN = new HashMap<>();
+            Enumeration<URL> allResources = getResources("META-INF/async-await.def");
+            while (allResources.hasMoreElements()) {
+                URL resource = allResources.nextElement();
+                List<ReactiveExtension> defs = parseExtensionDefinitions(resource);
+                defs.forEach(def -> {
+                   ReactiveExtension existing = a2e.get(def.reactiveType.getInternalName());
+                   String reactiveType = def.reactiveType.getInternalName();
+                   if (null != existing) {
+                       throw new IllegalStateException(String.format(
+                           "Ambiguos extension definition for reactive type %s. Confilcting resources:\n%s\n%s ", 
+                           reactiveType, existing.declaringResource, def.declaringResource));
+                   }
+                   a2e.put(reactiveType, def);
+                   Map<String, ReactiveExtension> target;
+                   switch (def.cardinality) {
+                       case ONE: target = e2a1; break;
+                       case MANY: target = e2aN; break;
+                       default: throw new IllegalStateException("Unknown reactive type cardinality in definition: " + def.cardinality);
+                   }
+                   target.put(def.implementationInternalName(), def);
+                });
+            }
+            asyncType2Extension = Collections.unmodifiableMap(a2e);
+            extension2AsyncType1 = Collections.unmodifiableMap(e2a1);
+            extension2AsyncTypeN = Collections.unmodifiableMap(e2aN);
+        } catch (IOException ex) {
+            throw new RuntimeException(ex);
+        } finally {
+            extensionsLock.unlock();
+        }
+    }
+    
+
+    private static List<ReactiveExtension> parseExtensionDefinitions(URL url) throws IOException {
+        List<ReactiveExtension> result = new ArrayList<>(); 
+        try (BufferedReader reader = new LineNumberReader(new InputStreamReader(url.openStream()))) {
+            String s; 
+            int lineIdx = 0;
+            while (null != (s = reader.readLine())) {
+                if (s.length() == 0 || s.startsWith("#")) {
+                    continue;
+                }
+                result.add(ReactiveExtension.parse(s, url, lineIdx++));
+            }
+        }
+        return result;
+    }
 }

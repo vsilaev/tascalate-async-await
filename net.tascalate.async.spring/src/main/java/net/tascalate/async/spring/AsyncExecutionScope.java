@@ -211,9 +211,7 @@ public class AsyncExecutionScope implements Scope {
         }
     }
     
-    private static final Frame INVALID_FRAME = new Frame();
-
-    private final ThreadVar<Frame> threadVar = new ThreadVar<>("AsyncExecutionScope", INVALID_FRAME);
+    private final ThreadVar<Frame> threadVar = new ThreadVar<>("AsyncExecutionScope");
 
     @Override
     public Object get(String name, ObjectFactory<?> objectFactory) {
@@ -261,7 +259,7 @@ public class AsyncExecutionScope implements Scope {
     }
     
     private static boolean isValidFrame(Frame frame) {
-        return frame != null && frame != INVALID_FRAME;
+        return frame != null;
     }
     
     <R> R withFrame(boolean createNewFrame, boolean inheritOldFrame, ThrowableFunction<Frame, R> call) throws Throwable {
@@ -275,7 +273,7 @@ public class AsyncExecutionScope implements Scope {
     <R> R withoutFrame(ThrowableFunction<Frame, R> call) throws Throwable {
         Frame previous = threadVar.value();
         if (isValidFrame(previous)) {
-            return callWithScope(previous, INVALID_FRAME, call);
+            return callWithScope(previous, null, call);
         } else {
             // No scope added
             return call.apply(null);
@@ -310,7 +308,7 @@ public class AsyncExecutionScope implements Scope {
     private <T> T callWithScope(Frame previousFrame, Frame newFrame, ThrowableFunction<Frame, T> call) throws Throwable {
         return threadVar.callWith(previousFrame, newFrame, () -> {
             try {
-                return call.apply(newFrame == INVALID_FRAME ? null : newFrame);
+                return call.apply(newFrame);
             } catch (Exception | Error ex) {
                 throw ex;
             } catch (Throwable ex) {

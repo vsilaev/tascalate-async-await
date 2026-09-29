@@ -58,17 +58,13 @@ public class AsyncAwaitClassFileGenerator {
 
     private final static Logger log = LoggerFactory.getLogger(AsyncAwaitClassFileGenerator.class);
     
-    private final static Type COMPLETION_STAGE_TYPE   = Type.getObjectType("java/util/concurrent/CompletionStage");
-    private final static Type COMPLETABLE_FUTURE_TYPE = Type.getObjectType("java/util/concurrent/CompletableFuture");
-    private final static Type ASYNC_RESULT_TYPE       = Type.getObjectType("net/tascalate/async/AsyncResult");
-    private final static Type TASCALATE_PROMISE_TYPE  = Type.getObjectType("net/tascalate/concurrent/Promise");
-    private final static Type ASYNC_GENERATOR_TYPE    = Type.getObjectType("net/tascalate/async/AsyncGenerator");
+    private final static Type ASYNC_RESULT_TYPE = Type.getObjectType("net/tascalate/async/AsyncResult");
     
     private static final Set<Type> ASYNC_TASK_RETURN_TYPES = 
-        Stream.of(COMPLETION_STAGE_TYPE, 
-                  COMPLETABLE_FUTURE_TYPE,
+        Stream.of(AbstractAsyncMethodTransformer.COMPLETION_STAGE_TYPE, 
+                  AbstractAsyncMethodTransformer.COMPLETABLE_FUTURE_TYPE,
                   ASYNC_RESULT_TYPE,
-                  TASCALATE_PROMISE_TYPE,
+                  AbstractAsyncMethodTransformer.TASCALATE_PROMISE_TYPE,
                   Type.VOID_TYPE)
                .collect(Collectors.toSet());
     
@@ -154,7 +150,7 @@ public class AsyncAwaitClassFileGenerator {
         Map<String, ClassNode> superclasses = new HashMap<>();
         
         AsyncAwaitClassState classState = new AsyncAwaitClassState(
-            classNode, classHierarchy::isSubClass, 
+            classNode, classHierarchy, 
             cn -> superclasses.computeIfAbsent(cn, this::resolveClass), 
             nestMemberRequest);
         
@@ -163,10 +159,17 @@ public class AsyncAwaitClassFileGenerator {
             if (classState.isAsyncMethod(methodNode)) {
                 Type returnType = Type.getReturnType(methodNode.desc);
                 AbstractAsyncMethodTransformer transformer = null;
-                if (ASYNC_TASK_RETURN_TYPES.contains(returnType)) {
+                ReactiveExtension rxe = null;
+                if (ASYNC_TASK_RETURN_TYPES.contains(returnType) || 
+                    (rxe = classState.getExtensionByReactiveType(returnType.getInternalName())) != null && rxe.cardinality == ReactiveTypeCardinality.ONE) {
+                    
                     transformer = new AsyncTaskMethodTransformer(classNode, methodNode, classState);
-                } else if (ASYNC_GENERATOR_TYPE.equals(returnType)) {
+                    
+                } else if (AbstractAsyncMethodTransformer.ASYNC_GENERATOR_TYPE.equals(returnType) || 
+                           (rxe = classState.getExtensionByReactiveType(returnType.getInternalName())) != null && rxe.cardinality == ReactiveTypeCardinality.MANY) {
+
                     transformer = new AsyncGeneratorMethodTransformer(classNode, methodNode, classState);
+                    
                 } else {
                     // throw ex?
                 }

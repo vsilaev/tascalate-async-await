@@ -32,9 +32,7 @@ import net.tascalate.async.spi.ThreadVar;
 
 public class InternalCallContext {
     
-    private static final Runnable NO_RUNNABLE = () -> {};
-    
-    static final ThreadVar<Runnable> CURRENT_ASYNC_CALL = new ThreadVar<Runnable>("<current-async-call>", NO_RUNNABLE);
+    static final ThreadVar<Runnable> CURRENT_ASYNC_CALL = new ThreadVar<Runnable>("<current-async-call>");
     
     private InternalCallContext() {}
     
@@ -58,7 +56,7 @@ public class InternalCallContext {
         }
     }
     
-    static AbstractAsyncMethod asyncMethod() {
+    public static AbstractAsyncMethod asyncMethod() {
         return asyncMethod(true);
     }
     

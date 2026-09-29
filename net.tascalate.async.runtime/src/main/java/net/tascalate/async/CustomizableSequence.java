@@ -25,5 +25,10 @@
 package net.tascalate.async;
 
 public interface CustomizableSequence<T> extends Sequence<T> {
+    @Override
+    default SequenceKind kind() {
+        return SequenceKind.GENERIC_CUSTOMIZABLE;
+    }
+    
     @suspendable T next(Object param);
 }

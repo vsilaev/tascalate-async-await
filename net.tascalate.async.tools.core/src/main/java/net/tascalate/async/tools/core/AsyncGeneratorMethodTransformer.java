@@ -54,13 +54,15 @@ import net.tascalate.asmx.tree.LabelNode;
 import net.tascalate.asmx.tree.MethodInsnNode;
 import net.tascalate.asmx.tree.MethodNode;
 import net.tascalate.asmx.tree.TryCatchBlockNode;
+import net.tascalate.asmx.tree.TypeInsnNode;
 import net.tascalate.asmx.tree.VarInsnNode;
 
 class AsyncGeneratorMethodTransformer extends AbstractAsyncMethodTransformer {
     private final static Type ASYNC_GENERATOR_METHOD_TYPE = Type.getObjectType("net/tascalate/async/core/AsyncGeneratorMethod");
     private final static Type LAZY_GENERATOR_TYPE         = Type.getObjectType("net/tascalate/async/core/LazyGenerator");
+    /*
     private final static String ASYNC_YIELD_NAME = "net/tascalate/async/AsyncYield";
-    
+    */
     AsyncGeneratorMethodTransformer(ClassNode classNode, MethodNode originalAsyncMethodNode, AsyncAwaitClassState classState) {
         super(classNode, originalAsyncMethodNode, classState);
     }
@@ -236,103 +238,11 @@ class AsyncGeneratorMethodTransformer extends AbstractAsyncMethodTransformer {
                         new MethodInsnNode(INVOKESTATIC, classNode.name, accessMethod.name, accessMethod.desc, (classNode.access & ACC_INTERFACE) != 0)
                     );
                     continue;
-
-                } else if (min.getOpcode() == INVOKESTATIC && CALL_CONTEXT_NAME.equals(min.owner)) {
-                    switch (min.name) {
-                        case "yield":
-                            Type[] args = Type.getArgumentTypes(min.desc);
-                            newInstructions.add(new VarInsnNode(ALOAD, 0));
-                            if (null != args) {
-                                switch (args.length) {
-                                    case 0: 
-                                        break;
-                                    case 1: 
-                                        newInstructions.add(new InsnNode(SWAP));
-                                        break;
-                                    default:
-                                        throw new IllegalStateException("Can't support YIELD method with more than one argument");
-                                }
-                            }
-                            newInstructions.add(
-                                new MethodInsnNode(INVOKEVIRTUAL, 
-                                                   ASYNC_GENERATOR_METHOD_TYPE.getInternalName(), 
-                                                   "emit", 
-                                                   Type.getMethodDescriptor(Type.getReturnType(min.desc), args), 
-                                                   false
-                                )
-                            );
-                            continue;
-                        case "interrupted":
-                            newInstructions.add(new VarInsnNode(ALOAD, 0));
-                            newInstructions.add(
-                                new MethodInsnNode(INVOKEVIRTUAL, 
-                                                   ASYNC_GENERATOR_METHOD_TYPE.getInternalName(), 
-                                                   "interrupted", 
-                                                   Type.getMethodDescriptor(Type.BOOLEAN_TYPE), 
-                                                   false
-                                )
-                            );                            
-                            continue;
-                        case "scheduler":
-                            newInstructions.add(new VarInsnNode(ALOAD, 0));
-                            newInstructions.add(
-                                new MethodInsnNode(INVOKEVIRTUAL, 
-                                                   ASYNC_GENERATOR_METHOD_TYPE.getInternalName(), 
-                                                   "scheduler", 
-                                                   Type.getMethodDescriptor(SCHEDULER_TYPE), 
-                                                   false
-                                )
-                            );                            
-                            continue;                                
-                        case "await":
-                            newInstructions.add(new VarInsnNode(ALOAD, 0));
-                            newInstructions.add(
-                                new MethodInsnNode(INVOKESTATIC, 
-                                                   ASYNC_METHOD_EXECUTOR_TYPE.getInternalName(), 
-                                                   "await", 
-                                                   Type.getMethodDescriptor(OBJECT_TYPE, COMPLETION_STAGE_TYPE, 
-                                                                                         ABSTRACT_ASYNC_METHOD_TYPE), 
-                                                   false
-                                )
-                            );
-                            continue;
-                        case "throwing":
-                            int exceptionTypesCount = Type.getArgumentTypes(min.desc).length;
-                            // POP-out method arguments from stack
-                            for (int i = exceptionTypesCount; i > 0; i--) {
-                                newInstructions.add(new InsnNode(POP));
-                            }
-                            continue;                            
-                        case "async":
-                            throw new IllegalStateException("Async result must be used only inside non-generator methods");
-                    }
-                } else if (min.getOpcode() == INVOKEVIRTUAL && ASYNC_YIELD_NAME.equals(min.owner) && "yield".equals(min.name)) {
-                    Type[] args = Type.getArgumentTypes(min.desc);
-                    newInstructions.add(new VarInsnNode(ALOAD, 0));
-                    if (null != args) {
-                        switch (args.length) {
-                            case 0: 
-                                break;
-                            case 1: 
-                                newInstructions.add(new InsnNode(SWAP));
-                                break;
-                            default:
-                                throw new IllegalStateException("Can't support YIELD method with more than one argument");
-                        }
-                    }
-                    newInstructions.add(
-                        new MethodInsnNode(INVOKEVIRTUAL, 
-                                           ASYNC_GENERATOR_METHOD_TYPE.getInternalName(), 
-                                           "emit", 
-                                           Type.getMethodDescriptor(Type.getReturnType(min.desc), args), 
-                                           false
-                        )
-                    );
-                    newInstructions.add(new InsnNode(SWAP));
-                    newInstructions.add(new InsnNode(POP));
+                } else if (handleCommonSyntax(newInstructions, min, ASYNC_GENERATOR_METHOD_TYPE) ||
+                           handleYieldCall(newInstructions, min)) {
                     continue;
-                } else if (optimizeSequenceNext(newInstructions, min)) {
-                    continue;
+                } else if (isAsyncCall(min)) {
+                    throw new IllegalStateException("Async result must be used only inside non-generator methods");
                 }
             } else if (insn instanceof InvokeDynamicInsnNode) {
                 Object[] opts = findOwnerInvokeDynamic(insn, ownerMethods);
@@ -345,6 +255,19 @@ class AsyncGeneratorMethodTransformer extends AbstractAsyncMethodTransformer {
                     continue;
                 }
             } else if (insn.getOpcode() == ARETURN) {
+                AbstractInsnNode prev = newInstructions.getLast();
+                if (prev.getOpcode() == Opcodes.CHECKCAST) {
+                    TypeInsnNode checkCast = (TypeInsnNode)prev;
+                    Type returnType = Type.getReturnType(originalAsyncMethod.desc);
+                    if (ASYNC_GENERATOR_TYPE.equals(returnType) || 
+                        classState.isSubclassOf(returnType.getInternalName(), ASYNC_GENERATOR_TYPE.getInternalName())) {
+                        // OK, valid types;
+                    } else if (returnType.getInternalName().equals(checkCast.desc)) {
+                        // Case when originally method ix extension, like @async Flux<T>
+                        // Checkcast copied is checking Flux, however it's replaced with LazyGenerator
+                        checkCast.desc = ASYNC_GENERATOR_TYPE.getInternalName();
+                    }
+                }
                 // GOTO methodEnd instead of returning value
                 newInstructions.add(new JumpInsnNode(GOTO, methodEnd));
                 continue;
@@ -373,5 +296,95 @@ class AsyncGeneratorMethodTransformer extends AbstractAsyncMethodTransformer {
         result.maxStack = Math.max(originalAsyncMethod.maxStack, 2);
 
         return result;        
+    }
+    
+    private boolean handleYieldCall(InsnList newInstructions, MethodInsnNode min) {
+        if (!isYieldCall(min)) {
+            return false;
+        }
+        
+        Type[] args = Type.getArgumentTypes(min.desc);
+        // Check for yield(someReactive) from extension
+        if (args.length == 1) {
+            Type arg = args[0];
+            if (OBJECT_TYPE.equals(arg) || COMPLETION_STAGE_TYPE.equals(arg) || SEQUENCE_TYPE.equals(arg)) {
+                // default methods, no action
+            } else {
+                ReactiveExtension rxe = classState.getExtensionByReactiveType(arg.getInternalName());
+                if (null == rxe) {
+                    return false;
+                } else {
+                    switch (rxe.cardinality) {
+                        case ONE: 
+                            newInstructions.add(
+                                new MethodInsnNode(INVOKESTATIC, 
+                                                   rxe.implementationInternalName(), 
+                                                   "__convert", 
+                                                   Type.getMethodDescriptor(COMPLETION_STAGE_TYPE, arg), 
+                                                   false));  
+                            args[0] = COMPLETION_STAGE_TYPE;
+                            break;
+                        case MANY:
+                            newInstructions.add(new VarInsnNode(ALOAD, 0));
+                            newInstructions.add(new MethodInsnNode(INVOKEVIRTUAL, 
+                                                                   ASYNC_GENERATOR_METHOD_TYPE.getInternalName(),
+                                                                   "scheduler", 
+                                                                   Type.getMethodDescriptor(SCHEDULER_TYPE), 
+                                                                   false));                                        
+                            newInstructions.add(
+                                new MethodInsnNode(INVOKESTATIC, 
+                                                   rxe.implementationInternalName(), 
+                                                   "__convert", 
+                                                   Type.getMethodDescriptor(ASYNC_GENERATOR_TYPE, arg, SCHEDULER_TYPE), 
+                                                   false));
+                            args[0] = SEQUENCE_TYPE;
+                            break;
+                        default:
+                            throw new IllegalStateException();
+                    }
+                }
+            }
+        }
+        
+        newInstructions.add(new VarInsnNode(ALOAD, 0));
+        if (null != args) {
+            switch (args.length) {
+                case 0: 
+                    break;
+                case 1: 
+                    newInstructions.add(new InsnNode(SWAP));
+                    break;
+                default:
+                    throw new IllegalStateException("Can't support YIELD method with more than one argument");
+            }
+        }
+        newInstructions.add(
+            new MethodInsnNode(INVOKEVIRTUAL, 
+                               ASYNC_GENERATOR_METHOD_TYPE.getInternalName(), 
+                               "emit", 
+                               Type.getMethodDescriptor(
+                                   args.length == 0 ? ASYNC_GENERATOR_TYPE : Type.getReturnType(min.desc), 
+                                   args
+                               ), 
+                               false
+            )
+        );
+        newInstructions.add(new InsnNode(SWAP));
+        newInstructions.add(new InsnNode(POP));
+        return true;
+    }
+    
+    void convertAsyncMethodResult(MethodVisitor mv, Type returnType) {
+        if (ASYNC_GENERATOR_TYPE.equals(returnType) || 
+            classState.isSubclassOf(returnType.getInternalName(), ASYNC_GENERATOR_TYPE.getInternalName())) {
+            return;
+        }
+        ReactiveExtension rxe = classState.getExtensionByReactiveType(returnType.getInternalName());
+        if (rxe != null) {
+            mv.visitMethodInsn(
+                INVOKESTATIC, rxe.implementationInternalName(), "__convert", 
+                Type.getMethodDescriptor(returnType, ASYNC_GENERATOR_TYPE), false
+            ); 
+        }        
     }
 }

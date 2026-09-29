@@ -108,8 +108,8 @@ abstract class WebFluxDataHolder {
         // In Java 25+ ThreadVar is backed by ScopedValue
         private final ThreadVar<WebFluxData> threadVar;
         
-        Modern(WebFluxData sentinel) {
-            threadVar = new ThreadVar<>("WebFluxData", sentinel);
+        Modern() {
+            threadVar = new ThreadVar<>("WebFluxData");
         }
         
         @Override
@@ -154,7 +154,7 @@ abstract class WebFluxDataHolder {
         }
     }
     
-    static WebFluxDataHolder newInstance(WebFluxData sentinel) {
+    static WebFluxDataHolder newInstance() {
         String versionProperty = System.getProperty("java.specification.version");
         int version;
         if (versionProperty.startsWith("1.")) {
@@ -162,6 +162,6 @@ abstract class WebFluxDataHolder {
         } else {
             version = Integer.parseInt(versionProperty);
         }
-        return version >= 25 ? new Modern(sentinel) : new Legacy();
+        return version >= 25 ? new Modern() : new Legacy();
     }
 }

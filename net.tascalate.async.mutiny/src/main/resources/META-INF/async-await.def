@@ -1,0 +1,2 @@
+1:io.smallrye.mutiny.Uni=net.tascalate.async.mutiny.MutinyCallContext#uni
+M:io.smallrye.mutiny.Multi=net.tascalate.async.mutiny.MutinyCallContext

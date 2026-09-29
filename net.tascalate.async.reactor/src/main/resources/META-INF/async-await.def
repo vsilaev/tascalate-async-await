@@ -1,0 +1,2 @@
+1:reactor.core.publisher.Mono=net.tascalate.async.reactor.ReactorCallContext#mono
+M:reactor.core.publisher.Flux=net.tascalate.async.reactor.ReactorCallContext

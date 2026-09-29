@@ -33,7 +33,7 @@ import reactor.util.context.ContextView;
 final class WebFluxData {
 
     private static final WebFluxData EMPTY = new WebFluxData(Context.empty(), null, null);
-    private static final WebFluxDataHolder HOLDER = WebFluxDataHolder.newInstance(EMPTY);
+    private static final WebFluxDataHolder HOLDER = WebFluxDataHolder.newInstance();
     
     private final ContextView context;
     private final ServerWebExchange serverWebExchange;

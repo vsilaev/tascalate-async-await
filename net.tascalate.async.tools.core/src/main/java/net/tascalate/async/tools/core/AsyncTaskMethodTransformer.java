@@ -58,8 +58,9 @@ import net.tascalate.asmx.tree.TryCatchBlockNode;
 import net.tascalate.asmx.tree.VarInsnNode;
 
 class AsyncTaskMethodTransformer extends AbstractAsyncMethodTransformer {
+    
     private final static Type ASYNC_TASK_METHOD_TYPE  = Type.getObjectType("net/tascalate/async/core/AsyncTaskMethod");
-    private final static Type COMPLETABLE_FUTURE_TYPE = Type.getObjectType("java/util/concurrent/CompletableFuture");
+    private final static Type TASCALATE_PROMISES_TYPE = Type.getObjectType("net/tascalate/concurrent/Promises");
     
     AsyncTaskMethodTransformer(ClassNode  classNode, MethodNode originalAsyncMethodNode, AsyncAwaitClassState classState) {
         super(classNode, originalAsyncMethodNode, classState);
@@ -251,70 +252,22 @@ class AsyncTaskMethodTransformer extends AbstractAsyncMethodTransformer {
                         new MethodInsnNode(INVOKESTATIC, classNode.name, accessMethod.name, accessMethod.desc, (classNode.access & ACC_INTERFACE) != 0)
                     );
                     continue;
-
-                } else if (min.getOpcode() == INVOKESTATIC && CALL_CONTEXT_NAME.equals(min.owner)) {
-                    switch (min.name) {
-                        case "async":
-                            if (!hasResult) {
-                                throw new IllegalStateException("Async result must be used only inside methods that return value");
-                            }
-                            newInstructions.add(new VarInsnNode(ALOAD, 0));
-                            newInstructions.add(new InsnNode(SWAP));
-                            newInstructions.add(
-                                new MethodInsnNode(INVOKEVIRTUAL, 
-                                                   ASYNC_TASK_METHOD_TYPE.getInternalName(), 
-                                                   "complete",
-                                                   Type.getMethodDescriptor(COMPLETION_STAGE_TYPE, OBJECT_TYPE),
-                                                   false
-                                )
-                            );
-                            continue;
-                        case "interrupted":
-                            newInstructions.add(new VarInsnNode(ALOAD, 0));
-                            newInstructions.add(
-                                new MethodInsnNode(INVOKEVIRTUAL, 
-                                                   ASYNC_TASK_METHOD_TYPE.getInternalName(), 
-                                                   "interrupted", 
-                                                   Type.getMethodDescriptor(Type.BOOLEAN_TYPE), 
-                                                   false
-                                )
-                            );                            
-                            continue;        
-                        case "scheduler":
-                            newInstructions.add(new VarInsnNode(ALOAD, 0));
-                            newInstructions.add(
-                                new MethodInsnNode(INVOKEVIRTUAL, 
-                                                   ASYNC_TASK_METHOD_TYPE.getInternalName(), 
-                                                   "scheduler", 
-                                                   Type.getMethodDescriptor(SCHEDULER_TYPE), 
-                                                   false
-                                )
-                            );                            
-                            continue;                                
-                        case "await":
-                            newInstructions.add(new VarInsnNode(ALOAD, 0));
-                            newInstructions.add(
-                                new MethodInsnNode(INVOKESTATIC, 
-                                                   ASYNC_METHOD_EXECUTOR_TYPE.getInternalName(), 
-                                                   "await", 
-                                                   Type.getMethodDescriptor(OBJECT_TYPE, COMPLETION_STAGE_TYPE, 
-                                                                                         ABSTRACT_ASYNC_METHOD_TYPE), 
-                                                   false
-                                )
-                            );
-                            continue;
-                        case "throwing":
-                            int exceptionTypesCount = Type.getArgumentTypes(min.desc).length;
-                            // POP-out method arguments from stack
-                            for (int i = exceptionTypesCount; i > 0; i--) {
-                                newInstructions.add(new InsnNode(POP));
-                            }
-                            continue;
-                        case "yield":
-                            throw new IllegalStateException("YIELD must be used only inside generator methods");
-                    }
-                } else if (optimizeSequenceNext(newInstructions, min)) {
+                } else if (handleCommonSyntax(newInstructions, min, ASYNC_TASK_METHOD_TYPE)) {
                     continue;
+                } else if (isAsyncCall(min)) {
+                    if (!hasResult) {
+                        throw new IllegalStateException("Async result must be used only inside methods that return value");
+                    }
+                    newInstructions.add(new VarInsnNode(ALOAD, 0));
+                    newInstructions.add(new InsnNode(SWAP));
+                    newInstructions.add(new MethodInsnNode(INVOKEVIRTUAL, 
+                                                           ASYNC_TASK_METHOD_TYPE.getInternalName(), 
+                                                           "complete",
+                                                           Type.getMethodDescriptor(COMPLETION_STAGE_TYPE, OBJECT_TYPE),
+                                                           false));
+                    continue;
+                } else if (isYieldCall(min)) {
+                    throw new IllegalStateException("YIELD must be used only inside generator methods");
                 }
             } else if (insn instanceof InvokeDynamicInsnNode) {
                 Object[] opts = findOwnerInvokeDynamic(insn, ownerMethods);
@@ -330,13 +283,29 @@ class AsyncTaskMethodTransformer extends AbstractAsyncMethodTransformer {
                 if (previousIsCallAsync(insn)) {
                     // ok, handled above
                 } else {
+                    ReactiveExtension extensionDef;
+                    if (classState.isSubclassOf(returnType.getInternalName(), COMPLETION_STAGE_TYPE.getInternalName())) {
+                        // OK, no processing
+                    } else if ((extensionDef = classState.getExtensionByReactiveType(returnType.getInternalName())) != null) {
+                        // Convert to CompletionStage
+                        newInstructions.add(
+                            new MethodInsnNode(INVOKESTATIC, 
+                                               extensionDef.implementationInternalName(), 
+                                               "__convert", 
+                                               Type.getMethodDescriptor(COMPLETION_STAGE_TYPE, returnType),
+                                               false
+                            )
+                        );                           
+                    }
                     // it should be "return competionStage"
                     // replace it with "return async(await(completionStage))";
+                    newInstructions.add(new VarInsnNode(ALOAD, 0));
                     newInstructions.add(
                         new MethodInsnNode(INVOKESTATIC, 
                                            ASYNC_METHOD_EXECUTOR_TYPE.getInternalName(), 
                                            "await", 
-                                           Type.getMethodDescriptor(OBJECT_TYPE, COMPLETION_STAGE_TYPE),
+                                           Type.getMethodDescriptor(OBJECT_TYPE, COMPLETION_STAGE_TYPE, 
+                                                                                 ABSTRACT_ASYNC_METHOD_TYPE),
                                            false
                         )
                     );                    
@@ -406,15 +375,36 @@ class AsyncTaskMethodTransformer extends AbstractAsyncMethodTransformer {
         return result;        
     }
     
-    private static boolean previousIsCallAsync(AbstractInsnNode n) {
+    void convertAsyncMethodResult(MethodVisitor mv, Type returnType) {
+        if (TASCALATE_PROMISE_TYPE.equals(returnType)) {
+            mv.visitMethodInsn(
+                INVOKESTATIC, TASCALATE_PROMISES_TYPE.getInternalName(), "from", 
+                Type.getMethodDescriptor(returnType, COMPLETION_STAGE_TYPE), false
+            );
+            return;
+        } 
+        if (COMPLETABLE_FUTURE_TYPE.equals(returnType) ||
+            COMPLETION_STAGE_TYPE.equals(returnType)   ||
+            classState.isSubclassOf(returnType.getInternalName(), COMPLETION_STAGE_TYPE.getInternalName())) {
+            return;
+        }
+        ReactiveExtension extensionDef = classState.getExtensionByReactiveType(returnType.getInternalName());
+        if (extensionDef != null) {
+            mv.visitMethodInsn(
+                INVOKESTATIC, extensionDef.implementationInternalName(), "__convert", 
+                Type.getMethodDescriptor(returnType, COMPLETION_STAGE_TYPE), false
+            ); 
+        }        
+    }
+    
+    private boolean previousIsCallAsync(AbstractInsnNode n) {
         for (AbstractInsnNode insn = n.getPrevious(); insn != null; insn = insn.getPrevious()) {
             if (insn instanceof LabelNode || insn instanceof LineNumberNode) {
                 continue;
             } else if (insn instanceof MethodInsnNode) {
-                MethodInsnNode min = (MethodInsnNode) insn;
-                if (min.getOpcode() == INVOKESTATIC && CALL_CONTEXT_NAME.equals(min.owner) && "async".equals(min.name)) {
+                if (isAsyncCall((MethodInsnNode) insn)) {
                     return true;
-                }
+                };
             }
             break;
         }

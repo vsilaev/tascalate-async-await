@@ -99,7 +99,7 @@ class AsyncAwaitConfiguration {
         @Bean(name = "<<async-await-reactive-types-registar>>")
         SmartLifecycle asyncAwaitReactiveTypesRegistar(Optional<ReactiveAdapterRegistry> reactiveAdapterRegistry) {
             ReactiveAdapterRegistry actualReactiveAdapterRegistry =
-                reactiveAdapterRegistry.orElse(ReactiveAdapterRegistry.getSharedInstance());
+                reactiveAdapterRegistry.orElseGet(() ->ReactiveAdapterRegistry.getSharedInstance());
 
             return new AbstractSmartLifecycle() {
                 @Override

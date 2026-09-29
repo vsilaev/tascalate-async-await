@@ -29,15 +29,19 @@ import java.util.concurrent.CompletionStage;
 import java.util.concurrent.atomic.AtomicReferenceFieldUpdater;
 import java.util.function.UnaryOperator;
 
-import net.tascalate.async.AsyncYield;
+import net.tascalate.async.TAsyncYield;
 import net.tascalate.async.CustomizableSequence;
 import net.tascalate.async.Scheduler;
 import net.tascalate.async.Sequence;
+import net.tascalate.async.SequenceKind;
 import net.tascalate.async.suspendable;
+import net.tascalate.async.sequence.SequenceAccess;
+import net.tascalate.async.sequence.PendingValuesSequence;
 import net.tascalate.async.util.TypeUtil;
 
-class LazyGenerator<T> extends SuspendableSequence<CompletionStage<T>> 
+class LazyGenerator<T> extends PendingValuesSequence<CompletionStage<T>> 
                        implements InternalAsyncGenerator<T> {
+    
     private static final AtomicReferenceFieldUpdater<LazyGenerator<?>, CompletionStage<?>> DONE_UPDATER = 
             AtomicReferenceFieldUpdater.newUpdater(TypeUtil.cast(LazyGenerator.class), TypeUtil.cast(CompletionStage.class), "done");
     
@@ -47,17 +51,22 @@ class LazyGenerator<T> extends SuspendableSequence<CompletionStage<T>>
     
     // Start with locked producer and unlocked consumer
     // Also assume that next() MAY BE called before begin
-    private CompletableFuture<AsyncYield.Reply<T>> producerLock = new CompletableFuture<>();
+    private CompletableFuture<TAsyncYield.Reply<T>> producerLock = new CompletableFuture<>();
     private CompletableFuture<?> consumerLock;
     private CompletionStage<T> latestFuture;
 
     private Sequence<? extends CompletionStage<T>> currentDelegate = Sequence.empty();
-    private SequenceKind currentDelegateKind = SequenceKind.READY_VALUES;
+    private SequenceKind currentDelegateKind = SequenceKind.READY_VALUES_REGULAR;
     
     LazyGenerator(AsyncGeneratorMethod<T> owner) {
     	this.owner = owner;
     	this.done = owner.future;
     	values = new AsyncValues<>(this);
+    }
+    
+    @Override
+    public SequenceKind kind() {
+        return SequenceKind.PENDING_VALUES_CUSTOMIZABLE;
     }
     
     @Override
@@ -67,21 +76,21 @@ class LazyGenerator<T> extends SuspendableSequence<CompletionStage<T>>
 
     @Override
     public CompletionStage<T> next() {
-        return next$(NO_PARAM, null);
+        return takeNext(NO_PARAM, null);
     }
     
     @Override
     public CompletionStage<T> next(Object param) {
-        return next$(param , null);
+        return takeNext(param , null);
     }
     
     @Override
-    protected @suspendable CompletionStage<T> next$(AbstractAsyncMethod caller) {
-        return next$(NO_PARAM , caller);
+    protected @suspendable CompletionStage<T> takeNext(AbstractAsyncMethod caller) {
+        return takeNext(NO_PARAM , caller);
     }
     
     @Override
-    protected @suspendable CompletionStage<T> next$(Object param, AbstractAsyncMethod caller) {
+    protected @suspendable CompletionStage<T> takeNext(Object param, AbstractAsyncMethod caller) {
         // Loop to replace tail recursion - BEGIN
         while (true) {
             if (owner.checkDone()) {
@@ -98,30 +107,34 @@ class LazyGenerator<T> extends SuspendableSequence<CompletionStage<T>>
                 currentDelegateKind = SequenceKind.kindOf(currentDelegate);
             }
             switch (currentDelegateKind) { 
-                case READY_VALUES:
+                case READY_VALUES_CUSTOMIZABLE:
                     // Avoid @suspendable ceremony
-                    latestFuture = SuspendableSequence.nextReadyValue(currentDelegate);
+                    latestFuture = NO_PARAM == param
+                                   ? SequenceAccess.nextReadyValue(currentDelegate)
+                                   : SequenceAccess.nextReadyValue(currentDelegate, param);
+                    break;            
+                case READY_VALUES_REGULAR:
+                    // Avoid @suspendable ceremony
+                    latestFuture = SequenceAccess.nextReadyValue(currentDelegate);
                     break;
-                case SUSPENDABLE_CUSTOMIZABLE:
+                case PENDING_VALUES_CUSTOMIZABLE:
                     latestFuture = NO_PARAM == param 
-                                   ? SuspendableSequence.nextSuspendable(currentDelegate, caller) 
-                                   : SuspendableSequence.nextSuspendable(currentDelegate, param, caller);       
+                                   ? SequenceAccess.nextPendingValue(currentDelegate, caller) 
+                                   : SequenceAccess.nextPendingValue(currentDelegate, param, caller);       
                     break;
-                case SUSPENDABLE_REGULAR:
-                    latestFuture = SuspendableSequence.nextSuspendable(currentDelegate, caller); 
+                case PENDING_VALUES_REGULAR:
+                    latestFuture = SequenceAccess.nextPendingValue(currentDelegate, caller); 
                     break;
-                case NON_SUSPENDABLE_CUSTOMIZABLE: {
+                case GENERIC_CUSTOMIZABLE:
                     CustomizableSequence<? extends CompletionStage<T>> typedDelegate 
                             = (CustomizableSequence<? extends CompletionStage<T>>)currentDelegate;
                     latestFuture = NO_PARAM == param 
                                    ? typedDelegate.next() 
                                    : typedDelegate.next(param);                    
                     break;
-                }
-                case NON_SUSPENDABLE_REGULAR: {
+                case GENERIC_REGULAR:
                     latestFuture = currentDelegate.next();
                     break;
-                }
                 default:
                     throw new IllegalStateException();
             
@@ -144,7 +157,7 @@ class LazyGenerator<T> extends SuspendableSequence<CompletionStage<T>>
         }
         // Loop to replace tail recursion - END
         // The actual tail recursive call is:
-        //return next(param);
+        //return next$(param, caller);
     }
 
     @Override
@@ -169,7 +182,7 @@ class LazyGenerator<T> extends SuspendableSequence<CompletionStage<T>>
         return DONE_UPDATER.updateAndGet(this, mapper);
     }
 
-    final @suspendable AsyncYield.Reply<T> emit(Sequence<? extends CompletionStage<T>> pendingValues) {
+    final @suspendable TAsyncYield.Reply<T> emit(Sequence<? extends CompletionStage<T>> pendingValues) {
         currentDelegate = pendingValues;
         currentDelegateKind = null;
         // Re-set producerLock
@@ -194,12 +207,12 @@ class LazyGenerator<T> extends SuspendableSequence<CompletionStage<T>>
             owner.failure(ex);
         }
         currentDelegate = Sequence.empty();
-        currentDelegateKind = SequenceKind.READY_VALUES;
+        currentDelegateKind = SequenceKind.READY_VALUES_REGULAR;
         releaseConsumerLock();
     }
 
-    private @suspendable AsyncYield.Reply<T> acquireProducerLock() {
-        CompletableFuture<AsyncYield.Reply<T>> currentLock = producerLock;
+    private @suspendable TAsyncYield.Reply<T> acquireProducerLock() {
+        CompletableFuture<TAsyncYield.Reply<T>> currentLock = producerLock;
         if (!currentLock.isDone()) {
             return AsyncMethodExecutor.await(currentLock, owner);
         } else {
@@ -246,8 +259,8 @@ class LazyGenerator<T> extends SuspendableSequence<CompletionStage<T>>
             }
             
             @Override
-            void releaseLock(CompletableFuture<AsyncYield.Reply<T>> lock, Object param) {
-                lock.complete(new AsyncYield.Reply<>(result, param == NO_PARAM ? null : param));
+            void releaseLock(CompletableFuture<TAsyncYield.Reply<T>> lock, Object param) {
+                lock.complete(new TAsyncYield.Reply<>(result, param == NO_PARAM ? null : param));
             }
         }
         
@@ -259,7 +272,7 @@ class LazyGenerator<T> extends SuspendableSequence<CompletionStage<T>>
             }
             
             @Override
-            void releaseLock(CompletableFuture<AsyncYield.Reply<T>> lock, Object param) {
+            void releaseLock(CompletableFuture<TAsyncYield.Reply<T>> lock, Object param) {
                 lock.completeExceptionally(error);
             }
         }
@@ -280,7 +293,7 @@ class LazyGenerator<T> extends SuspendableSequence<CompletionStage<T>>
             }
         }
         
-        abstract void releaseLock(CompletableFuture<AsyncYield.Reply<T>> lock, Object param);
+        abstract void releaseLock(CompletableFuture<TAsyncYield.Reply<T>> lock, Object param);
         
         private static final FutureResult<Object> EMPTY = new Success<Object>(null);
     }

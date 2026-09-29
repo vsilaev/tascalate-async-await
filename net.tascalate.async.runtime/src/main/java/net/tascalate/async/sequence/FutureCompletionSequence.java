@@ -38,12 +38,12 @@ import java.util.function.BiConsumer;
 import java.util.stream.Stream;
 
 import net.tascalate.async.Sequence;
+import net.tascalate.async.SequenceKind;
 import net.tascalate.async.core.AbstractAsyncMethod;
 import net.tascalate.async.core.AsyncMethodExecutor;
-import net.tascalate.async.core.SuspendableSequence;
 import net.tascalate.async.util.TypeUtil;
 
-public class FutureCompletionSequence<T, F extends CompletionStage<T>> extends SuspendableSequence<F> {
+public class FutureCompletionSequence<T, F extends CompletionStage<T>> extends PendingValuesSequence<F> {
     
     private static final AtomicIntegerFieldUpdater<FutureCompletionSequence<?, ?>> IN_PROGRESS_UPDATER = 
             AtomicIntegerFieldUpdater.newUpdater(TypeUtil.cast(FutureCompletionSequence.class), "inProgress");
@@ -72,12 +72,17 @@ public class FutureCompletionSequence<T, F extends CompletionStage<T>> extends S
     }
     
     @Override
-    public F next() {
-        return next$(null);
+    public SequenceKind kind() {
+        return SequenceKind.PENDING_VALUES_REGULAR;
     }
     
     @Override
-    protected F next$(AbstractAsyncMethod caller) {
+    public F next() {
+        return takeNext(null);
+    }
+    
+    @Override
+    protected F takeNext(AbstractAsyncMethod caller) {
         while (true) {
             if (inProgress < 0) {
                 // Forcibly closed

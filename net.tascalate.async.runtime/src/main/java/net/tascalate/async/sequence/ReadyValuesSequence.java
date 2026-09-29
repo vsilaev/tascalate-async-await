@@ -22,14 +22,29 @@
  * OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
-package net.tascalate.async.core;
+package net.tascalate.async.sequence;
 
+import net.tascalate.async.CustomizableSequence;
 import net.tascalate.async.Sequence;
+import net.tascalate.async.SequenceKind;
 
-public abstract class ReadyValueSequence<T> implements Sequence<T> {
-    public final T next() {
-        return next_();
+public abstract class ReadyValuesSequence<T> implements Sequence<T> {
+    
+    @Override
+    public SequenceKind kind() {
+        return this instanceof CustomizableSequence 
+               ? SequenceKind.READY_VALUES_CUSTOMIZABLE
+               : SequenceKind.READY_VALUES_REGULAR;
     }
     
-    abstract protected T next_();
+    @Override
+    public final T next() {
+        return takeNext();
+    }
+    
+    abstract protected T takeNext();
+    
+    protected T takeNext(Object param) {
+        throw new UnsupportedOperationException();
+    }
 }

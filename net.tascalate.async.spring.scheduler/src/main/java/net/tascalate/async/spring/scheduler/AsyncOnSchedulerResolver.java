@@ -76,12 +76,20 @@ public class AsyncOnSchedulerResolver extends PerMethodSchedulerResolver.BySingl
 
     @Override
     protected Scheduler createClassScheduler(Optional<AsyncOn> annotation, Object owner, MethodHandles.Lookup declaringClassLookup) {
-        return createScheduler(annotation.get().value(), owner, declaringClassLookup);
+        AsyncOn settings = annotation.get();
+        if (settings.value() == AsyncOn.Ignore.class) {
+            return null;
+        }
+        return createScheduler(settings.value(), owner, declaringClassLookup);
     }
 
     @Override
     protected Scheduler createMethodScheduler(Optional<AsyncOn> annotation, Object owner, MethodHandles.Lookup declaringClassLookup, MethodDefinition methodDef) {
-        return createScheduler(annotation.get().value(), owner, declaringClassLookup);
+        AsyncOn settings = annotation.get();
+        if (settings.value() == AsyncOn.Ignore.class) {
+            return null;
+        }
+        return createScheduler(settings.value(), owner, declaringClassLookup);
     }
 
     protected Scheduler createScheduler(Class<? extends Annotation> qualifier, Object owner, MethodHandles.Lookup declaringClassLookup) {

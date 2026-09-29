@@ -42,8 +42,7 @@ import net.tascalate.async.core.AsyncMethodExecutor;
 import net.tascalate.async.core.AsyncTaskMethod;
 import net.tascalate.async.core.InternalCallContext;
 import net.tascalate.async.core.RestrictedCompletableFuture;
-import net.tascalate.async.core.SequenceKind;
-import net.tascalate.async.core.SuspendableSequence;
+import net.tascalate.async.sequence.SequenceAccess;
 import net.tascalate.async.spi.MethodDefinition;
 
 public final class ConcurrentGenerator<T> implements AutoCloseable {
@@ -156,15 +155,16 @@ public final class ConcurrentGenerator<T> implements AutoCloseable {
                                // CompletionStage<? extends T> next = sequence.next();
                                CompletionStage<? extends T> next;
                                switch (kind) { 
-                                   case READY_VALUES:
-                                       next = SuspendableSequence.nextReadyValue(sequence);
+                                   case READY_VALUES_CUSTOMIZABLE:
+                                   case READY_VALUES_REGULAR:
+                                       next = SequenceAccess.nextReadyValue(sequence);
                                        break;
-                                   case SUSPENDABLE_CUSTOMIZABLE:
-                                   case SUSPENDABLE_REGULAR:                                   
-                                       next = SuspendableSequence.nextSuspendable(sequence, this); 
+                                   case PENDING_VALUES_CUSTOMIZABLE:
+                                   case PENDING_VALUES_REGULAR:                                   
+                                       next = SequenceAccess.nextPendingValue(sequence, this); 
                                        break;
-                                   case NON_SUSPENDABLE_CUSTOMIZABLE:
-                                   case NON_SUSPENDABLE_REGULAR:
+                                   case GENERIC_CUSTOMIZABLE:
+                                   case GENERIC_REGULAR:
                                        next = sequence.next();
                                        break;
                                    default:

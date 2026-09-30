@@ -678,7 +678,7 @@ Also, the code looks pretty good: we are  selecting the first ready result with 
 ```
 Let's review the code step by step. Initially, we transform an `AsyncGenerator<T>` into a `ConcurrentGenerator<T>` by invoking `AsyncGenerator.concurrent()`. Since the resulting object implements `AutoCloseable` and takes care of closing the underlying asynchronous generator, we utilize it within a `try-with-resources` block. The sole remaining API method in `ConcurrentGenerator<T>` is `take()`, which retrieves the next available item from the underlying asynchronous generator (if available). This method produces a result of type `ConcurrentGenerator.Result<T>` with the following interface:
 ```java
-public  abstract  static  class Result<T> {
+public abstract static class Result<T> {
     public  boolean hasNext();
     public  boolean isValue();
     public T value();
@@ -768,7 +768,7 @@ public interface Scheduler {
 The `Scheduler` API serves two responsibilities: 
 1. To execute a provided runnable task, which is generally done asynchronously -- but the actual behavior may vary depending on the implementation. 
 2. To preserve the execution context of the active thread before it is suspended, allowing the context to be reinstated later when the code resumes execution following an `await(future)` call. The `execution context` usually encompasses a collection of thread-local variables--either managed directly via `ThreadLocal` or indirectly through APIs that utilize `ThreadLocal`, such as [RequestContextHolder](https://docs.spring.io/spring-framework/docs/current/javadoc-api/org/springframework/web/context/request/RequestContextHolder.html) in Spring. The `Scheduler` interface includes several factory methods that let you create specific `Scheduler` implementations by using a provided `ExecutorService` and, optionally, a `contextualizer`. This contextualizer is a function designed to capture the thread's current execution context and generate a runnable wrapper that re-applies this context within the new thread.
-```
+```java
 package net.tascalate.async;
 ...
 import java.util.concurrent.Executor;

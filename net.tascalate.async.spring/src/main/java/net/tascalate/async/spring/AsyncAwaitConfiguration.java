@@ -44,11 +44,19 @@ import org.springframework.context.annotation.Lazy;
 import org.springframework.core.ReactiveAdapterRegistry;
 import org.springframework.core.ReactiveTypeDescriptor;
 
+import io.smallrye.mutiny.Multi;
+import reactor.core.publisher.Flux;
+
 import net.tascalate.async.AsyncGenerator;
 import net.tascalate.async.CallContext;
 import net.tascalate.async.Scheduler;
+import net.tascalate.async.mutiny.MutinyAsyncAwaitBridge;
 import net.tascalate.async.reactor.ReactorAsyncAwaitBridge;
-import reactor.core.publisher.Flux;
+import net.tascalate.async.spring.aspects.DefaultAsyncCallBoundaryInterceptor;
+import net.tascalate.async.spring.aspects.MutinyAsyncCallBoundaryInterceptor;
+import net.tascalate.async.spring.aspects.ReactorAsyncCallBoundaryInterceptor;
+import net.tascalate.async.spring.util.AbstractSmartLifecycle;
+
 
 @Configuration()
 @ComponentScan(basePackageClasses = AsyncAwaitConfiguration.class)
@@ -85,16 +93,16 @@ class AsyncAwaitConfiguration {
             return configurer;
         }
         
-        @Bean(name="<<async-await-async-call-boundary-interceptor>>")
-        AsyncCallBoundaryInterceptor asyncCallBoundaryInterceptor() {
-            return Aspects.aspectOf(AsyncCallBoundaryInterceptor.class);
+        @Bean(name="<<default-async-call-boundary-interceptor>>")
+        DefaultAsyncCallBoundaryInterceptor asyncCallBoundaryInterceptor() {
+            return Aspects.aspectOf(DefaultAsyncCallBoundaryInterceptor.class);
         }
 
     }
 
     @Configuration
     @ConditionalOnClass({ReactiveAdapterRegistry.class, Flux.class, ReactorAsyncAwaitBridge.class})
-    static class ReactiveAsyncAwaitConfiguration {
+    static class ReactorAsyncAwaitConfiguration {
 
         @Bean(name = "<<async-await-reactive-types-registar>>")
         SmartLifecycle asyncAwaitReactiveTypesRegistar(Optional<ReactiveAdapterRegistry> reactiveAdapterRegistry) {
@@ -112,6 +120,20 @@ class AsyncAwaitConfiguration {
                     super.start();
                 }
             };
+        }
+        
+        @Bean(name="<<reactor-async-call-boundary-interceptor>>")
+        ReactorAsyncCallBoundaryInterceptor reactorCallBoundaryInterceptor() {
+            return Aspects.aspectOf(ReactorAsyncCallBoundaryInterceptor.class);
+        }
+    }
+    
+    @Configuration
+    @ConditionalOnClass({Multi.class, MutinyAsyncAwaitBridge.class})
+    static class MutinyAsyncAwaitConfiguration {
+        @Bean(name="<<mutiny-async-call-boundary-interceptor>>")
+        MutinyAsyncCallBoundaryInterceptor mutinyCallBoundaryInterceptor() {
+            return Aspects.aspectOf(MutinyAsyncCallBoundaryInterceptor.class);
         }
     }
 }

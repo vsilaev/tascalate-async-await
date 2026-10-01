@@ -22,28 +22,48 @@
  * OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
-package net.tascalate.async.core;
+package net.tascalate.async.spring.util;
 
-import java.util.concurrent.CompletionStage;
-import java.util.function.UnaryOperator;
+import org.springframework.context.SmartLifecycle;
 
-import net.tascalate.async.AsyncGenerator;
-
-public interface InternalAsyncGenerator<T> extends AsyncGenerator<T> {
+public abstract class AbstractSmartLifecycle implements SmartLifecycle {
+    protected volatile boolean running = false;
     
-    abstract CompletionStage<?> __completion();
-    abstract CompletionStage<?> __completion(UnaryOperator<CompletionStage<?>> mapper);
-    
-    public static boolean completionUpdatesupported(AsyncGenerator<?> target) {
-        return target instanceof InternalAsyncGenerator;
+    protected AbstractSmartLifecycle() {
+        
     }
     
-    public static CompletionStage<?> updateCompletion(AsyncGenerator<?> target, UnaryOperator<CompletionStage<?>> mapper) {
-        if (target instanceof InternalAsyncGenerator) {
-            InternalAsyncGenerator<?> typed = (InternalAsyncGenerator<?>)target; 
-            return typed.__completion(mapper);
-        } else {
-            throw new IllegalStateException("Unable to modify completion future of the generator of type " + target.getClass());
+    @Override
+    public boolean isAutoStartup() {
+        return true;
+    }
+    
+    @Override
+    public void start() {
+        running = true;
+    }
+    
+    @Override
+    public void stop(Runnable callback) {
+        stop();
+        if (null != callback) {
+            callback.run();
         }
+    }
+    
+    @Override
+    public void stop() {
+        running = false;
+    }
+    
+    @Override
+    public boolean isRunning() {
+        return this.running;
+    }
+
+    @Override
+    public int getPhase() {
+        // High priority / early phase so it starts before other components
+        return Integer.MIN_VALUE; 
     }
 }

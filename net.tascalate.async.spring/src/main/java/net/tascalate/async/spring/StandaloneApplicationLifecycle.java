@@ -29,6 +29,7 @@ import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.stereotype.Component;
 
 import net.tascalate.async.Scheduler;
+import net.tascalate.async.spring.util.AbstractSmartLifecycle;
 
 @Component
 @ConditionalOnProperty(name = "async-await.scheduler.install-default-scheduler", havingValue = "true", matchIfMissing = true)

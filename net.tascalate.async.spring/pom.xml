@@ -38,6 +38,12 @@
 			<optional>true</optional>
 		</dependency>
 		<dependency>
+			<groupId>${project.groupId}</groupId>
+			<artifactId>${project.groupId}.mutiny</artifactId>
+			<version>${project.version}</version>
+			<optional>true</optional>
+		</dependency>
+		<dependency>
 			<groupId>net.tascalate</groupId>
 			<artifactId>net.tascalate.concurrent</artifactId>
 			<version>0.9.10</version>
@@ -53,6 +59,12 @@
 			<groupId>io.projectreactor</groupId>
 			<artifactId>reactor-core</artifactId>
 			<version>${reactor.version}</version>
+			<optional>true</optional>
+		</dependency>
+		<dependency>
+			<groupId>io.smallrye.reactive</groupId>
+			<artifactId>mutiny</artifactId>
+			<version>${mutiny.version}</version>
 			<optional>true</optional>
 		</dependency>
 		<dependency>

@@ -20,11 +20,6 @@
 
 	<dependencies>
 		<dependency>
-			<groupId>net.tascalate.javaflow</groupId>
-			<artifactId>net.tascalate.javaflow.api</artifactId>
-			<scope>provided</scope>
-		</dependency>
-		<dependency>
 			<groupId>${project.groupId}</groupId>
 			<artifactId>${project.groupId}.runtime</artifactId>
 			<version>${project.version}</version>
@@ -33,7 +28,7 @@
 		<dependency>
 			<groupId>io.smallrye.reactive</groupId>
 			<artifactId>mutiny</artifactId>
-			<version>1.9.0</version>
+			<version>${mutiny.version}</version>
 			<optional>true</optional>
 		</dependency>
 		<dependency>
@@ -48,6 +43,13 @@
 	</dependencies>
 	<build>
 		<plugins>
+			<!-- NO NEED FOR JavaFlow -- @suspendable methods have no actual bodies -->
+			<!-- 
+			<plugin>
+				<groupId>net.tascalate.javaflow</groupId>
+				<artifactId>net.tascalate.javaflow.tools.maven</artifactId>
+			</plugin>
+			-->
 			<plugin>
 				<groupId>org.moditect</groupId>
 				<artifactId>moditect-maven-plugin</artifactId>

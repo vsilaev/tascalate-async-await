@@ -1,5 +1,5 @@
 /**
- * Copyright 2015-2025 Valery Silaev (http://vsilaev.com)
+ * Copyright 2015-2026 Valery Silaev (http://vsilaev.com)
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
@@ -24,11 +24,10 @@
  */
 package net.tascalate.async.mutiny;
 
+import java.util.Objects;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionStage;
-import java.util.concurrent.Executors;
 import java.util.function.Function;
-import java.util.function.LongConsumer;
 import java.util.function.Supplier;
 
 import io.smallrye.mutiny.Multi;
@@ -45,6 +44,16 @@ public final class MutinyAsyncAwaitBridge {
         
     }
     
+    public static <T> Uni<T> uni(Supplier<? extends CompletionStage<T>> supplier) {
+        Objects.requireNonNull(supplier, "supplier must not be null");
+        return Uni.createFrom().deferred(() -> {
+            CompletionStage<T> completionStage =
+                Objects.requireNonNull(supplier.get(), "CompletionStage supplier must not return null");
+
+            return uni(completionStage);
+        });
+    }
+    
     public static <T> Uni<T> uni(CompletionStage<T> completionStage) {
         return Uni.createFrom().completionStage(completionStage)
                   .onCancellation().invoke(() -> CompletionStageHelper.cancelCompletionStage(completionStage, true));
@@ -59,30 +68,9 @@ public final class MutinyAsyncAwaitBridge {
     }
     
     public static <T> AsyncGenerator<T> createGenerator(Multi<? extends T> coldMulti, long batchSize, Scheduler asyncAwaitScheduler) {
-        return AsyncGenerator.lazyEmit(asyncAwaitScheduler, batchSize, sink -> {
-            coldMulti.subscribe().with(
-                /* onSubscribe */ 
-                sub -> {
-                    // Fetch high-performance lambda proxies tailored to this version's type
-                    LongConsumer requestAction = SubscriptionBridgeCache.getRequester(sub);
-                    Runnable cancelAction = SubscriptionBridgeCache.getCanceler(sub);
-
-                    sink.subscribe(
-                        requestAction::accept, 
-                        () -> {
-                            cancelAction.run();
-                            sink.emitCompletion();
-                        }
-                    );
-                },
-                /* onItem */ 
-                item -> sink.emitNextItem(item),
-                /* onFailure */ 
-                failure -> sink.emitError(failure),
-                /* onCompletion */ 
-                () -> sink.emitCompletion()
-            );
-        });
+        return AsyncGenerator.lazyEmit(asyncAwaitScheduler, batchSize, sink -> 
+            coldMulti.subscribe().withSubscriber(MutinyCompatibilityBridge.createMultiSubsciber(sink, batchSize))
+        );
     }
     
     public static <T> Multi<T> createMulti(AsyncGenerator<? extends T> generator) {

@@ -1,5 +1,5 @@
 /**
- * Copyright 2015-2025 Valery Silaev (http://vsilaev.com)
+ * Copyright 2015-2026 Valery Silaev (http://vsilaev.com)
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
@@ -22,28 +22,51 @@
  * OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
-package net.tascalate.async.core;
+package net.tascalate.async.mutiny;
 
-import java.util.concurrent.CompletionStage;
-import java.util.function.UnaryOperator;
+import java.util.function.LongConsumer;
 
+import io.smallrye.mutiny.subscription.MultiSubscriber;
 import net.tascalate.async.AsyncGenerator;
 
-public interface InternalAsyncGenerator<T> extends AsyncGenerator<T> {
+abstract class CrossPlatformMultiSubscriber<T> implements MultiSubscriber<T> {
     
-    abstract CompletionStage<?> __completion();
-    abstract CompletionStage<?> __completion(UnaryOperator<CompletionStage<?>> mapper);
+    private final AsyncGenerator.Sink<T> sink;
+    private final long batchSize;
     
-    public static boolean completionUpdatesupported(AsyncGenerator<?> target) {
-        return target instanceof InternalAsyncGenerator;
+    protected CrossPlatformMultiSubscriber(AsyncGenerator.Sink<T> sink, long batchSize) {
+        this.sink = sink;
+        this.batchSize = batchSize;
     }
     
-    public static CompletionStage<?> updateCompletion(AsyncGenerator<?> target, UnaryOperator<CompletionStage<?>> mapper) {
-        if (target instanceof InternalAsyncGenerator) {
-            InternalAsyncGenerator<?> typed = (InternalAsyncGenerator<?>)target; 
-            return typed.__completion(mapper);
-        } else {
-            throw new IllegalStateException("Unable to modify completion future of the generator of type " + target.getClass());
-        }
+    
+    public void onSubscribe(Object subscription) {
+        LongConsumer requestAction = MutinyCompatibilityBridge.getSubscriptionRequester(subscription);
+        Runnable cancelAction = MutinyCompatibilityBridge.getSubscriptionCanceler(subscription);
+
+        sink.subscribe(
+            requestAction::accept, 
+            () -> {
+                cancelAction.run();
+                sink.emitCompletion();
+            }
+        );
+
+        requestAction.accept(batchSize > 0 ? batchSize : Long.MAX_VALUE);
+    }
+
+    @Override
+    public void onItem(T item) {
+        sink.emitNextItem(item);
+    }
+
+    @Override
+    public void onFailure(Throwable failure) {
+        sink.emitError(failure);
+    }
+
+    @Override
+    public void onCompletion() {
+        sink.emitCompletion();
     }
 }

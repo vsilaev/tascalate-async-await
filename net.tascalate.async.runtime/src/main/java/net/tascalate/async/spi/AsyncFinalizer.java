@@ -1,5 +1,5 @@
 /**
- * Copyright 2015-2025 Valery Silaev (http://vsilaev.com)
+ * Copyright 2015-2026 Valery Silaev (http://vsilaev.com)
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
@@ -22,48 +22,18 @@
  * OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
-package net.tascalate.async.spring;
+package net.tascalate.async.spi;
 
-import org.springframework.context.SmartLifecycle;
+import java.util.concurrent.CompletionStage;
+import java.util.function.BiFunction;
 
-public abstract class AbstractSmartLifecycle implements SmartLifecycle {
-    protected volatile boolean running = false;
+public interface AsyncFinalizer<U, M> {
+    U finalizeSingle(U singleAsynResult,
+                     boolean cancellationIsError,
+                     BiFunction<Throwable, Boolean, CompletionStage<Void>> cleanup);
     
-    protected AbstractSmartLifecycle() {
-        
-    }
-    
-    @Override
-    public boolean isAutoStartup() {
-        return true;
-    }
-    
-    @Override
-    public void start() {
-        running = true;
-    }
-    
-    @Override
-    public void stop(Runnable callback) {
-        stop();
-        if (null != callback) {
-            callback.run();
-        }
-    }
-    
-    @Override
-    public void stop() {
-        running = false;
-    }
-    
-    @Override
-    public boolean isRunning() {
-        return this.running;
-    }
+    M finalizeMultiple(M multipleAsynResults,
+                      boolean cancellationIsError,
+                      BiFunction<Throwable, Boolean, CompletionStage<Void>> cleanup);
 
-    @Override
-    public int getPhase() {
-        // High priority / early phase so it starts before other components
-        return Integer.MIN_VALUE; 
-    }
 }

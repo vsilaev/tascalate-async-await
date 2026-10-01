@@ -1,5 +1,5 @@
 /**
- * Copyright 2015-2025 Valery Silaev (http://vsilaev.com)
+ * Copyright 2015-2026 Valery Silaev (http://vsilaev.com)
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
@@ -59,7 +59,7 @@ public final class ReactorCallContext {
         return (FluxYield<T>)FluxYield.INSTANCE;
     }
     
-    public static <T> AsyncGenerator<T> generator(Flux<T> flux) {
+    public static <T> AsyncGenerator<T> generator(Flux<? extends T> flux) {
         return ReactorAsyncAwaitBridge.createGenerator(flux, CallContext.scheduler());
     }
     
@@ -71,11 +71,11 @@ public final class ReactorCallContext {
         return ReactorAsyncAwaitBridge.promise(mono);
     }
     
-    public static <T> AsyncGenerator<T> __convert(Flux<T> flux, Scheduler scheduler) {
+    public static <T> AsyncGenerator<T> __convert(Flux<? extends T> flux, Scheduler scheduler) {
         return ReactorAsyncAwaitBridge.createGenerator(flux, scheduler);
     }
     
-    public static <T> Flux<T> __convert(AsyncGenerator<T> generator) {
+    public static <T> Flux<T> __convert(AsyncGenerator<? extends T> generator) {
         return ReactorAsyncAwaitBridge.createFlux(generator);
     }
     

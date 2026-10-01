@@ -1,5 +1,5 @@
 /**
- * Copyright 2015-2025 Valery Silaev (http://vsilaev.com)
+ * Copyright 2015-2026 Valery Silaev (http://vsilaev.com)
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
@@ -22,7 +22,7 @@
  * OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
-package net.tascalate.async.spring;
+package net.tascalate.async.spi;
 
 import java.util.concurrent.CancellationException;
 import java.util.concurrent.CompletableFuture;
@@ -30,55 +30,88 @@ import java.util.concurrent.CompletionStage;
 import java.util.concurrent.atomic.AtomicIntegerFieldUpdater;
 import java.util.function.BiFunction;
 
+import net.tascalate.async.AsyncGenerator;
 import net.tascalate.async.core.CompletionStageHelper;
+import net.tascalate.async.core.InternalAsyncGenerator;
 import net.tascalate.async.core.RestrictedCompletableFuture;
 
-class FinalizerFuture <T> extends RestrictedCompletableFuture<T> {
-    private static final AtomicIntegerFieldUpdater<FinalizerFuture<?>> WAS_CANCELLED_UPDATER =
-            AtomicIntegerFieldUpdater.newUpdater(cast(FinalizerFuture.class), "wasCancelled");
+public class DefaultAsyncFinalizer implements AsyncFinalizer<CompletionStage<?>, AsyncGenerator<?>> {
     
-    private final CompletionStage<?> cancellationTarget;
-    private volatile int wasCancelled = 0;
+    private static final AsyncFinalizer<CompletionStage<?>, AsyncGenerator<?>> INSTANCE = new DefaultAsyncFinalizer();
     
-    private FinalizerFuture(CompletionStage<?> cancellationTarget) {
-        this.cancellationTarget = cancellationTarget;
+    protected DefaultAsyncFinalizer() {
+        
     }
-    
-    boolean delayedCancel(boolean mayInterruptIfRunning) {
-        if (wasCancelled > 0) {
-            return super.cancel(mayInterruptIfRunning);
-        } else {
-            return false;
-        }
-    }
-    
+
     @Override
-    public boolean cancel(boolean mayInterruptIfRunning) {
-        if (WAS_CANCELLED_UPDATER.compareAndSet(this,  0,  1)) {
-            CompletionStageHelper.cancelCompletionStage(cancellationTarget, mayInterruptIfRunning);
-            return true;
-        } else {
-            return false;
+    public CompletionStage<?> finalizeSingle(CompletionStage<?> singleAsynResult, 
+                                             boolean cancellationIsError,
+                                             BiFunction<Throwable, Boolean, CompletionStage<Void>> cleanup) {
+        return attachCleanup(singleAsynResult, cancellationIsError, cleanup);
+    }
+
+    @Override
+    public AsyncGenerator<?> finalizeMultiple(AsyncGenerator<?> multipleAsynResults, 
+                                              boolean cancellationIsError,
+                                              BiFunction<Throwable, Boolean, CompletionStage<Void>> cleanup) {
+        
+        InternalAsyncGenerator.updateCompletion(
+            multipleAsynResults, done -> attachCleanup(done, cancellationIsError, cleanup)
+        );
+        return multipleAsynResults;
+    }
+    
+    public static AsyncFinalizer<CompletionStage<?>, AsyncGenerator<?>> instance() {
+        return INSTANCE;
+    }
+    
+    static class FinalizerFuture <T> extends RestrictedCompletableFuture<T> {
+        private static final AtomicIntegerFieldUpdater<FinalizerFuture<?>> WAS_CANCELLED_UPDATER =
+                AtomicIntegerFieldUpdater.newUpdater(cast(FinalizerFuture.class), "wasCancelled");
+        
+        private final CompletionStage<?> cancellationTarget;
+        private volatile int wasCancelled = 0;
+        
+        private FinalizerFuture(CompletionStage<?> cancellationTarget) {
+            this.cancellationTarget = cancellationTarget;
+        }
+        
+        boolean delayedCancel(boolean mayInterruptIfRunning) {
+            if (wasCancelled > 0) {
+                return super.cancel(mayInterruptIfRunning);
+            } else {
+                return false;
+            }
+        }
+        
+        @Override
+        public boolean cancel(boolean mayInterruptIfRunning) {
+            if (WAS_CANCELLED_UPDATER.compareAndSet(this,  0,  1)) {
+                CompletionStageHelper.cancelCompletionStage(cancellationTarget, mayInterruptIfRunning);
+                return true;
+            } else {
+                return false;
+            }
         }
     }
     
-    static <T> CompletionStage<T> awaitDestructor(CompletionStage<T> result, boolean cancellationIsError, 
-                                                  BiFunction<Throwable, Boolean, CompletionStage<Void>> destructor) {
+    static <T> CompletionStage<T> attachCleanup(CompletionStage<T> result, 
+                                                boolean cancellationIsError,
+                                                BiFunction<Throwable, Boolean, CompletionStage<Void>> cleanup) {
         FinalizerFuture<T> alt = new FinalizerFuture<>(result);
-        result.handle((r, e) -> Outcome.create(r, e, cancellationIsError))
-              .thenCompose(o -> o.composeWith(destructor))
+        result.handle((r, e) -> Outcome.create(r, e, cancellationIsError)).thenCompose(o -> o.composeWith(cleanup))
               .whenComplete((r, e) -> {
                   if (alt.delayedCancel(true)) {
-                      // Cancelled
+                    // Cancelled
                   } else if (null == e) {
                       CompletionStageHelper.completeSuccess(alt, r);
                   } else {
                       CompletionStageHelper.completeFailure(alt, e);
                   }
-        });
+              });
         return alt;
     }
-    
+
     static abstract class Outcome<T> {
         abstract CompletionStage<T> composeWith(BiFunction<Throwable, Boolean, CompletionStage<Void>> destructor);
         
@@ -139,4 +172,5 @@ class FinalizerFuture <T> extends RestrictedCompletableFuture<T> {
     private static <T> Class<T> cast(Class<?> clazz) {
         return (Class<T>)clazz;
     }
+
 }

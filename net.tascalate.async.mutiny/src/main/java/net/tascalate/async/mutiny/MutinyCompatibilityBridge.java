@@ -36,17 +36,93 @@ import java.util.Set;
 import java.util.function.Function;
 import java.util.function.LongConsumer;
 
+import io.smallrye.mutiny.subscription.MultiSubscriber;
+import net.tascalate.async.AsyncGenerator;
 import net.tascalate.async.spi.Memoization;
 
-class SubscriptionBridgeCache {
-    private static final Function<Class<?>, MethodHandle> REQUEST_MAP = Memoization.weakKeysSoftValues(SubscriptionBridgeCache::buildRequesterFactory);
-    private static final Function<Class<?>, MethodHandle> CANCEL_MAP = Memoization.weakKeysSoftValues(SubscriptionBridgeCache::buildCancelerFactory);
+class MutinyCompatibilityBridge {
+    
+    @FunctionalInterface
+    interface MultiSubscriberFactory {
+        MultiSubscriber<?> create(AsyncGenerator.Sink<?> sink, long batchSize);
+    }
+    
+    private static final Function<Class<?>, MethodHandle> REQUEST_MAP = Memoization.weakKeysSoftValues(MutinyCompatibilityBridge::buildSubscriptionRequesterFactory);
+    private static final Function<Class<?>, MethodHandle> CANCEL_MAP = Memoization.weakKeysSoftValues(MutinyCompatibilityBridge::buildSubscriptionCancelerFactory);
     
     private static final MethodHandles.Lookup LOOKUP = MethodHandles.lookup();
     
-    private SubscriptionBridgeCache() {}
+    private static final MultiSubscriberFactory MULTI_SUBSCRIBER_FACTORY;
+    
+    enum Variant { REACTIVE_STREAMS, FLOW }
 
-    static LongConsumer getRequester(Object subscription) {
+    static {
+        Variant variant = null;
+        // MultiSubscriber extends org.reactivestreams.Subscriber  → RS variant
+        // MultiSubscriber extends java.util.concurrent.Flow.Subscriber → Flow variant
+        for (Class<?> iface : MultiSubscriber.class.getInterfaces()) {
+            String name = iface.getName();
+            if ("org.reactivestreams.Subscriber".equals(name)) {
+                variant = Variant.REACTIVE_STREAMS;
+                break;
+            }
+            if ("java.util.concurrent.Flow$Subscriber".equals(name)) {
+                variant = Variant.FLOW;
+                break;
+            }
+        }
+        
+        
+        ClassLoader classLoader = MutinyCompatibilityBridge.class.getClassLoader();
+        
+        if (null == variant) {
+            // Fallback: probe classpath
+            if (classExists("org.reactivestreams.Subscription", classLoader)) {
+                variant = Variant.REACTIVE_STREAMS;
+            } else if (classExists("java.util.concurrent.Flow$Subscription", classLoader)) {
+                variant = Variant.FLOW;
+            } else {
+                throw new ExceptionInInitializerError("Unnable to detect Mutiny library variant");
+            }
+        }
+        
+        String className;
+        switch (variant) {
+            case REACTIVE_STREAMS:
+                className = "net.tascalate.async.mutiny.MutinyLegacyMultiSubscriber";
+                break;
+            case FLOW:
+                className = "net.tascalate.async.mutiny.MutinyModernMultiSubscriber";
+                break;
+            default:
+                throw new IllegalStateException(
+                    "Cannot detect Mutiny variant (Reactive Streams vs Flow)");
+        }
+
+        try {
+            Class<?> clazz = Class.forName(className, true, classLoader);
+
+            MethodHandle ctor = LOOKUP.findConstructor(
+                clazz, MethodType.methodType(void.class, AsyncGenerator.Sink.class, long.class)
+            );
+
+            MULTI_SUBSCRIBER_FACTORY = buildLambdaFactory(ctor);
+
+        } catch (ClassNotFoundException e) {
+            throw new ExceptionInInitializerError("Subscriber class not found on classpath: " + className);
+        } catch (Throwable e) {
+            throw new ExceptionInInitializerError("Cannot resolve constructor for " + className);
+        }
+    }
+    
+    @SuppressWarnings("unchecked")
+    public static <T> MultiSubscriber<T> createMultiSubsciber(AsyncGenerator.Sink<T> sink, long batchSize) {
+        return (MultiSubscriber<T>)MULTI_SUBSCRIBER_FACTORY.create(sink, batchSize);
+    }
+    
+    private MutinyCompatibilityBridge() {}
+
+    static LongConsumer getSubscriptionRequester(Object subscription) {
         if (subscription == null) return demand -> {};
         
         MethodHandle factory = REQUEST_MAP.apply(subscription.getClass()); 
@@ -59,7 +135,7 @@ class SubscriptionBridgeCache {
         }
     }
     
-    static MethodHandle buildRequesterFactory(Class<?> clazz) {
+    static MethodHandle buildSubscriptionRequesterFactory(Class<?> clazz) {
         try {
             Method method = findPublicMethod(clazz, new HashSet<>(), "request", long.class);
             MethodHandle target = LOOKUP.unreflect(method);
@@ -81,7 +157,7 @@ class SubscriptionBridgeCache {
         }
     }
 
-    static Runnable getCanceler(Object subscription) {
+    static Runnable getSubscriptionCanceler(Object subscription) {
         if (subscription == null) return () -> {};
         
         MethodHandle factory = CANCEL_MAP.apply(subscription.getClass());
@@ -94,7 +170,7 @@ class SubscriptionBridgeCache {
         }
     }
     
-    static MethodHandle buildCancelerFactory(Class<?> clazz) {
+    static MethodHandle buildSubscriptionCancelerFactory(Class<?> clazz) {
         try {
             Method method =  findPublicMethod(clazz, new HashSet<>(), "cancel");
             MethodHandle target = LOOKUP.unreflect(method);
@@ -113,6 +189,24 @@ class SubscriptionBridgeCache {
         } catch (LambdaConversionException | ReflectiveOperationException ex) {
             throw new RuntimeException("Failed building cancel lambda proxy for " + clazz.getName(), ex);
         }
+    }
+    
+    private static MultiSubscriberFactory buildLambdaFactory(MethodHandle ctor) throws Throwable {
+        MethodType samType = MethodType.methodType(
+                MultiSubscriber.class, 
+                AsyncGenerator.Sink.class, 
+                long.class);
+
+        CallSite site = LambdaMetafactory.metafactory(
+            LOOKUP,
+            "create",                                       // SAM method name
+            MethodType.methodType(MultiSubscriberFactory.class), // Factory type
+            samType,                                        // Erased SAM signature
+            ctor,                                           // Constructor handle
+            samType                                         // Instantiated signature (same as erased here)
+        );
+
+        return (MultiSubscriberFactory) site.getTarget().invoke();
     }
     
     private static Method findPublicMethod(Class<?> clazz, Set<Class<?>> visited, String name, Class<?>... paramTypes) throws NoSuchMethodException {
@@ -148,6 +242,15 @@ class SubscriptionBridgeCache {
             return clazz.getMethod(name, paramTypes);
         } else {
             return null;
+        }
+    }
+
+    private static boolean classExists(String name, ClassLoader classLoader) {
+        try {
+            Class.forName(name, false, classLoader);
+            return true;
+        } catch (ClassNotFoundException e) {
+            return false;
         }
     }
 

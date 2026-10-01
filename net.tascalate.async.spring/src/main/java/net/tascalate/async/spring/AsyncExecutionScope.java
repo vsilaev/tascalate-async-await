@@ -35,7 +35,6 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionStage;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicReference;
-import java.util.function.Function;
 import java.util.stream.Collectors;
 
 import org.springframework.beans.factory.ObjectFactory;
@@ -43,6 +42,7 @@ import org.springframework.beans.factory.config.Scope;
 
 import net.tascalate.async.core.InternalCallContext;
 import net.tascalate.async.spi.ThreadVar;
+import net.tascalate.async.spring.util.ThrowableFunction;
 
 public class AsyncExecutionScope implements Scope {
     
@@ -322,13 +322,4 @@ public class AsyncExecutionScope implements Scope {
     }
     
     private static final AsyncExecutionScope INSTANCE = new AsyncExecutionScope();
-    
-    @FunctionalInterface
-    public static interface ThrowableFunction<T, R> {
-        R apply(T param) throws Throwable;
-        static <T,R> ThrowableFunction<T, R> of(Function<T, R> fn) {
-            return fn::apply;
-        }
-    }
-
 }

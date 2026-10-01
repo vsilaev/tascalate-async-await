@@ -58,7 +58,7 @@ public final class MutinyCallContext {
         return (MultiYield<T>)MultiYield.INSTANCE;
     }
     
-    public static <T> AsyncGenerator<T> generator(Multi<T> multi) {
+    public static <T> AsyncGenerator<T> generator(Multi<? extends T> multi) {
         return MutinyAsyncAwaitBridge.createGenerator(multi, CallContext.scheduler());
     }
     
@@ -70,11 +70,11 @@ public final class MutinyCallContext {
         return MutinyAsyncAwaitBridge.promise(uni);
     }
     
-    public static <T> AsyncGenerator<T> __convert(Multi<T> multi, Scheduler scheduler) {
+    public static <T> AsyncGenerator<T> __convert(Multi<? extends T> multi, Scheduler scheduler) {
         return MutinyAsyncAwaitBridge.createGenerator(multi, scheduler);
     }
     
-    public static <T> Multi<T> __convert(AsyncGenerator<T> generator) {
+    public static <T> Multi<T> __convert(AsyncGenerator<? extends T> generator) {
         return MutinyAsyncAwaitBridge.createMulti(generator);
     }
     

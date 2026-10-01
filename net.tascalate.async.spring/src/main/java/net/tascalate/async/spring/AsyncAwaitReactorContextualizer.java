@@ -35,6 +35,7 @@ import org.springframework.stereotype.Component;
 
 import net.tascalate.async.Scheduler;
 import net.tascalate.async.scheduler.ContextualizerOwner;
+import net.tascalate.async.spring.util.AbstractSmartLifecycle;
 import reactor.core.scheduler.Schedulers;
 
 @Component

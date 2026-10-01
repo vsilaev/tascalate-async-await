@@ -1,5 +1,5 @@
 /**
- * Copyright 2015-2025 Valery Silaev (http://vsilaev.com)
+ * Copyright 2015-2026 Valery Silaev (http://vsilaev.com)
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
@@ -22,28 +22,14 @@
  * OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
-package net.tascalate.async.core;
+package net.tascalate.async.spring.util;
 
-import java.util.concurrent.CompletionStage;
-import java.util.function.UnaryOperator;
+import java.util.function.Function;
 
-import net.tascalate.async.AsyncGenerator;
-
-public interface InternalAsyncGenerator<T> extends AsyncGenerator<T> {
-    
-    abstract CompletionStage<?> __completion();
-    abstract CompletionStage<?> __completion(UnaryOperator<CompletionStage<?>> mapper);
-    
-    public static boolean completionUpdatesupported(AsyncGenerator<?> target) {
-        return target instanceof InternalAsyncGenerator;
-    }
-    
-    public static CompletionStage<?> updateCompletion(AsyncGenerator<?> target, UnaryOperator<CompletionStage<?>> mapper) {
-        if (target instanceof InternalAsyncGenerator) {
-            InternalAsyncGenerator<?> typed = (InternalAsyncGenerator<?>)target; 
-            return typed.__completion(mapper);
-        } else {
-            throw new IllegalStateException("Unable to modify completion future of the generator of type " + target.getClass());
-        }
+@FunctionalInterface
+public interface ThrowableFunction<T, R> {
+    R apply(T param) throws Throwable;
+    static <T,R> ThrowableFunction<T, R> of(Function<T, R> fn) {
+        return fn::apply;
     }
 }

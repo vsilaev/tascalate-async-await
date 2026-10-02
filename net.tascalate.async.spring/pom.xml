@@ -87,17 +87,8 @@
 		<dependency>
 			<groupId>org.aspectj</groupId>
 			<artifactId>aspectjrt</artifactId>
-			<version>1.9.0</version>
 			<optional>true</optional>
 		</dependency>
-<!--
-		<dependency>
-			<groupId>org.aspectj</groupId>
-			<artifactId>aspectjweaver</artifactId>
-			<version>1.5.4</version>
-			<optional>true</optional>
-		</dependency>
--->
 		<dependency>
 			<groupId>org.slf4j</groupId>
 			<artifactId>slf4j-api</artifactId>
@@ -111,76 +102,40 @@
 	<build>
 		<plugins>
 			<plugin>
+				<groupId>org.apache.maven.plugins</groupId>
+				<artifactId>maven-compiler-plugin</artifactId>
+				<executions>
+					<execution>
+						<id>compile-java21</id>
+						<goals>
+							<goal>compile</goal>
+						</goals>
+						<configuration>
+							<jdkToolchain>
+								<version>21</version>
+							</jdkToolchain>
+							<compileSourceRoots>
+								<compileSourceRoot>${project.basedir}/src/main/java21</compileSourceRoot>
+							</compileSourceRoots>
+							<outputDirectory>${project.build.outputDirectory}</outputDirectory>
+						</configuration>
+					</execution> 
+				</executions>
+				<configuration>
+					<source>1.8</source>
+					<target>1.8</target>
+					<!--
+					<debug>false</debug>
+					-->
+				</configuration>
+			</plugin>
+			<plugin>
 				<groupId>org.moditect</groupId>
 				<artifactId>moditect-maven-plugin</artifactId>
 			</plugin>
 			<plugin>
-				<groupId>org.apache.maven.plugins</groupId>
-				<artifactId>maven-dependency-plugin</artifactId>
-				<executions>
-					<execution>
-						<id>unpack-binaries-java21</id>
-						<phase>prepare-package</phase>
-						<goals>
-							<goal>unpack</goal>
-						</goals>
-						<configuration>
-							<artifactItems>
-								<artifactItem>
-									<groupId>${project.groupId}</groupId>
-									<artifactId>${project.groupId}.spring-java21</artifactId>
-									<version>${project.version}</version>
-									<type>jar</type>
-									<overWrite>true</overWrite>
-									<outputDirectory>${project.build.outputDirectory}</outputDirectory>
-									<excludes>**/IntValueFormula*.class,**/ExecutorConditions*.class,**/DefaultAsyncAwaitExecutor.class,META-INF/**</excludes>
-								</artifactItem>
-							</artifactItems>
-							<failOnMissingClassifierArtifact>true</failOnMissingClassifierArtifact>
-						</configuration>
-					</execution>
-				</executions>
-			</plugin>
-			<plugin>
 				<groupId>dev.aspectj</groupId>
 				<artifactId>aspectj-maven-plugin</artifactId>
-				<version>1.14.1</version>
-				<configuration>
-					<complianceLevel>8</complianceLevel> 
-					<showWeaveInfo>true</showWeaveInfo>
-					<verbose>true</verbose>
-					<Xlint>ignore</Xlint>
-					<!-- CRITICAL: Instructs ajc to weave binary class files directly -->
-					<forceAjcCompile>true</forceAjcCompile>
-					<weaveDirectories>
-						<weaveDirectory>${project.build.outputDirectory}</weaveDirectory>
-					</weaveDirectories>
-					<!-- CRITICAL: Prevents ajc from attempting to re-compile your java source files -->
-					<sources/> 
-					<testSources/>
-				</configuration>
-				<executions>
-			                <execution>
-						<id>ajc-compile</id>
-						<!-- Binds to process-classes so it runs immediately after java compilation -->
-						<phase>process-classes</phase>
-						<goals>
-							<goal>compile</goal>
-						</goals>
-					</execution>
-					<execution>
-						<id>ajc-compile-test</id>
-						<phase>process-test-classes</phase>
-						<goals>
-							<goal>test-compile</goal>
-						</goals>
-						<configuration>
-							<weaveDirectories>
-								<weaveDirectory>${project.build.testOutputDirectory}</weaveDirectory>
-							</weaveDirectories>
-						</configuration>
-					</execution>
-				</executions>
 			</plugin>
 		</plugins>
 	</build>

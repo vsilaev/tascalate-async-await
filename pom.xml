@@ -35,7 +35,6 @@
 	</developers>
 
 	<modules>
-		<module>net.tascalate.async.runtime-java25</module>
 		<module>net.tascalate.async.runtime</module>
 		<module>net.tascalate.async.resolver.propagated</module>
 		<module>net.tascalate.async.resolver.provided</module>
@@ -48,7 +47,6 @@
 		<module>net.tascalate.async.extras</module>
 		<module>net.tascalate.async.reactor</module>
 		<module>net.tascalate.async.mutiny</module>
-		<module>net.tascalate.async.spring-java21</module>
 		<module>net.tascalate.async.spring.scope</module>
 		<module>net.tascalate.async.spring.scheduler</module>
 		<module>net.tascalate.async.spring</module>
@@ -69,6 +67,7 @@
 		<spring.boot.version>2.7.0</spring.boot.version>
 		<reactor.version>3.4.0</reactor.version>
 		<mutiny.version>1.9.0</mutiny.version>
+		<aspectj.version>1.9.0</aspectj.version>
 	</properties>
 
 	<dependencyManagement>
@@ -102,6 +101,14 @@
 				<groupId>net.tascalate.javaflow</groupId>
 				<artifactId>net.tascalate.javaflow.extras</artifactId>
 				<version>${tascalate.javaflow.extras.version}</version>
+			</dependency>
+			<dependency>
+				<groupId>org.aspectj</groupId>
+				<artifactId>aspectjrt</artifactId>
+				<version>${aspectj.version}</version>
+				<!--
+				<version>1.5.4</version>
+				-->
 			</dependency>
 			<dependency>
 				<groupId>org.kohsuke.metainf-services</groupId>
@@ -288,6 +295,48 @@
 							<goals>
 								<goal>javaflow-enhance</goal>
 							</goals>
+						</execution>
+					</executions>
+				</plugin>
+
+				<plugin>
+					<groupId>dev.aspectj</groupId>
+					<artifactId>aspectj-maven-plugin</artifactId>
+					<version>1.14.1</version>
+					<configuration>
+						<complianceLevel>8</complianceLevel> 
+						<showWeaveInfo>true</showWeaveInfo>
+						<verbose>true</verbose>
+						<Xlint>ignore</Xlint>
+						<!-- CRITICAL: Instructs ajc to weave binary class files directly -->
+						<forceAjcCompile>true</forceAjcCompile>
+						<weaveDirectories>
+							<weaveDirectory>${project.build.outputDirectory}</weaveDirectory>
+						</weaveDirectories>
+						<!-- CRITICAL: Prevents ajc from attempting to re-compile your java source files -->
+						<sources/> 
+						<testSources/>
+					</configuration>
+					<executions>
+				                <execution>
+							<id>ajc-compile</id>
+							<!-- Binds to process-classes so it runs immediately after java compilation -->
+							<phase>process-classes</phase>
+							<goals>
+								<goal>compile</goal>
+							</goals>
+						</execution>
+						<execution>
+							<id>ajc-compile-test</id>
+							<phase>process-test-classes</phase>
+							<goals>
+								<goal>test-compile</goal>
+							</goals>
+							<configuration>
+								<weaveDirectories>
+									<weaveDirectory>${project.build.testOutputDirectory}</weaveDirectory>
+								</weaveDirectories>
+							</configuration>
 						</execution>
 					</executions>
 				</plugin>

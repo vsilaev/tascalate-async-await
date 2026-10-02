@@ -40,7 +40,6 @@
 		<dependency>
 			<groupId>org.aspectj</groupId>
 			<artifactId>aspectjrt</artifactId>
-			<version>1.9.0</version>
 			<optional>true</optional>
 		</dependency>
 		<dependency>
@@ -65,40 +64,6 @@
 			<plugin>
 				<groupId>dev.aspectj</groupId>
 				<artifactId>aspectj-maven-plugin</artifactId>
-				<version>1.14.1</version>
-				<configuration>
-					<complianceLevel>8</complianceLevel> 
-					<showWeaveInfo>true</showWeaveInfo>
-					<verbose>true</verbose>
-					<Xlint>ignore</Xlint>
-					<forceAjcCompile>true</forceAjcCompile>
-					<weaveDirectories>
-						<weaveDirectory>${project.build.outputDirectory}</weaveDirectory>
-					</weaveDirectories>
-					<sources/> 
-					<testSources/>
-				</configuration>
-				<executions>
-			                <execution>
-						<id>ajc-compile</id>
-						<phase>process-classes</phase>
-						<goals>
-							<goal>compile</goal>
-						</goals>
-					</execution>
-					<execution>
-						<id>ajc-compile-test</id>
-						<phase>process-test-classes</phase>
-						<goals>
-							<goal>test-compile</goal>
-						</goals>
-						<configuration>
-							<weaveDirectories>
-								<weaveDirectory>${project.build.testOutputDirectory}</weaveDirectory>
-							</weaveDirectories>
-						</configuration>
-					</execution>
-				</executions>
 			</plugin>
 			<plugin>
 				<groupId>org.moditect</groupId>

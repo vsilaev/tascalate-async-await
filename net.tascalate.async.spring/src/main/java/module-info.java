@@ -42,7 +42,9 @@ module net.tascalate.async.spring {
     requires spring.boot.autoconfigure;
     
     requires static org.aspectj.runtime;
+    /*
     requires static org.aspectj.weaver;
+    */
     
     requires static net.tascalate.concurrent;
     

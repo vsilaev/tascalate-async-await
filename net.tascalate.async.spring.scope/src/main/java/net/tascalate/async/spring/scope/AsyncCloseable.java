@@ -22,39 +22,10 @@
  * OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
-package net.tascalate.async.spring;
+package net.tascalate.async.spring.scope;
 
-import java.util.function.IntUnaryOperator;
+import java.util.concurrent.CompletionStage;
 
-public interface IntValueFormula extends IntUnaryOperator {
-    
-    public static IntValueFormula constant(int value) {
-        return operand -> value;
-    }
-    
-    public static IntValueFormula scale(int nominator, int denominator) {
-        return operand -> (operand * nominator) / denominator;
-    }
-    
-    public static IntValueFormula scale(double factor) {
-        return operand -> (int)(operand * factor);     
-    }
-    
-    default public IntValueFormula withMinValue(int minValue) {
-        return new IntValueFormula() {
-            @Override
-            public int applyAsInt(int operand) {
-                return Math.max(IntValueFormula.this.applyAsInt(operand), minValue);
-            }
-        };
-    }
-    
-    default public IntValueFormula withMaxValue(int maxValue) {
-        return new IntValueFormula() {
-            @Override
-            public int applyAsInt(int operand) {
-                return Math.min(IntValueFormula.this.applyAsInt(operand), maxValue);
-            }
-        };
-    }
+public interface AsyncCloseable {
+    CompletionStage<Void> close(Throwable error);
 }

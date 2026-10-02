@@ -27,6 +27,11 @@
 		</dependency>
 		<dependency>
 			<groupId>${project.groupId}</groupId>
+			<artifactId>${project.groupId}.spring.scope</artifactId>
+			<version>${project.version}</version>
+		</dependency>
+		<dependency>
+			<groupId>${project.groupId}</groupId>
 			<artifactId>${project.groupId}.extras</artifactId>
 			<version>${project.version}</version>
 			<scope>provided</scope>
@@ -34,12 +39,6 @@
 		<dependency>
 			<groupId>${project.groupId}</groupId>
 			<artifactId>${project.groupId}.reactor</artifactId>
-			<version>${project.version}</version>
-			<optional>true</optional>
-		</dependency>
-		<dependency>
-			<groupId>${project.groupId}</groupId>
-			<artifactId>${project.groupId}.mutiny</artifactId>
 			<version>${project.version}</version>
 			<optional>true</optional>
 		</dependency>
@@ -88,8 +87,7 @@
 		<dependency>
 			<groupId>org.aspectj</groupId>
 			<artifactId>aspectjrt</artifactId>
-<!--			<version>1.9.7</version> -->
-			<version>1.5.4</version>
+			<version>1.9.0</version>
 			<optional>true</optional>
 		</dependency>
 <!--
@@ -135,7 +133,7 @@
 									<type>jar</type>
 									<overWrite>true</overWrite>
 									<outputDirectory>${project.build.outputDirectory}</outputDirectory>
-									<excludes>**/IntValueFormula*.class,**/DefaultAsyncAwaitExecutor.class,META-INF/**</excludes>
+									<excludes>**/IntValueFormula*.class,**/ExecutorConditions*.class,**/DefaultAsyncAwaitExecutor.class,META-INF/**</excludes>
 								</artifactItem>
 							</artifactItems>
 							<failOnMissingClassifierArtifact>true</failOnMissingClassifierArtifact>

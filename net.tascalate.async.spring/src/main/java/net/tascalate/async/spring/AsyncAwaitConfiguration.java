@@ -1,5 +1,5 @@
 /**
- * Copyright 2015-2025 Valery Silaev (http://vsilaev.com)
+ * Copyright 2015-2026 Valery Silaev (http://vsilaev.com)
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
@@ -24,47 +24,46 @@
  */
 package net.tascalate.async.spring;
 
-import java.util.Collections;
 import java.util.Optional;
 import java.util.concurrent.ExecutorService;
 import java.util.function.Function;
 
-import org.aspectj.lang.Aspects;
-import org.aspectj.lang.ProceedingJoinPoint;
-
-import org.springframework.beans.factory.config.CustomScopeConfigurer;
+import org.aspectj.lang.annotation.Aspect;
+import org.springframework.aop.support.AopUtils;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnClass;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.context.SmartLifecycle;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.ComponentScan;
+import org.springframework.context.annotation.Conditional;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.context.annotation.Lazy;
 import org.springframework.core.ReactiveAdapterRegistry;
 import org.springframework.core.ReactiveTypeDescriptor;
 
-import io.smallrye.mutiny.Multi;
-import reactor.core.publisher.Flux;
-
 import net.tascalate.async.AsyncGenerator;
 import net.tascalate.async.CallContext;
 import net.tascalate.async.Scheduler;
-import net.tascalate.async.mutiny.MutinyAsyncAwaitBridge;
 import net.tascalate.async.reactor.ReactorAsyncAwaitBridge;
-import net.tascalate.async.spring.aspects.DefaultAsyncCallBoundaryInterceptor;
-import net.tascalate.async.spring.aspects.MutinyAsyncCallBoundaryInterceptor;
-import net.tascalate.async.spring.aspects.ReactorAsyncCallBoundaryInterceptor;
+import net.tascalate.async.spring.concurrent.AsyncAwaitExecutorProperties;
+import net.tascalate.async.spring.concurrent.TaskSchedulerFactory;
 import net.tascalate.async.spring.util.AbstractSmartLifecycle;
+import reactor.core.publisher.Flux;
 
 
-@Configuration()
-@ComponentScan(basePackageClasses = AsyncAwaitConfiguration.class)
+@Configuration
+@ComponentScan(basePackages = {
+    "net.tascalate.async.spring",
+    "net.tascalate.async.mutiny.spring",
+    "net.tascalate.async.reactor.spring"
+})
 class AsyncAwaitConfiguration {
 
     @DefaultAsyncAwaitExecutor
     @Lazy
     @Bean(name="<<default-async-await-executor>>", destroyMethod = "shutdown")
+    @Conditional(ExecutorConditions.UsePlatformThreads.class)
     @ConditionalOnMissingBean(annotation = DefaultAsyncAwaitExecutor.class)
     ExecutorService defaultAsyncAwaitExecutorService(AsyncAwaitExecutorProperties executorProperties) {
         return executorProperties.createExecutorService();
@@ -80,24 +79,6 @@ class AsyncAwaitConfiguration {
         
         return taskSchedulerFactory.map(tsf -> tsf.create(executor, contextualizer.orElse(null)))
                                    .orElseGet(() -> Scheduler.interruptible(executor, contextualizer.orElse(null)));
-    }
-
-    @Configuration
-    @ConditionalOnProperty(name = "async-await.async-call-scope.enable", havingValue = "true", matchIfMissing = true)
-    @ConditionalOnClass(ProceedingJoinPoint.class)
-    static class AsyncCallScopeConfiguration {
-        @Bean(name="<<async-await-acync-call-scope-configurer>>")
-        static CustomScopeConfigurer customScopeConfigurer() {
-            CustomScopeConfigurer configurer = new CustomScopeConfigurer();
-            configurer.setScopes( Collections.singletonMap("async-call", AsyncExecutionScope.instance()));
-            return configurer;
-        }
-        
-        @Bean(name="<<default-async-call-boundary-interceptor>>")
-        DefaultAsyncCallBoundaryInterceptor asyncCallBoundaryInterceptor() {
-            return Aspects.aspectOf(DefaultAsyncCallBoundaryInterceptor.class);
-        }
-
     }
 
     @Configuration
@@ -121,13 +102,31 @@ class AsyncAwaitConfiguration {
                 }
             };
         }
+    }
+    
+    @Configuration
+    @ConditionalOnProperty(name = "async-await.async-call-scope.enable", havingValue = "true", matchIfMissing = true)
+    @ConditionalOnClass({Aspect.class, AopUtils.class})
+    static class AsyncCallScopeConfiguration {
+
+        @Bean(name="<<default-async-call-boundary-interceptor>>")
+        @ConditionalOnMissingBean(DefaultAsyncCallBoundaryInterceptor.class)
+        @ConditionalOnProperty(prefix = "spring.aop", name = "auto", havingValue = "true", matchIfMissing = true)
+        DefaultAsyncCallBoundaryInterceptor asyncCallBoundaryInterceptor() {
+            return new DefaultAsyncCallBoundaryInterceptor();
+        }
+
+    }
+    
+    /*
         
         @Bean(name="<<reactor-async-call-boundary-interceptor>>")
         ReactorAsyncCallBoundaryInterceptor reactorCallBoundaryInterceptor() {
             return Aspects.aspectOf(ReactorAsyncCallBoundaryInterceptor.class);
         }
-    }
+     */
     
+    /*
     @Configuration
     @ConditionalOnClass({Multi.class, MutinyAsyncAwaitBridge.class})
     static class MutinyAsyncAwaitConfiguration {
@@ -136,4 +135,5 @@ class AsyncAwaitConfiguration {
             return Aspects.aspectOf(MutinyAsyncCallBoundaryInterceptor.class);
         }
     }
+    */
 }

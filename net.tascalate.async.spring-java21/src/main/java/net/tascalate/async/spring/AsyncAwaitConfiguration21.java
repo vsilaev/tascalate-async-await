@@ -27,16 +27,16 @@ package net.tascalate.async.spring;
 import java.util.concurrent.ExecutorService;
 
 import org.springframework.beans.factory.annotation.Value;
-import org.springframework.boot.autoconfigure.condition.ConditionalOnJava;
-import org.springframework.boot.autoconfigure.condition.ConditionalOnJava.Range;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
-import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
-import org.springframework.boot.system.JavaVersion;
 import org.springframework.context.annotation.Bean;
+import org.springframework.context.annotation.Conditional;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.context.annotation.Lazy;
 
+import net.tascalate.async.spring.concurrent.AsyncAwaitExecutorProperties21;
+
 @Configuration
+@Conditional(ExecutorConditions.UseVirtualThreads.class)
 class AsyncAwaitConfiguration21 {
     
     @Value("${async-await.executor.thread-name-prefix:async-await-scheduler-vthread_}")
@@ -46,8 +46,6 @@ class AsyncAwaitConfiguration21 {
     @Lazy
     @Bean(name="<<default-async-await-executor>>", destroyMethod = "shutdown")
     @ConditionalOnMissingBean(annotation = DefaultAsyncAwaitExecutor.class)
-    @ConditionalOnJava(value = JavaVersion.TWENTY_ONE, range = Range.EQUAL_OR_NEWER)
-    @ConditionalOnProperty(name = "async-await.executor.use-virtual-threads", havingValue = "true", matchIfMissing = true)
     ExecutorService defaultAsyncAwaitExecutorService(AsyncAwaitExecutorProperties21 executorProperties) {
         return executorProperties.createExecutorService();        
     }

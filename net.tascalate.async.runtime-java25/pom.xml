@@ -43,7 +43,6 @@
 						<configuration>
 							<jdkToolchain>
 								<version>25</version>
-								<vendor>Oracle</vendor>
 							</jdkToolchain>
 						</configuration>
 					</execution> 
@@ -63,7 +62,6 @@
 				<configuration>
 					<jdkToolchain>
 						<version>25</version>
-						<vendor>Oracle</vendor>
 					</jdkToolchain>
 					<release>25</release>
 				</configuration>

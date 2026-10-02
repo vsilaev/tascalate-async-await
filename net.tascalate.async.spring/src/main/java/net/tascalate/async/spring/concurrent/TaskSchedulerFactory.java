@@ -22,31 +22,24 @@
  * OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
-package net.tascalate.async.spring;
+package net.tascalate.async.spring.concurrent;
 
-import java.lang.annotation.Documented;
-import java.lang.annotation.ElementType;
-import java.lang.annotation.Inherited;
-import java.lang.annotation.Retention;
-import java.lang.annotation.RetentionPolicy;
-import java.lang.annotation.Target;
+import java.util.concurrent.ExecutorService;
+import java.util.function.Function;
 
-@Documented
-@Inherited
-@Target({ElementType.TYPE, ElementType.METHOD})
-@Retention(RetentionPolicy.RUNTIME)
-public @interface AsyncCallBoundary {
-    enum Propagation {
-        REQUIRED,
-        REQUIRES_NEW,
-        SUPPORTS,
-        NOT_SUPPORTED,
-        MANDATORY,
-        NEVER,
-        NESTED
+import org.springframework.boot.autoconfigure.condition.ConditionalOnClass;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
+import org.springframework.stereotype.Component;
+
+import net.tascalate.async.Scheduler;
+import net.tascalate.async.extras.TaskScheduler;
+import net.tascalate.concurrent.CompletableTask;
+
+@Component
+@ConditionalOnProperty(name = "async-await.scheduler.use-tascalate-concurrent", havingValue = "true", matchIfMissing = true)
+@ConditionalOnClass({TaskScheduler.class, CompletableTask.class})
+public class TaskSchedulerFactory {
+    public Scheduler create(ExecutorService executorService, Function<? super Runnable, ? extends Runnable> contextualizer) {
+        return new TaskScheduler(executorService, contextualizer);
     }
-    
-    public Propagation value() default Propagation.REQUIRED;
-    public boolean ignoreGeneratorEarlyExit() default true;
 }
-

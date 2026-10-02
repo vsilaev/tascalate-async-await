@@ -22,10 +22,18 @@
  * OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
-package net.tascalate.async.spring;
-
-import java.util.concurrent.CompletionStage;
-
-public interface AsyncCloseable {
-    CompletionStage<Void> close(Throwable error);
+module net.tascalate.async.spring.scope {
+    requires org.slf4j;
+    
+    requires transitive net.tascalate.async.runtime;
+    
+    requires spring.beans;
+    requires spring.context;
+    requires spring.core;
+    
+    requires spring.boot.autoconfigure;
+    
+    requires static org.aspectj.runtime;
+    
+    exports net.tascalate.async.spring.scope;
 }

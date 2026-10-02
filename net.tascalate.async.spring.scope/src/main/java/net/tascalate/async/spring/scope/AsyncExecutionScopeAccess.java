@@ -22,12 +22,10 @@
  * OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
-package net.tascalate.async.spring;
+package net.tascalate.async.spring.scope;
 
 import java.util.concurrent.CompletionStage;
 import java.util.function.BiFunction;
-
-import net.tascalate.async.spring.util.ThrowableFunction;
 
 public class AsyncExecutionScopeAccess {
     private AsyncExecutionScopeAccess() {

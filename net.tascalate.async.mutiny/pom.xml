@@ -26,9 +26,21 @@
 			<scope>provided</scope>
 		</dependency>
 		<dependency>
+			<groupId>${project.groupId}</groupId>
+			<artifactId>${project.groupId}.spring.scope</artifactId>
+			<version>${project.version}</version>
+			<scope>provided</scope>
+		</dependency>
+		<dependency>
 			<groupId>io.smallrye.reactive</groupId>
 			<artifactId>mutiny</artifactId>
 			<version>${mutiny.version}</version>
+			<optional>true</optional>
+		</dependency>
+		<dependency>
+			<groupId>org.aspectj</groupId>
+			<artifactId>aspectjrt</artifactId>
+			<version>1.9.0</version>
 			<optional>true</optional>
 		</dependency>
 		<dependency>
@@ -43,13 +55,51 @@
 	</dependencies>
 	<build>
 		<plugins>
-			<!-- NO NEED FOR JavaFlow -- @suspendable methods have no actual bodies -->
+			<!-- NO NEED FOR JavaFlow - @suspendable methods have no actual bodies -->
 			<!-- 
 			<plugin>
 				<groupId>net.tascalate.javaflow</groupId>
 				<artifactId>net.tascalate.javaflow.tools.maven</artifactId>
 			</plugin>
 			-->
+			<plugin>
+				<groupId>dev.aspectj</groupId>
+				<artifactId>aspectj-maven-plugin</artifactId>
+				<version>1.14.1</version>
+				<configuration>
+					<complianceLevel>8</complianceLevel> 
+					<showWeaveInfo>true</showWeaveInfo>
+					<verbose>true</verbose>
+					<Xlint>ignore</Xlint>
+					<forceAjcCompile>true</forceAjcCompile>
+					<weaveDirectories>
+						<weaveDirectory>${project.build.outputDirectory}</weaveDirectory>
+					</weaveDirectories>
+					<sources/> 
+					<testSources/>
+				</configuration>
+				<executions>
+			                <execution>
+						<id>ajc-compile</id>
+						<phase>process-classes</phase>
+						<goals>
+							<goal>compile</goal>
+						</goals>
+					</execution>
+					<execution>
+						<id>ajc-compile-test</id>
+						<phase>process-test-classes</phase>
+						<goals>
+							<goal>test-compile</goal>
+						</goals>
+						<configuration>
+							<weaveDirectories>
+								<weaveDirectory>${project.build.testOutputDirectory}</weaveDirectory>
+							</weaveDirectories>
+						</configuration>
+					</execution>
+				</executions>
+			</plugin>
 			<plugin>
 				<groupId>org.moditect</groupId>
 				<artifactId>moditect-maven-plugin</artifactId>

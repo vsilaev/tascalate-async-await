@@ -1,5 +1,5 @@
 /**
- * Copyright 2015-2026 Valery Silaev (http://vsilaev.com)
+ * Copyright 2015-2025 Valery Silaev (http://vsilaev.com)
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
@@ -24,12 +24,37 @@
  */
 package net.tascalate.async.spring.util;
 
-import java.util.function.Function;
+import java.util.function.IntUnaryOperator;
 
-@FunctionalInterface
-public interface ThrowableFunction<T, R> {
-    R apply(T param) throws Throwable;
-    static <T,R> ThrowableFunction<T, R> of(Function<T, R> fn) {
-        return fn::apply;
+public interface IntValueFormula extends IntUnaryOperator {
+    
+    public static IntValueFormula constant(int value) {
+        return operand -> value;
+    }
+    
+    public static IntValueFormula scale(int nominator, int denominator) {
+        return operand -> (operand * nominator) / denominator;
+    }
+    
+    public static IntValueFormula scale(double factor) {
+        return operand -> (int)(operand * factor);     
+    }
+    
+    default public IntValueFormula withMinValue(int minValue) {
+        return new IntValueFormula() {
+            @Override
+            public int applyAsInt(int operand) {
+                return Math.max(IntValueFormula.this.applyAsInt(operand), minValue);
+            }
+        };
+    }
+    
+    default public IntValueFormula withMaxValue(int maxValue) {
+        return new IntValueFormula() {
+            @Override
+            public int applyAsInt(int operand) {
+                return Math.min(IntValueFormula.this.applyAsInt(operand), maxValue);
+            }
+        };
     }
 }

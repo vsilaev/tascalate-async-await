@@ -22,7 +22,7 @@
  * OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
-package net.tascalate.async.spring.aspects;
+package net.tascalate.async.spring.scope;
 
 import java.lang.reflect.Method;
 
@@ -30,8 +30,6 @@ import org.aspectj.lang.ProceedingJoinPoint;
 import org.aspectj.lang.reflect.MethodSignature;
 
 import net.tascalate.async.spi.AsyncFinalizer;
-import net.tascalate.async.spring.AsyncCallBoundary;
-import net.tascalate.async.spring.AsyncExecutionScopeAccess;
 
 public abstract class AbstractAsyncCallBoundaryInterceptor<U, M> {
     

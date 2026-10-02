@@ -35,7 +35,7 @@ import org.springframework.web.context.request.RequestContextHolder;
 import net.tascalate.async.Scheduler;
 import net.tascalate.async.resolver.scoped.SchedulerScope;
 import net.tascalate.async.spring.AsyncAwaitContextItem;
-import net.tascalate.async.spring.AsyncExecutionScope;
+import net.tascalate.async.spring.scope.AsyncExecutionScope;
 
 class AsyncAwaitContextualizer implements Function<Runnable, Runnable> {
 

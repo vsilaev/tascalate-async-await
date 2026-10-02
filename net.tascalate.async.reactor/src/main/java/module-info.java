@@ -29,5 +29,8 @@ module net.tascalate.async.reactor {
     requires transitive reactor.core;
     requires transitive org.reactivestreams;
     
+    requires static net.tascalate.async.spring.scope;
+    requires static org.aspectj.runtime;
+    
     exports net.tascalate.async.reactor;
 }

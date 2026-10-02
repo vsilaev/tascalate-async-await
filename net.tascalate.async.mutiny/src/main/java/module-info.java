@@ -28,5 +28,9 @@ module net.tascalate.async.mutiny {
     
     requires transitive io.smallrye.mutiny;
     
+    requires static net.tascalate.async.spring.scope;
+    requires static org.aspectj.runtime;
+
+    
     exports net.tascalate.async.mutiny;
 }

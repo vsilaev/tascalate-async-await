@@ -22,24 +22,28 @@
  * OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
-package net.tascalate.async.spring;
+package net.tascalate.async.spring.scope;
 
-import java.util.concurrent.ExecutorService;
-import java.util.function.Function;
+import java.lang.annotation.Documented;
+import java.lang.annotation.ElementType;
+import java.lang.annotation.Retention;
+import java.lang.annotation.RetentionPolicy;
+import java.lang.annotation.Target;
 
-import org.springframework.boot.autoconfigure.condition.ConditionalOnClass;
-import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
-import org.springframework.stereotype.Component;
+import org.springframework.context.annotation.Scope;
+import org.springframework.context.annotation.ScopedProxyMode;
+import org.springframework.core.annotation.AliasFor;
 
-import net.tascalate.async.Scheduler;
-import net.tascalate.async.extras.TaskScheduler;
-import net.tascalate.concurrent.CompletableTask;
-
-@Component
-@ConditionalOnProperty(name = "async-await.scheduler.use-tascalate-concurrent", havingValue = "true", matchIfMissing = true)
-@ConditionalOnClass({TaskScheduler.class, CompletableTask.class})
-class TaskSchedulerFactory {
-    Scheduler create(ExecutorService executorService, Function<? super Runnable, ? extends Runnable> contextualizer) {
-        return new TaskScheduler(executorService, contextualizer);
-    }
+@Target({ElementType.TYPE, ElementType.METHOD})
+@Retention(RetentionPolicy.RUNTIME)
+@Documented
+@Scope("async-call")
+public @interface AsyncCallScope {
+    /**
+     * Alias for {@link Scope#proxyMode}.
+     * <p>Defaults to {@link ScopedProxyMode#TARGET_CLASS}.
+     */
+    @AliasFor(annotation = Scope.class)
+    ScopedProxyMode proxyMode() default ScopedProxyMode.TARGET_CLASS;
 }
+

@@ -22,7 +22,7 @@
  * OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
-package net.tascalate.async.spring.aspects;
+package net.tascalate.async.mutiny;
 
 import org.aspectj.lang.ProceedingJoinPoint;
 import org.aspectj.lang.annotation.Around;
@@ -31,7 +31,7 @@ import org.aspectj.lang.annotation.Pointcut;
 
 import io.smallrye.mutiny.Multi;
 import io.smallrye.mutiny.Uni;
-import net.tascalate.async.mutiny.MutinyAsyncFinalizer;
+import net.tascalate.async.spring.scope.AbstractAsyncCallBoundaryInterceptor;
 
 @Aspect
 public class MutinyAsyncCallBoundaryInterceptor extends AbstractAsyncCallBoundaryInterceptor<Uni<?>, Multi<?>> {
@@ -51,7 +51,7 @@ public class MutinyAsyncCallBoundaryInterceptor extends AbstractAsyncCallBoundar
     @Pointcut("execution(io.smallrye.mutiny.Multi+ *.*(..))")
     void anyFluxMethod() {}
 
-    @Pointcut("@within(net.tascalate.async.spring.AsyncCallBoundary) || @annotation(net.tascalate.async.spring.AsyncCallBoundary)")
+    @Pointcut("@within(net.tascalate.async.spring.scope.AsyncCallBoundary) || @annotation(net.tascalate.async.spring.scope.AsyncCallBoundary)")
     void hasBoundaryAnnotation() {}
 
     @Around("anyMonoMethod() && hasBoundaryAnnotation()")

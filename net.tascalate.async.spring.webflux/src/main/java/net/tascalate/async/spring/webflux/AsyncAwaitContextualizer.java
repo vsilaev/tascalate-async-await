@@ -28,7 +28,7 @@ import java.util.Set;
 import java.util.function.Function;
 
 import net.tascalate.async.spring.AsyncAwaitContextItem;
-import net.tascalate.async.spring.AsyncExecutionScope;
+import net.tascalate.async.spring.scope.AsyncExecutionScope;
 
 class AsyncAwaitContextualizer implements Function<Runnable, Runnable> {
 

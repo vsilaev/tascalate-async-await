@@ -22,7 +22,7 @@
  * OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
-package net.tascalate.async.spring;
+package net.tascalate.async.spring.concurrent;
 
 import java.time.Duration;
 import java.util.concurrent.ExecutorService;
@@ -33,6 +33,8 @@ import java.util.concurrent.TimeUnit;
 import org.springframework.boot.context.properties.ConfigurationProperties;
 import org.springframework.context.annotation.Lazy;
 import org.springframework.stereotype.Component;
+
+import net.tascalate.async.spring.util.IntValueFormula;
 
 @Lazy
 @Component

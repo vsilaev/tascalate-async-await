@@ -1,5 +1,5 @@
 /**
- * Copyright 2015-2025 Valery Silaev (http://vsilaev.com)
+ * Copyright 2015-2026 Valery Silaev (http://vsilaev.com)
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
@@ -22,46 +22,45 @@
  * OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
-package net.tascalate.async.spring.aspects;
-
-import java.util.concurrent.CompletionStage;
+package net.tascalate.async.reactor;
 
 import org.aspectj.lang.ProceedingJoinPoint;
 import org.aspectj.lang.annotation.Around;
 import org.aspectj.lang.annotation.Aspect;
 import org.aspectj.lang.annotation.Pointcut;
 
-import net.tascalate.async.AsyncGenerator;
-import net.tascalate.async.spi.DefaultAsyncFinalizer;
+import net.tascalate.async.spring.scope.AbstractAsyncCallBoundaryInterceptor;
+import reactor.core.publisher.Flux;
+import reactor.core.publisher.Mono;
 
 @Aspect
-public class DefaultAsyncCallBoundaryInterceptor extends AbstractAsyncCallBoundaryInterceptor<CompletionStage<?>, AsyncGenerator<?>> {
-
-    @SuppressWarnings("unchecked")
-    private static final Class<? extends CompletionStage<?>> COMPLETION_STAGE = (Class<? extends CompletionStage<?>>)(Object)CompletionStage.class;
-    @SuppressWarnings("unchecked")
-    private static final Class<? extends AsyncGenerator<?>> ASYNC_GENERATOR = (Class<? extends AsyncGenerator<?>>)(Object)AsyncGenerator.class;
+public class ReactorAsyncCallBoundaryInterceptor extends AbstractAsyncCallBoundaryInterceptor<Mono<?>, Flux<?>> {
     
-    public DefaultAsyncCallBoundaryInterceptor() {
-        super(COMPLETION_STAGE, ASYNC_GENERATOR, DefaultAsyncFinalizer.instance());
+    @SuppressWarnings("unchecked")
+    private static final Class<? extends Mono<?>> MONO = (Class<? extends Mono<?>>)(Object)Mono.class;
+    @SuppressWarnings("unchecked")
+    private static final Class<? extends Flux<?>> FLUX = (Class<? extends Flux<?>>)(Object)Flux.class;
+
+    public ReactorAsyncCallBoundaryInterceptor() {
+        super(MONO, FLUX, new ReactorAsyncFinalizer());
     }
 
-    @Pointcut("execution(java.util.concurrent.CompletionStage+ *.*(..))")
-    void anyCompletionStageMethod() {}
+    @Pointcut("execution(reactor.core.publisher.Mono+ *.*(..))")
+    void anyMonoMethod() {}
 
-    @Pointcut("execution(net.tascalate.async.AsyncGenerator+ *.*(..))")
-    void anyAsyncGeneratorMethod() {}
+    @Pointcut("execution(reactor.core.publisher.Flux+ *.*(..))")
+    void anyFluxMethod() {}
 
-    @Pointcut("@within(net.tascalate.async.spring.AsyncCallBoundary) || @annotation(net.tascalate.async.spring.AsyncCallBoundary)")
+    @Pointcut("@within(net.tascalate.async.spring.scope.AsyncCallBoundary) || @annotation(net.tascalate.async.spring.scope.AsyncCallBoundary)")
     void hasBoundaryAnnotation() {}
 
-    @Around("anyCompletionStageMethod() && hasBoundaryAnnotation()")
-    public Object doInvokeAsyncTask(ProceedingJoinPoint joinPoint) throws Throwable {
+    @Around("anyMonoMethod() && hasBoundaryAnnotation()")
+    public Object doInvokeMonoTask(ProceedingJoinPoint joinPoint) throws Throwable {
         return invokeAsyncSingle(joinPoint);
     }
 
-    @Around("anyAsyncGeneratorMethod() && hasBoundaryAnnotation()")
-    public Object doInvokeAsyncGenerator(ProceedingJoinPoint joinPoint) throws Throwable {
+    @Around("anyFluxMethod() && hasBoundaryAnnotation()")
+    public Object doInvokeFluxGenerator(ProceedingJoinPoint joinPoint) throws Throwable {
         return invokeAsyncMultiple(joinPoint);
     }
 }

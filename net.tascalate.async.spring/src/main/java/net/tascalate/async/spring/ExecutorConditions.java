@@ -55,7 +55,7 @@ class ExecutorConditions {
     private static int javaVersion() {
         // Use specification version instead of java.version
         String version = System.getProperty("java.specification.version");
-        if (version == null || version.isEmpty()) return 0;
+        if (version == null || version.length() == 0) return 0;
 
         // Handle legacy Java 8 ("1.8")
         if (version.startsWith("1.")) {

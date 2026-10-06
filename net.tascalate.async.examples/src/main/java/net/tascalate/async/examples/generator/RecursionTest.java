@@ -24,9 +24,6 @@
  */
 package net.tascalate.async.examples.generator;
 
-import static net.tascalate.async.apix.JavaFlowBidge.stream;
-import static net.tascalate.async.apix.JavaFlowBidge.awaitValue;
-
 import static net.tascalate.async.CallContext.async;
 import static net.tascalate.async.CallContext.await;
 

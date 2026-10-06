@@ -29,12 +29,12 @@ import java.util.function.LongConsumer;
 import io.smallrye.mutiny.subscription.MultiSubscriber;
 import net.tascalate.async.AsyncGenerator;
 
-abstract class CrossPlatformMultiSubscriber<T> implements MultiSubscriber<T> {
+abstract class PortableMultiSubscriber<T> implements MultiSubscriber<T> {
     
     private final AsyncGenerator.Sink<T> sink;
     private final long batchSize;
     
-    protected CrossPlatformMultiSubscriber(AsyncGenerator.Sink<T> sink, long batchSize) {
+    protected PortableMultiSubscriber(AsyncGenerator.Sink<T> sink, long batchSize) {
         this.sink = sink;
         this.batchSize = batchSize;
     }

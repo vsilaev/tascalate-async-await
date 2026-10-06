@@ -24,12 +24,11 @@
  */
 package net.tascalate.async.spi;
 
-import java.util.Optional;
 import java.util.concurrent.Callable;
 import java.util.function.Supplier;
 
 public final class ThreadVar<T> {
-    private final ScopedValue<Optional<T>> scopedValue = ScopedValue.newInstance();
+    private final ScopedValue<Object> scopedValue = ScopedValue.newInstance();
     private final String name;
     
     public ThreadVar(String name) {
@@ -37,40 +36,47 @@ public final class ThreadVar<T> {
     }
     
     public T value() {
-        Optional<T> result = scopedValue.orElse(Optional.empty());
-        return result.orElse(null);
+        Object result = scopedValue.orElse(NULL_SENTINEL);
+        return unwrap(result);
     }
 
     public void runWith(T newValue, Runnable code) {
-        ScopedValue.where(scopedValue, optional(newValue)).run(code);
+        ScopedValue.where(scopedValue, wrap(newValue)).run(code);
     }
     
     public void runWith(T oldValue, T newValue, Runnable code) {
-        ScopedValue.where(scopedValue, optional(newValue)).run(code);
+        ScopedValue.where(scopedValue, wrap(newValue)).run(code);
     }
     
     public <V> V supplyWith(T newValue, Supplier<V> supplier) {
-        return ScopedValue.where(scopedValue, optional(newValue)).call(supplier::get);
+        return ScopedValue.where(scopedValue, wrap(newValue)).call(supplier::get);
     }
     
     public <V> V supplyWith(T oldValue, T newValue, Supplier<V> supplier) {
-        return ScopedValue.where(scopedValue, optional(newValue)).call(supplier::get);
+        return ScopedValue.where(scopedValue, wrap(newValue)).call(supplier::get);
     }
     
     public <V> V callWith(T newValue, Callable<V> callable) throws Exception {
-        return ScopedValue.where(scopedValue, optional(newValue)).call(callable::call);
+        return ScopedValue.where(scopedValue, wrap(newValue)).call(callable::call);
     }
     
     public <V> V callWith(T oldValue, T newValue, Callable<V> callable) throws Exception {
-        return ScopedValue.where(scopedValue, optional(newValue)).call(callable::call);
+        return ScopedValue.where(scopedValue, wrap(newValue)).call(callable::call);
     }
-    
-    private static <T> Optional<T> optional(T value) {
-        return Optional.ofNullable(value);
-    }
-    
+
     @Override
     public String toString() {
         return getClass().getName() + '[' + name + ']';
+    }
+    
+    private static final Object NULL_SENTINEL = new Object();
+
+    private static Object wrap(Object value) {
+        return value == null ? NULL_SENTINEL : value;
+    }
+
+    @SuppressWarnings("unchecked")
+    private T unwrap(Object raw) {
+        return raw == NULL_SENTINEL ? null : (T) raw;
     }
 }

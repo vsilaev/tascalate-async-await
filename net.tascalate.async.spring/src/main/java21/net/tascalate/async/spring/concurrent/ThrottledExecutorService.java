@@ -81,7 +81,7 @@ public class ThrottledExecutorService extends AbstractExecutorService {
     
     public ThrottledExecutorService(ThreadFactory threadFactory, int maxConcurrentThreads, 
                                     RejectedExecutionHandler<? super ThrottledExecutorService> rejectedExecutionHandler) {
-        this(threadFactory, maxConcurrentThreads, 0, RejectedExecutionHandler.ABORT_POLICY);
+        this(threadFactory, maxConcurrentThreads, 0, rejectedExecutionHandler);
     }
     
     public ThrottledExecutorService(ThreadFactory threadFactory, int maxConcurrentThreads, int queueCapacity, 

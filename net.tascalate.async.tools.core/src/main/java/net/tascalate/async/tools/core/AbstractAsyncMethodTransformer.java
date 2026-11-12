@@ -570,28 +570,37 @@ abstract public class AbstractAsyncMethodTransformer {
         }
         
         List<LocalVariableAnnotationNode> result = new ArrayList<>();
-        
-        List<LabelNode> newStartLabels = new ArrayList<>();
-        List<LabelNode> newEndLabels = new ArrayList<>();
-        List<Integer> newIndicies = new ArrayList<>();
         for (LocalVariableAnnotationNode original : annotations) {
-            for (Integer originalIndex : original.index) {
-                Integer newIndex = oldToNewVarIndexes.get(originalIndex);
+            List<LabelNode> newStartLabels = new ArrayList<>();
+            List<LabelNode> newEndLabels = new ArrayList<>();
+            List<Integer> newIndicies = new ArrayList<>();
+            
+            for (int i = 0; i < original.index.size(); i++) {
+                Integer originalVarIndex = original.index.get(i);
+                Integer newIndex = oldToNewVarIndexes.get(originalVarIndex);
                 if (null == newIndex) {
                     continue;
                 }
-                LabelNode newStartLabel = labelsMap.get(original.start.get(originalIndex));
-                LabelNode newEndLabel = labelsMap.get(original.start.get(originalIndex));
+                // Access start/end by position i, not by variable index
+                LabelNode newStartLabel = labelsMap.get(original.start.get(i));
+                LabelNode newEndLabel   = labelsMap.get(original.end.get(i));
+
                 newStartLabels.add(newStartLabel);
                 newEndLabels.add(newEndLabel);
                 newIndicies.add(newIndex);
             }
-            LocalVariableAnnotationNode cloned = new LocalVariableAnnotationNode(
-                original.typeRef, original.typePath, 
-                newStartLabels.toArray(new LabelNode[newStartLabels.size()]), newEndLabels.toArray(new LabelNode[newEndLabels.size()]), 
-                newIndicies.stream().mapToInt(Integer::intValue).toArray(), original.desc);
-            cloned.values = original.values;
-            result.add(cloned);
+
+            // Only add the cloned annotation if at least one variable survived filtering
+            if (!newIndicies.isEmpty()) {
+                LocalVariableAnnotationNode cloned = new LocalVariableAnnotationNode(
+                    original.typeRef, original.typePath,
+                    newStartLabels.toArray(new LabelNode[newStartLabels.size()]),
+                    newEndLabels.toArray(new LabelNode[newEndLabels.size()]),
+                    newIndicies.stream().mapToInt(Integer::intValue).toArray(),
+                    original.desc);
+                cloned.values = original.values;
+                result.add(cloned);
+            }
         }
         return result;
     }

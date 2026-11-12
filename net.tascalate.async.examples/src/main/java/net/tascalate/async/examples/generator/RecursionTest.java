@@ -40,6 +40,7 @@ import net.tascalate.async.async;
 import net.tascalate.concurrent.Promise;
 import net.tascalate.javaflow.SuspendableStream;
 
+@SuppressWarnings("unused")
 public class RecursionTest {
 
     public static void main(String[] args) throws Exception {

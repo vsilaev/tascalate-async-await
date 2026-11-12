@@ -32,7 +32,7 @@ import java.util.function.BiFunction;
 
 import net.tascalate.async.AsyncGenerator;
 import net.tascalate.async.core.CompletionStageHelper;
-import net.tascalate.async.core.InternalAsyncGenerator;
+import net.tascalate.async.core.AsyncGeneratorFinalizer;
 import net.tascalate.async.core.RestrictedCompletableFuture;
 
 public class DefaultAsyncFinalizer implements AsyncFinalizer<CompletionStage<?>, AsyncGenerator<?>> {
@@ -55,7 +55,7 @@ public class DefaultAsyncFinalizer implements AsyncFinalizer<CompletionStage<?>,
                                               boolean cancellationIsError,
                                               BiFunction<Throwable, Boolean, CompletionStage<Void>> cleanup) {
         
-        InternalAsyncGenerator.updateCompletion(
+        AsyncGeneratorFinalizer.updateCompletion(
             multipleAsynResults, done -> attachCleanup(done, cancellationIsError, cleanup)
         );
         return multipleAsynResults;

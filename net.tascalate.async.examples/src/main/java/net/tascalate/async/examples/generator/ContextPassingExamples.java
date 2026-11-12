@@ -27,10 +27,9 @@ package net.tascalate.async.examples.generator;
 import static net.tascalate.async.CallContext.async;
 import static net.tascalate.async.CallContext.await;
 
-import java.math.BigDecimal;
 import java.time.Duration;
 import java.util.Date;
-import java.util.List;
+
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
 import java.util.concurrent.CompletionStage;
@@ -41,6 +40,7 @@ import net.tascalate.async.Scheduler;
 import net.tascalate.async.SchedulerProvider;
 import net.tascalate.async.SequenceIterator;
 import net.tascalate.async.async;
+import net.tascalate.async.suspendable;
 import net.tascalate.async.apix.Generators;
 import net.tascalate.concurrent.CompletableTask;
 import net.tascalate.concurrent.var.ContextVar;
@@ -51,21 +51,18 @@ public class ContextPassingExamples {
     private static final ExecutorService foreignExecutor = Executors.newFixedThreadPool(4);
     private static final ExecutorService ownExecutor = Executors.newFixedThreadPool(4);
     
-    private static final ThreadLocal<String> MY_CONTEXT_VAR = new ThreadLocal<>();
-    private static final ThreadLocal<Date> YOUR_CONTEXT_VAR = new ThreadLocal<>();
-    
-    private static final ThreadLocal<BigDecimal> VN_1 = new ThreadLocal<>();
-    private static final ThreadLocal<Double> VN_2 = new ThreadLocal<>();
+    private static final ThreadLocal<String> MY_CONTEXT_VARTL = new ThreadLocal<>();
+    private static final ContextVar<String> MY_CONTEXT_VAR = ThreadLocalVar.of(MY_CONTEXT_VARTL);
+    private static final ContextVar<Date> YOUR_CONTEXT_VAR = ContextVar.newInstance();
 
-    public static void main(String[] argv) {
-        @SuppressWarnings("unused")
-        ContextVar<List<Number>> l = ThreadLocalVar.of(VN_1, VN_2);
-        
-        Scheduler scheduler = Scheduler.interruptible(ownExecutor, ThreadLocalVar.of(MY_CONTEXT_VAR, YOUR_CONTEXT_VAR).relay()::contextual);
-        MY_CONTEXT_VAR.set("CORRECT");
-        
-        CompletableFuture<String> f = new ContextPassingExamples().asyncMethod(scheduler, 10, "A", "B", "C");
-        System.out.println(f.join());
+    public static void main(String[] argv) throws Exception {
+
+        Scheduler scheduler = Scheduler.interruptible(ownExecutor, ContextVar.relay(MY_CONTEXT_VAR, YOUR_CONTEXT_VAR)::contextual);
+        MY_CONTEXT_VAR.bind("CORRECT").call(() -> {
+            CompletableFuture<String> f = new ContextPassingExamples().asyncMethod(scheduler, 10, "A", "B", "C");
+            System.out.println(f.join());
+            return null;
+        });
         foreignExecutor.shutdownNow();
         ownExecutor.shutdownNow();
     }
@@ -95,8 +92,17 @@ public class ContextPassingExamples {
         System.out.println("Context B:" + MY_CONTEXT_VAR.get() + ", thread " + Thread.currentThread());
         await( waitString("2") );
         System.out.println("Context C:" + MY_CONTEXT_VAR.get() + ", thread " + Thread.currentThread());
+
+        // Can't use MY_CONTEXT_VAR.bind("ALTERED").run(...)!
+        MY_CONTEXT_VARTL.set("ALTERED"); 
+        asyncMethodExtract(v);
+        
+        return async("Done");
+    }
+    
+    @suspendable
+    void asyncMethodExtract(long v) {
         int c = 0;
-        MY_CONTEXT_VAR.set("ALTERED");
         try (SequenceIterator.Closeable<CompletionStage<Duration>> i = (SequenceIterator.Closeable<CompletionStage<Duration>>)Generators.delays(Duration.ofSeconds(1)).iterator()) {
             while (i.hasNext()) {
                 await( i.next() );
@@ -108,7 +114,6 @@ public class ContextPassingExamples {
                 }
             }
         }
-        return async("Done");
     }
     
     

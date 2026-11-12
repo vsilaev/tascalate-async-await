@@ -24,29 +24,28 @@
  */
 module net.tascalate.async.spring {
     requires org.slf4j;
-    
+
     requires transitive net.tascalate.async.runtime;
     requires transitive net.tascalate.async.spring.scope;
     
     requires static net.tascalate.async.extras;
-    requires static net.tascalate.async.reactor;
+    requires static net.tascalate.concurrent;
     
     requires static reactor.core;
     requires static org.reactivestreams;
     
     requires spring.beans;
     requires spring.context;
-    requires spring.core;
     
     requires spring.boot;
     requires spring.boot.autoconfigure;
+    
+    requires static spring.aop;
     
     requires static org.aspectj.runtime;
     /*
     requires static org.aspectj.weaver;
     */
-    
-    requires static net.tascalate.concurrent;
     
     exports net.tascalate.async.spring;
 }

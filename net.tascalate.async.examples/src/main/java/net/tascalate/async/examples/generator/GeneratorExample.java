@@ -42,6 +42,7 @@ import net.tascalate.async.AsyncGenerator;
 import net.tascalate.async.AsyncResult;
 import net.tascalate.async.AsyncYield;
 import net.tascalate.async.Sequence;
+import net.tascalate.async.YieldReply;
 import net.tascalate.async.async;
 import net.tascalate.async.suspendable;
 import net.tascalate.concurrent.CompletableTask;
@@ -134,7 +135,7 @@ public class GeneratorExample {
         AsyncYield<String> async = AsyncGenerator.start();
        
         System.out.println("%%ProduceStrings - starting + ");
-        AsyncYield.Reply<String> o;
+        YieldReply<String> o;
         
         o = async.yield( Sequence.empty() );
         System.out.println("INITIAL PARAM: " + o.param);

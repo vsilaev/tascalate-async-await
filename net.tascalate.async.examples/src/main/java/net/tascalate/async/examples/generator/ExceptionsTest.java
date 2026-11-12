@@ -34,6 +34,7 @@ import java.util.concurrent.Executors;
 
 import net.tascalate.async.AsyncGenerator;
 import net.tascalate.async.AsyncYield;
+import net.tascalate.async.YieldReply;
 import net.tascalate.async.async;
 import net.tascalate.concurrent.CompletableTask;
 import net.tascalate.concurrent.Promise;
@@ -75,11 +76,11 @@ public class ExceptionsTest {
         AsyncYield<Object> async = AsyncGenerator.start();
         for (int i = 0; i < 10; i++) {
             if (i % 2 == 0) {
-                AsyncYield.Reply<String> reply = async.yield( waitString("VALUE " + i, 100) );
+                YieldReply<String> reply = async.yield( waitString("VALUE " + i, 100) );
                 System.out.println("REPLY AFTER NORMAL: " + reply);
             } else {
                 try {
-                    AsyncYield.Reply<String> reply = async.yield( waitError(100) );
+                    YieldReply<String> reply = async.yield( waitError(100) );
                     System.out.println("REPLY AFTER ERROR: " + reply);
                 } catch (IllegalArgumentException ex) {
                     System.out.println("EXCEPTION ON iter#" + i + ": " + ex);

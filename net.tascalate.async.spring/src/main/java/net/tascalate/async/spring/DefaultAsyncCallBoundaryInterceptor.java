@@ -56,11 +56,13 @@ public class DefaultAsyncCallBoundaryInterceptor extends AbstractAsyncCallBounda
     @Pointcut("@within(net.tascalate.async.spring.scope.AsyncCallBoundary) || @annotation(net.tascalate.async.spring.scope.AsyncCallBoundary)")
     void hasBoundaryAnnotation() {}
 
+    @SuppressWarnings("exports")
     @Around("anyCompletionStageMethod() && hasBoundaryAnnotation()")
     public Object doInvokeAsyncTask(ProceedingJoinPoint joinPoint) throws Throwable {
         return invokeAsyncSingle(joinPoint);
     }
 
+    @SuppressWarnings("exports")
     @Around("anyAsyncGeneratorMethod() && hasBoundaryAnnotation()")
     public Object doInvokeAsyncGenerator(ProceedingJoinPoint joinPoint) throws Throwable {
         return invokeAsyncMultiple(joinPoint);

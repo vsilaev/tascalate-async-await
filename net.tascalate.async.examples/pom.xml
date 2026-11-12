@@ -59,7 +59,7 @@
 		<dependency>
     			<groupId>net.tascalate</groupId>
 	    		<artifactId>net.tascalate.concurrent</artifactId>
-    			<version>0.9.12</version>
+    			<version>${tascalate.concurrent.version}</version>
 		</dependency>
 		<dependency>
 			<groupId>org.slf4j</groupId>

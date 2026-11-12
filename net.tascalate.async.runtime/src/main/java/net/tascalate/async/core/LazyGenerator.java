@@ -1,5 +1,5 @@
 /**
- * Copyright 2015-2025 Valery Silaev (http://vsilaev.com)
+ * Copyright 2015-2026 Valery Silaev (http://vsilaev.com)
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
@@ -29,18 +29,19 @@ import java.util.concurrent.CompletionStage;
 import java.util.concurrent.atomic.AtomicReferenceFieldUpdater;
 import java.util.function.UnaryOperator;
 
-import net.tascalate.async.TAsyncYield;
+import net.tascalate.async.AsyncGenerator;
 import net.tascalate.async.CustomizableSequence;
 import net.tascalate.async.Scheduler;
 import net.tascalate.async.Sequence;
 import net.tascalate.async.SequenceKind;
+import net.tascalate.async.YieldReply;
 import net.tascalate.async.suspendable;
-import net.tascalate.async.sequence.SequenceAccess;
 import net.tascalate.async.sequence.PendingValuesSequence;
+import net.tascalate.async.sequence.SequenceAccess;
 import net.tascalate.async.util.TypeUtil;
 
 class LazyGenerator<T> extends PendingValuesSequence<CompletionStage<T>> 
-                       implements InternalAsyncGenerator<T> {
+                       implements AsyncGenerator<T> {
     
     private static final AtomicReferenceFieldUpdater<LazyGenerator<?>, CompletionStage<?>> DONE_UPDATER = 
             AtomicReferenceFieldUpdater.newUpdater(TypeUtil.cast(LazyGenerator.class), TypeUtil.cast(CompletionStage.class), "done");
@@ -51,7 +52,7 @@ class LazyGenerator<T> extends PendingValuesSequence<CompletionStage<T>>
     
     // Start with locked producer and unlocked consumer
     // Also assume that next() MAY BE called before begin
-    private CompletableFuture<TAsyncYield.Reply<T>> producerLock = new CompletableFuture<>();
+    private CompletableFuture<YieldReply<T>> producerLock = new CompletableFuture<>();
     private CompletableFuture<?> consumerLock;
     private CompletionStage<T> latestFuture;
 
@@ -172,17 +173,15 @@ class LazyGenerator<T> extends PendingValuesSequence<CompletionStage<T>>
         return owner.scheduler();
     }
     
-    @Override
-    public CompletionStage<?> __completion() {
+    CompletionStage<?> completion() {
         return done;
     }
 
-    @Override
-    public CompletionStage<?> __completion(UnaryOperator<CompletionStage<?>> mapper) {
+    CompletionStage<?> completion(UnaryOperator<CompletionStage<?>> mapper) {
         return DONE_UPDATER.updateAndGet(this, mapper);
     }
 
-    final @suspendable TAsyncYield.Reply<T> emit(Sequence<? extends CompletionStage<T>> pendingValues) {
+    final @suspendable YieldReply<T> emit(Sequence<? extends CompletionStage<T>> pendingValues) {
         currentDelegate = pendingValues;
         currentDelegateKind = null;
         // Re-set producerLock
@@ -211,8 +210,8 @@ class LazyGenerator<T> extends PendingValuesSequence<CompletionStage<T>>
         releaseConsumerLock();
     }
 
-    private @suspendable TAsyncYield.Reply<T> acquireProducerLock() {
-        CompletableFuture<TAsyncYield.Reply<T>> currentLock = producerLock;
+    private @suspendable YieldReply<T> acquireProducerLock() {
+        CompletableFuture<YieldReply<T>> currentLock = producerLock;
         if (!currentLock.isDone()) {
             return AsyncMethodExecutor.await(currentLock, owner);
         } else {
@@ -259,8 +258,8 @@ class LazyGenerator<T> extends PendingValuesSequence<CompletionStage<T>>
             }
             
             @Override
-            void releaseLock(CompletableFuture<TAsyncYield.Reply<T>> lock, Object param) {
-                lock.complete(new TAsyncYield.Reply<>(result, param == NO_PARAM ? null : param));
+            void releaseLock(CompletableFuture<YieldReply<T>> lock, Object param) {
+                lock.complete(new YieldReply<>(result, param == NO_PARAM ? null : param));
             }
         }
         
@@ -272,7 +271,7 @@ class LazyGenerator<T> extends PendingValuesSequence<CompletionStage<T>>
             }
             
             @Override
-            void releaseLock(CompletableFuture<TAsyncYield.Reply<T>> lock, Object param) {
+            void releaseLock(CompletableFuture<YieldReply<T>> lock, Object param) {
                 lock.completeExceptionally(error);
             }
         }
@@ -293,7 +292,7 @@ class LazyGenerator<T> extends PendingValuesSequence<CompletionStage<T>>
             }
         }
         
-        abstract void releaseLock(CompletableFuture<TAsyncYield.Reply<T>> lock, Object param);
+        abstract void releaseLock(CompletableFuture<YieldReply<T>> lock, Object param);
         
         private static final FutureResult<Object> EMPTY = new Success<Object>(null);
     }

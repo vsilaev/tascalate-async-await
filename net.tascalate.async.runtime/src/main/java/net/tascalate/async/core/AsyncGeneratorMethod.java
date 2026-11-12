@@ -1,5 +1,5 @@
 /**
- * Copyright 2015-2025 Valery Silaev (http://vsilaev.com)
+ * Copyright 2015-2026 Valery Silaev (http://vsilaev.com)
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
@@ -29,10 +29,10 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
 import java.util.concurrent.CompletionStage;
 
-import net.tascalate.async.TAsyncYield;
 import net.tascalate.async.AsyncGenerator;
 import net.tascalate.async.Scheduler;
 import net.tascalate.async.Sequence;
+import net.tascalate.async.YieldReply;
 import net.tascalate.async.suspendable;
 
 abstract public class AsyncGeneratorMethod<T> extends AbstractAsyncMethod {
@@ -56,7 +56,7 @@ abstract public class AsyncGeneratorMethod<T> extends AbstractAsyncMethod {
             if (success) {
                 generator.end(null);
             }
-            CompletionStage<?> altCompletion = generator.__completion();
+            CompletionStage<?> altCompletion = generator.completion();
             if (altCompletion != future) {
                 AsyncMethodExecutor.await(altCompletion, this);
             }
@@ -89,15 +89,15 @@ abstract public class AsyncGeneratorMethod<T> extends AbstractAsyncMethod {
         return generator;
     }
 
-    protected @suspendable final TAsyncYield.Reply<T> emit(T readyValue) {
+    protected @suspendable final YieldReply<T> emit(T readyValue) {
         return generator.emit(Sequence.just(CompletableFuture.completedFuture(readyValue)));
     }
 
-    protected @suspendable final TAsyncYield.Reply<T> emit(CompletionStage<T> pendingValue) {
+    protected @suspendable final YieldReply<T> emit(CompletionStage<T> pendingValue) {
         return generator.emit(Sequence.just(pendingValue));
     }
 
-    protected @suspendable final TAsyncYield.Reply<T> emit(Sequence<? extends CompletionStage<T>> pendignValues) {
+    protected @suspendable final YieldReply<T> emit(Sequence<? extends CompletionStage<T>> pendignValues) {
         return generator.emit(pendignValues);
     }
     

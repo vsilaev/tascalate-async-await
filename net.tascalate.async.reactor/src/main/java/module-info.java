@@ -30,7 +30,15 @@ module net.tascalate.async.reactor {
     requires transitive org.reactivestreams;
     
     requires static net.tascalate.async.spring.scope;
+
     requires static org.aspectj.runtime;
+
+    requires static spring.core;
+    requires static spring.context;
+    requires static spring.boot;
+    requires static spring.boot.autoconfigure;
+    requires static spring.aop;
     
     exports net.tascalate.async.reactor;
+    exports net.tascalate.async.spring.reactor;
 }

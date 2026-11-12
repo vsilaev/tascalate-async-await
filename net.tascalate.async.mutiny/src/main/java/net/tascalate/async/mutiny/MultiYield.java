@@ -27,17 +27,18 @@ package net.tascalate.async.mutiny;
 import io.smallrye.mutiny.Multi;
 import io.smallrye.mutiny.Uni;
 import net.tascalate.async.TAsyncYield;
+import net.tascalate.async.YieldReply;
 import net.tascalate.async.suspendable;
 
 public final class MultiYield<T> extends TAsyncYield<T, Multi<T>> {
     
     private MultiYield() {}
     
-    public final @suspendable Reply<T> yield(Uni<T> mono) {
+    public final @suspendable YieldReply<T> yield(Uni<T> mono) {
         return MutinyCallContext.methodCallMustBeReplaced();
     }
     
-    public final @suspendable Reply<T> yield(Multi<T> multi) {
+    public final @suspendable YieldReply<T> yield(Multi<T> multi) {
         return MutinyCallContext.methodCallMustBeReplaced();
     }
     

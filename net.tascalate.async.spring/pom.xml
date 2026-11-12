@@ -37,12 +37,6 @@
 			<scope>provided</scope>
 		</dependency>
 		<dependency>
-			<groupId>${project.groupId}</groupId>
-			<artifactId>${project.groupId}.reactor</artifactId>
-			<version>${project.version}</version>
-			<optional>true</optional>
-		</dependency>
-		<dependency>
 			<groupId>net.tascalate</groupId>
 			<artifactId>net.tascalate.concurrent</artifactId>
 			<version>0.9.10</version>
@@ -58,18 +52,6 @@
 			<groupId>io.projectreactor</groupId>
 			<artifactId>reactor-core</artifactId>
 			<version>${reactor.version}</version>
-			<optional>true</optional>
-		</dependency>
-		<dependency>
-			<groupId>io.smallrye.reactive</groupId>
-			<artifactId>mutiny</artifactId>
-			<version>${mutiny.version}</version>
-			<optional>true</optional>
-		</dependency>
-		<dependency>
-			<groupId>org.springframework</groupId>
-			<artifactId>spring-core</artifactId>
-			<version>${spring.version}</version>
 			<optional>true</optional>
 		</dependency>
 		<dependency>

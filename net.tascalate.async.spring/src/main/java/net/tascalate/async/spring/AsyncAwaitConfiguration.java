@@ -33,23 +33,15 @@ import org.springframework.aop.support.AopUtils;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnClass;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
-import org.springframework.context.SmartLifecycle;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.ComponentScan;
 import org.springframework.context.annotation.Conditional;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.context.annotation.Lazy;
-import org.springframework.core.ReactiveAdapterRegistry;
-import org.springframework.core.ReactiveTypeDescriptor;
 
-import net.tascalate.async.AsyncGenerator;
-import net.tascalate.async.CallContext;
 import net.tascalate.async.Scheduler;
-import net.tascalate.async.reactor.ReactorAsyncAwaitBridge;
 import net.tascalate.async.spring.concurrent.AsyncAwaitExecutorProperties;
 import net.tascalate.async.spring.concurrent.TaskSchedulerFactory;
-import net.tascalate.async.spring.util.AbstractSmartLifecycle;
-import reactor.core.publisher.Flux;
 
 
 @Configuration
@@ -82,29 +74,6 @@ class AsyncAwaitConfiguration {
     }
 
     @Configuration
-    @ConditionalOnClass({ReactiveAdapterRegistry.class, Flux.class, ReactorAsyncAwaitBridge.class})
-    static class ReactorAsyncAwaitConfiguration {
-
-        @Bean(name = "<<async-await-reactive-types-registar>>")
-        SmartLifecycle asyncAwaitReactiveTypesRegistar(Optional<ReactiveAdapterRegistry> reactiveAdapterRegistry) {
-            ReactiveAdapterRegistry actualReactiveAdapterRegistry =
-                reactiveAdapterRegistry.orElseGet(() ->ReactiveAdapterRegistry.getSharedInstance());
-
-            return new AbstractSmartLifecycle() {
-                @Override
-                public void start() {
-                    actualReactiveAdapterRegistry.registerReactiveType(
-                        ReactiveTypeDescriptor.multiValue(AsyncGenerator.class, () -> AsyncGenerator.emptyOn(CallContext.scheduler())),
-                        asyncGenerator -> ReactorAsyncAwaitBridge.createFlux(() -> (AsyncGenerator<?>)asyncGenerator),
-                        publisher -> ReactorAsyncAwaitBridge.createGenerator((Flux<?>)publisher, CallContext.scheduler())
-                    );
-                    super.start();
-                }
-            };
-        }
-    }
-    
-    @Configuration
     @ConditionalOnProperty(name = "async-await.async-call-scope.enable", havingValue = "true", matchIfMissing = true)
     @ConditionalOnClass({Aspect.class, AopUtils.class})
     static class AsyncCallScopeConfiguration {
@@ -112,28 +81,9 @@ class AsyncAwaitConfiguration {
         @Bean(name="<<default-async-call-boundary-interceptor>>")
         @ConditionalOnMissingBean(DefaultAsyncCallBoundaryInterceptor.class)
         @ConditionalOnProperty(prefix = "spring.aop", name = "auto", havingValue = "true", matchIfMissing = true)
-        DefaultAsyncCallBoundaryInterceptor asyncCallBoundaryInterceptor() {
+        DefaultAsyncCallBoundaryInterceptor defaultAsyncCallBoundaryInterceptor() {
             return new DefaultAsyncCallBoundaryInterceptor();
         }
 
     }
-    
-    /*
-        
-        @Bean(name="<<reactor-async-call-boundary-interceptor>>")
-        ReactorAsyncCallBoundaryInterceptor reactorCallBoundaryInterceptor() {
-            return Aspects.aspectOf(ReactorAsyncCallBoundaryInterceptor.class);
-        }
-     */
-    
-    /*
-    @Configuration
-    @ConditionalOnClass({Multi.class, MutinyAsyncAwaitBridge.class})
-    static class MutinyAsyncAwaitConfiguration {
-        @Bean(name="<<mutiny-async-call-boundary-interceptor>>")
-        MutinyAsyncCallBoundaryInterceptor mutinyCallBoundaryInterceptor() {
-            return Aspects.aspectOf(MutinyAsyncCallBoundaryInterceptor.class);
-        }
-    }
-    */
 }

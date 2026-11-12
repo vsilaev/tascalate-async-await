@@ -31,6 +31,11 @@ module net.tascalate.async.mutiny {
     requires static net.tascalate.async.spring.scope;
     requires static org.aspectj.runtime;
 
+    requires static spring.context;
+    requires static spring.boot;
+    requires static spring.boot.autoconfigure;
+    requires static spring.aop;
     
     exports net.tascalate.async.mutiny;
+    exports net.tascalate.async.spring.mutiny;
 }

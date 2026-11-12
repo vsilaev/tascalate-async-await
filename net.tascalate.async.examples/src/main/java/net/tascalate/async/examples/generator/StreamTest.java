@@ -41,6 +41,7 @@ import java.util.concurrent.Executors;
 import net.tascalate.async.AsyncGenerator;
 import net.tascalate.async.AsyncYield;
 import net.tascalate.async.Sequence;
+import net.tascalate.async.YieldReply;
 import net.tascalate.async.async;
 import net.tascalate.async.suspendable;
 import net.tascalate.concurrent.CompletableTask;
@@ -172,7 +173,7 @@ public class StreamTest {
         
         try {
             for (int i = 1; i <= 9; i++) {
-                AsyncYield.Reply<String> r = async.yield( prefix.thenCombine(waitString(String.valueOf(i)), (px,v) -> px + v) );
+                YieldReply<String> r = async.yield( prefix.thenCombine(waitString(String.valueOf(i)), (px,v) -> px + v) );
                 System.out.println(">> Yield " + r.value);
             }
         } finally {

@@ -69,7 +69,7 @@ public class AsyncAwaitExecutorProperties21 {
         int cores = rt.availableProcessors();
         int maximumConcurrentThreadsValue = maximumConcurrentThreads == null ? cores : maximumConcurrentThreads.applyAsInt(cores); 
         int workQueueSizeValue = workQueueSize == null ? Integer.MAX_VALUE : workQueueSize.applyAsInt(cores);
-        return new ThrottledExecutorService(
+        return new VirtualThreadsExecutorService(
             Thread.ofVirtual()
                   .name(null == threadNamePrefix || threadNamePrefix.isEmpty() ? "async-await-scheduler-vthread_" : threadNamePrefix, 0)
                   .factory(),

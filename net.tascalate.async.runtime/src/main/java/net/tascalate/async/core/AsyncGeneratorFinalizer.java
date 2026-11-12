@@ -1,5 +1,5 @@
 /**
- * Copyright 2015-2025 Valery Silaev (http://vsilaev.com)
+ * Copyright 2015-2026 Valery Silaev (http://vsilaev.com)
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
@@ -29,19 +29,20 @@ import java.util.function.UnaryOperator;
 
 import net.tascalate.async.AsyncGenerator;
 
-public interface InternalAsyncGenerator<T> extends AsyncGenerator<T> {
+public final class AsyncGeneratorFinalizer {
     
-    abstract CompletionStage<?> __completion();
-    abstract CompletionStage<?> __completion(UnaryOperator<CompletionStage<?>> mapper);
+    private AsyncGeneratorFinalizer() {
+        
+    }
     
     public static boolean completionUpdatesupported(AsyncGenerator<?> target) {
-        return target instanceof InternalAsyncGenerator;
+        return target instanceof LazyGenerator;
     }
     
     public static CompletionStage<?> updateCompletion(AsyncGenerator<?> target, UnaryOperator<CompletionStage<?>> mapper) {
-        if (target instanceof InternalAsyncGenerator) {
-            InternalAsyncGenerator<?> typed = (InternalAsyncGenerator<?>)target; 
-            return typed.__completion(mapper);
+        if (target instanceof LazyGenerator) {
+            LazyGenerator<?> typed = (LazyGenerator<?>)target; 
+            return typed.completion(mapper);
         } else {
             throw new IllegalStateException("Unable to modify completion future of the generator of type " + target.getClass());
         }
